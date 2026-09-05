@@ -46,13 +46,14 @@ class LabProvisioner {
     }
 
     public static function createDatabase($host, $user, $pass, $db_name) {
-        // First check: does the database already exist? (e.g. pre-created in Hostinger hPanel / cPanel)
+        $firstErr = '';
         try {
             $pdoExisting = new PDO("mysql:host={$host};dbname={$db_name};charset=utf8mb4", $user, $pass, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
             ]);
             return ['success' => true, 'pdo' => $pdoExisting, 'already_existed' => true];
         } catch (PDOException $e) {
+            $firstErr = $e->getMessage();
             // If connection failed because database doesn't exist (1049 Unknown database), we try to CREATE it.
             // If it failed due to bad user/pass (1045), return error immediately.
             if ($e->getCode() == 1045) {
@@ -75,10 +76,17 @@ class LabProvisioner {
                 if (preg_match('/^([a-zA-Z0-9]+_)/', $user, $m)) {
                     $userPrefix = $m[1];
                 }
+                // Avoid duplicating prefix if db_name already starts with prefix
+                $expectedDbName = $db_name;
+                if ($userPrefix && strpos($expectedDbName, $userPrefix) !== 0) {
+                    $expectedDbName = $userPrefix . $expectedDbName;
+                }
+
+                $connectErr = isset($firstErr) ? " (Connection check failed: {$firstErr})" : "";
                 return [
                     'success' => false, 
-                    'error' => "Access denied to CREATE database `{$db_name}`. On Hostinger/Shared hosting, MySQL users cannot create arbitrary databases via PHP scripts. " .
-                               "Please go to Hostinger hPanel → Databases, create a database named `" . ($userPrefix ? "{$userPrefix}{$db_name}" : "{$db_name}") . "`, assign user `{$user}` to it with all privileges, and re-run approval with that exact database name."
+                    'error' => "Cannot access database `{$db_name}`{$connectErr}. On Hostinger/Shared hosting, MySQL users cannot create arbitrary databases via PHP scripts. " .
+                               "Please create the database `{$expectedDbName}` in Hostinger hPanel → Databases, assign user `{$user}` to it with ALL privileges, and then approve with database name `{$expectedDbName}`."
                 ];
             }
             return ['success' => false, 'error' => $msg];
