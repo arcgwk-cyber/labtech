@@ -390,9 +390,9 @@ if (empty($current_db_name)) {
   <?php endif; ?>
 
   <?php if ($error): ?>
-    <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center gap-2 mb-4" role="alert">
-      <i class="fas fa-exclamation-circle fa-lg"></i>
-      <div><?= htmlspecialchars($error) ?></div>
+    <div class="alert alert-danger alert-dismissible fade show d-flex align-items-start gap-2 mb-4" role="alert">
+      <i class="fas fa-exclamation-circle fa-lg mt-1"></i>
+      <div class="small leading-relaxed"><?= $error ?></div>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   <?php endif; ?>
