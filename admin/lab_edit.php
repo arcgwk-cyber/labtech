@@ -43,53 +43,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
         if ($up->execute()) {
             $message = "Laboratory details and credentials updated successfully!";
-            
-            // Sync tenant database and files if tenant folder exists
-            $folder_slug = LabProvisioner::slugify($name);
-            if (!empty($remarks) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-]+)/', $remarks, $m)) {
-                $folder_slug = $m[1];
-            }
-            $tenant_dir = dirname(__DIR__) . '/' . $folder_slug;
-            $tenant_config = $tenant_dir . '/db.php';
-            if (file_exists($tenant_config)) {
-                try {
-                    // Refresh login.php blueprint to tenant folder
-                    $base_login = dirname(__DIR__) . '/base/login.php';
-                    if (file_exists($base_login)) {
-                        @copy($base_login, $tenant_dir . '/login.php');
-                    }
-
-                    // Sync uploaded logo & letterhead if available
-                    if (isset($syncAssetsToLab) && is_callable($syncAssetsToLab)) {
-                        $syncAssetsToLab([
-                            'logo_image' => $_POST['logo_image'] ?? ($lab['logo_image'] ?? ''),
-                            'letterhead_image' => $_POST['letterhead_image'] ?? ($lab['letterhead_image'] ?? '')
-                        ], $tenant_dir);
-                    }
-
-                    include $tenant_config;
-                    if (isset($conn) && !$conn->connect_error) {
-                        $hash = password_hash($password, PASSWORD_BCRYPT);
-                        $t_stmt = $conn->prepare("UPDATE users SET username = ?, password_hash = ?, full_name = ? WHERE role_id = 1 LIMIT 1");
-                        if ($t_stmt) {
-                            $t_stmt->bind_param("sss", $vendor_userid, $hash, $name);
-                            $t_stmt->execute();
-                            $t_stmt->close();
-                        }
-                        // Update admin_settings table with real lab name and address
-                        $s_stmt = $conn->prepare("UPDATE admin_settings SET company_name = ?, company_address = ?, phone = ?, email = ?, updated_at = NOW() WHERE id = 1");
-                        if ($s_stmt) {
-                            $s_stmt->bind_param("ssss", $name, $address, $phone, $email);
-                            $s_stmt->execute();
-                            $s_stmt->close();
-                        }
-                    }
-                } catch (Exception $e) {
-                    // ignore secondary sync
-                }
-                // Reconnect to master DB
-                require __DIR__ . '/db.php';
-            }
         } else {
             $error = "Failed to update record: " . $conn->error;
         }
@@ -112,18 +65,144 @@ $folder_slug = LabProvisioner::slugify($lab['name']);
 if (!empty($lab['remarks']) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-]+)/', $lab['remarks'], $m)) {
     $folder_slug = $m[1];
 }
+$tenant_dir = dirname(__DIR__) . '/' . $folder_slug;
 
-// Helper to sync logo and letterhead to tenant directory
-$syncAssetsToLab = function($vendorData, $targetDir) {
+/**
+ * Robust Tenant Database & File Synchronizer
+ * Connects independently to the tenant DB without overriding or corrupting the global master DB connection.
+ */
+function syncOrPurgeTenantLab($lab, $action = 'sync') {
     $workspaceRoot = dirname(__DIR__);
-    $targetQrtemp  = $targetDir . '/qrtemp';
-    $targetUploads = $targetDir . '/uploads';
+    
+    // 1. Resolve folder slug
+    $folder_slug = LabProvisioner::slugify($lab['name']);
+    if (!empty($lab['remarks']) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-]+)/', $lab['remarks'], $m)) {
+        $folder_slug = $m[1];
+    }
+    $tenant_dir = $workspaceRoot . '/' . $folder_slug;
+
+    if (!is_dir($tenant_dir)) {
+        return ['success' => false, 'error' => "Tenant lab folder does not exist on disk at: /{$folder_slug}"];
+    }
+
+    // 2. Resolve database credentials
+    $tenant_config = $tenant_dir . '/db.php';
+    $db_host = null;
+    $db_user = null;
+    $db_pass = null;
+    $db_name = null;
+
+    if (file_exists($tenant_config)) {
+        $cfg = file_get_contents($tenant_config);
+        if (preg_match('/\$host\s*=\s*[\'"]([^\'"]+)[\'"]/', $cfg, $m)) $db_host = $m[1];
+        if (preg_match('/\$user\s*=\s*[\'"]([^\'"]+)[\'"]/', $cfg, $m)) $db_user = $m[1];
+        if (preg_match('/\$pass\s*=\s*[\'"]([^\'"]*)[\'"]/', $cfg, $m)) $db_pass = $m[1];
+        if (preg_match('/\$dbname\s*=\s*[\'"]([^\'"]+)[\'"]/', $cfg, $m)) $db_name = $m[1];
+    }
+
+    // Fallback DB name from remarks e.g. "DB: u258033404_sm_medical"
+    if (empty($db_name) && !empty($lab['remarks']) && preg_match('/DB:\s*([a-zA-Z0-9_\-]+)/', $lab['remarks'], $m)) {
+        $db_name = $m[1];
+    }
+
+    // Fallback credentials from environment
+    if (empty($db_host)) $db_host = getenv('DB_HOST') ?: 'localhost';
+    if (empty($db_user)) $db_user = getenv('DB_USER') ?: 'root';
+    if ($db_pass === null) $db_pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+
+    if (empty($db_name)) {
+        return ['success' => false, 'error' => "Cannot determine tenant database name from remarks or {$tenant_config}"];
+    }
+
+    // 3. Connect to tenant DB independently (DO NOT touch global $conn!)
+    mysqli_report(MYSQLI_REPORT_OFF);
+    $tConn = @new mysqli($db_host, $db_user, $db_pass, $db_name);
+    if ($tConn->connect_error) {
+        // Fallback: Try with master DB credentials if custom user is rejected
+        $masterUser = getenv('DB_USER') ?: 'root';
+        $masterPass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+        $tConn = @new mysqli($db_host, $masterUser, $masterPass, $db_name);
+        if ($tConn->connect_error) {
+            return ['success' => false, 'error' => "Database connection check failed for `{$db_name}`: " . $tConn->connect_error];
+        }
+        $db_user = $masterUser;
+        $db_pass = $masterPass;
+    }
+    $tConn->set_charset('utf8mb4');
+
+    // 4. If purge action requested, truncate demo tables
+    if ($action === 'purge') {
+        $tablesToPurge = [
+            'bills', 'bill_packages', 'bill_tests',
+            'patients', 'patient_extra_info',
+            'test_results', 'test_samples',
+            'transactions', 'sign_master'
+        ];
+        $tConn->query("SET FOREIGN_KEY_CHECKS = 0;");
+        foreach ($tablesToPurge as $tbl) {
+            $res = $tConn->query("TRUNCATE TABLE `{$tbl}`;");
+            if (!$res) {
+                $tConn->query("DELETE FROM `{$tbl}`;");
+                @$tConn->query("ALTER TABLE `{$tbl}` AUTO_INCREMENT = 1;");
+            }
+        }
+        $tConn->query("SET FOREIGN_KEY_CHECKS = 1;");
+    }
+
+    // 5. Update/Seed Admin User in tenant DB
+    $hash = password_hash($lab['password'], PASSWORD_BCRYPT);
+    $chkU = $tConn->query("SELECT user_id FROM users WHERE username = '" . $tConn->real_escape_string($lab['vendor_userid']) . "' LIMIT 1");
+    if ($chkU && $chkU->num_rows > 0) {
+        $uRow = $chkU->fetch_assoc();
+        $tConn->query("UPDATE users SET password_hash = '" . $tConn->real_escape_string($hash) . "', full_name = '" . $tConn->real_escape_string($lab['name']) . "', status = 'active' WHERE user_id = " . (int)$uRow['user_id']);
+    } else {
+        $tConn->query("INSERT INTO users (username, password_hash, full_name, role_id, status) VALUES ('" . $tConn->real_escape_string($lab['vendor_userid']) . "', '" . $tConn->real_escape_string($hash) . "', '" . $tConn->real_escape_string($lab['name']) . "', 1, 'active')");
+    }
+
+    // 6. Ensure and Update admin_settings safely
+    $cols = [];
+    $cRes = $tConn->query("SHOW COLUMNS FROM admin_settings");
+    if ($cRes) {
+        while ($cRow = $cRes->fetch_assoc()) {
+            $cols[] = $cRow['Field'];
+        }
+    }
+    if (!in_array('phone', $cols))       { @$tConn->query("ALTER TABLE admin_settings ADD COLUMN phone VARCHAR(50) DEFAULT NULL"); $cols[] = 'phone'; }
+    if (!in_array('email', $cols))       { @$tConn->query("ALTER TABLE admin_settings ADD COLUMN email VARCHAR(100) DEFAULT NULL"); $cols[] = 'email'; }
+    if (!in_array('status', $cols))      { @$tConn->query("ALTER TABLE admin_settings ADD COLUMN status VARCHAR(20) DEFAULT 'active'"); $cols[] = 'status'; }
+    if (!in_array('expiry_date', $cols)) { @$tConn->query("ALTER TABLE admin_settings ADD COLUMN expiry_date DATE DEFAULT NULL"); $cols[] = 'expiry_date'; }
+    if (!in_array('grace_days', $cols))  { @$tConn->query("ALTER TABLE admin_settings ADD COLUMN grace_days INT DEFAULT 7"); $cols[] = 'grace_days'; }
+
+    $updateFields = [
+        "company_name = '" . $tConn->real_escape_string($lab['name']) . "'",
+        "company_address = '" . $tConn->real_escape_string($lab['address'] ?? '') . "'"
+    ];
+    if (in_array('phone', $cols)) $updateFields[] = "phone = '" . $tConn->real_escape_string($lab['phone'] ?? '') . "'";
+    if (in_array('email', $cols)) $updateFields[] = "email = '" . $tConn->real_escape_string($lab['email'] ?? '') . "'";
+    if (in_array('status', $cols)) $updateFields[] = "status = 'active'";
+    if (in_array('expiry_date', $cols) && !empty($lab['due_date'])) $updateFields[] = "expiry_date = '" . $tConn->real_escape_string($lab['due_date']) . "'";
+    if (in_array('grace_days', $cols)) $updateFields[] = "grace_days = 7";
+
+    $tConn->query("UPDATE admin_settings SET " . implode(", ", $updateFields) . " WHERE id = 1");
+    $tConn->close();
+
+    // 7. Re-write tenant db.php config so tenant portal is 100% properly configured
+    LabProvisioner::writeDbConfigFile($tenant_dir . '/db.php', $db_host, $db_user, $db_pass, $db_name);
+
+    // 8. Refresh login.php blueprint
+    $base_login = $workspaceRoot . '/base/login.php';
+    if (file_exists($base_login)) {
+        @copy($base_login, $tenant_dir . '/login.php');
+    }
+
+    // 9. Sync Logo and Letterhead assets
+    $targetQrtemp  = $tenant_dir . '/qrtemp';
+    $targetUploads = $tenant_dir . '/uploads';
     if (!is_dir($targetQrtemp))  { @mkdir($targetQrtemp, 0755, true); }
     if (!is_dir($targetUploads)) { @mkdir($targetUploads, 0755, true); }
 
-    // Logo
-    if (!empty($vendorData['logo_image'])) {
-        $logoRel = ltrim($vendorData['logo_image'], '/\\');
+    if (!empty($lab['logo_image'])) {
+        $logoRel = ltrim($lab['logo_image'], '/\\');
         $logoSrc = $workspaceRoot . '/' . $logoRel;
         if (!file_exists($logoSrc) && file_exists(dirname(__DIR__) . '/' . $logoRel)) {
             $logoSrc = dirname(__DIR__) . '/' . $logoRel;
@@ -131,131 +210,55 @@ $syncAssetsToLab = function($vendorData, $targetDir) {
         if (file_exists($logoSrc)) {
             @copy($logoSrc, $targetQrtemp . '/logo.jpg');
             @copy($logoSrc, $targetUploads . '/logo.jpg');
-            @copy($logoSrc, $targetDir . '/logo.jpg');
+            @copy($logoSrc, $tenant_dir . '/logo.jpg');
             $ext = strtolower(pathinfo($logoSrc, PATHINFO_EXTENSION));
             if ($ext === 'png') {
                 @copy($logoSrc, $targetQrtemp . '/logo.png');
                 @copy($logoSrc, $targetUploads . '/logo.png');
-                @copy($logoSrc, $targetDir . '/logo.png');
+                @copy($logoSrc, $tenant_dir . '/logo.png');
             }
         }
     }
 
-    // Letterhead
-    if (!empty($vendorData['letterhead_image'])) {
-        $lhRel = ltrim($vendorData['letterhead_image'], '/\\');
+    if (!empty($lab['letterhead_image'])) {
+        $lhRel = ltrim($lab['letterhead_image'], '/\\');
         $lhSrc = $workspaceRoot . '/' . $lhRel;
         if (!file_exists($lhSrc) && file_exists(dirname(__DIR__) . '/' . $lhRel)) {
             $lhSrc = dirname(__DIR__) . '/' . $lhRel;
         }
         if (file_exists($lhSrc)) {
-            @copy($lhSrc, $targetDir . '/letterhead.jpg');
+            @copy($lhSrc, $tenant_dir . '/letterhead.jpg');
             @copy($lhSrc, $targetQrtemp . '/letterhead.jpg');
             @copy($lhSrc, $targetUploads . '/letterhead.jpg');
-            @copy($lhSrc, $targetDir . '/ammaletterhead.jpg');
+            @copy($lhSrc, $tenant_dir . '/ammaletterhead.jpg');
             $ext = strtolower(pathinfo($lhSrc, PATHINFO_EXTENSION));
             if ($ext === 'png') {
-                @copy($lhSrc, $targetDir . '/letterhead.png');
+                @copy($lhSrc, $tenant_dir . '/letterhead.png');
                 @copy($lhSrc, $targetUploads . '/letterhead.png');
             }
         }
     }
-};
+
+    return ['success' => true, 'folder_slug' => $folder_slug, 'db_name' => $db_name];
+}
 
 // Handle 1-Click Sync Request
 if (isset($_GET['sync']) && $_GET['sync'] == '1') {
-    $tenant_dir = dirname(__DIR__) . '/' . $folder_slug;
-    $tenant_config = $tenant_dir . '/db.php';
-    $sync_ok = false;
-    if (file_exists($tenant_config)) {
-        try {
-            $base_login = dirname(__DIR__) . '/base/login.php';
-            if (file_exists($base_login)) {
-                @copy($base_login, $tenant_dir . '/login.php');
-            }
-
-            // Sync Logo and Letterhead assets
-            $syncAssetsToLab($lab, $tenant_dir);
-
-            include $tenant_config;
-            if (isset($conn) && !$conn->connect_error) {
-                // Ensure admin_settings exists and update branding
-                $s_stmt = $conn->prepare("UPDATE admin_settings SET company_name = ?, company_address = ?, phone = ?, email = ?, updated_at = NOW() WHERE id = 1");
-                if ($s_stmt) {
-                    $s_stmt->bind_param("ssss", $lab['name'], $lab['address'], $lab['phone'], $lab['email']);
-                    $s_stmt->execute();
-                    $s_stmt->close();
-                    $sync_ok = true;
-                }
-            }
-        } catch (Exception $e) {
-            $error = "Sync notice: " . $e->getMessage();
-        }
-        require __DIR__ . '/db.php';
-    }
-    if ($sync_ok) {
-        $message = "Successfully synchronized branding, logo, letterhead, and portal files for '" . htmlspecialchars($lab['name']) . "'!";
+    $sRes = syncOrPurgeTenantLab($lab, 'sync');
+    if ($sRes['success']) {
+        $message = "Successfully synchronized branding, logo, letterhead, and database config for '" . htmlspecialchars($lab['name']) . "' (DB: " . htmlspecialchars($sRes['db_name']) . ")!";
     } else {
-        $error = "Could not sync tenant files or database config for /" . htmlspecialchars($folder_slug);
+        $error = $sRes['error'];
     }
 }
 
 // Handle 1-Click Purge Demo Data Request (Start 100% Fresh)
 if (isset($_GET['purge']) && $_GET['purge'] == '1') {
-    $tenant_dir = dirname(__DIR__) . '/' . $folder_slug;
-    $tenant_config = $tenant_dir . '/db.php';
-    $purge_ok = false;
-    if (file_exists($tenant_config)) {
-        try {
-            // 1. Refresh files and sync logo/letterhead
-            $base_login = dirname(__DIR__) . '/base/login.php';
-            if (file_exists($base_login)) {
-                @copy($base_login, $tenant_dir . '/login.php');
-            }
-            $syncAssetsToLab($lab, $tenant_dir);
-
-            // 2. Connect to tenant DB and truncate all demo transactions
-            include $tenant_config;
-            if (isset($conn) && !$conn->connect_error) {
-                $tablesToPurge = [
-                    'bills', 'bill_packages', 'bill_tests',
-                    'patients', 'patient_extra_info',
-                    'test_results', 'test_samples',
-                    'transactions', 'sign_master'
-                ];
-                $conn->query("SET FOREIGN_KEY_CHECKS = 0;");
-                foreach ($tablesToPurge as $tbl) {
-                    $conn->query("TRUNCATE TABLE `{$tbl}`;");
-                }
-                $conn->query("SET FOREIGN_KEY_CHECKS = 1;");
-
-                // Update or ensure admin user is active
-                $hash = password_hash($lab['password'], PASSWORD_BCRYPT);
-                $uStmt = $conn->prepare("UPDATE users SET username = ?, password_hash = ?, full_name = ?, status = 'active' WHERE role_id = 1 LIMIT 1");
-                if ($uStmt) {
-                    $uStmt->bind_param("sss", $lab['vendor_userid'], $hash, $lab['name']);
-                    $uStmt->execute();
-                    $uStmt->close();
-                }
-
-                // Update admin_settings branding
-                $sStmt = $conn->prepare("UPDATE admin_settings SET company_name = ?, company_address = ?, phone = ?, email = ?, updated_at = NOW() WHERE id = 1");
-                if ($sStmt) {
-                    $sStmt->bind_param("ssss", $lab['name'], $lab['address'], $lab['phone'], $lab['email']);
-                    $sStmt->execute();
-                    $sStmt->close();
-                }
-                $purge_ok = true;
-            }
-        } catch (Exception $e) {
-            $error = "Purge error: " . $e->getMessage();
-        }
-        require __DIR__ . '/db.php';
-    }
-    if ($purge_ok) {
+    $pRes = syncOrPurgeTenantLab($lab, 'purge');
+    if ($pRes['success']) {
         $message = "Demo transactional data purged successfully! Lab '" . htmlspecialchars($lab['name']) . "' now starts completely fresh with 0 patients, 0 bills, and its own registered logo/letterhead.";
     } else {
-        $error = "Could not connect to tenant database to purge demo data.";
+        $error = $pRes['error'];
     }
 }
 ?>
