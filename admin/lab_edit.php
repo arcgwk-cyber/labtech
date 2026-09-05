@@ -44,11 +44,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($up->execute()) {
             $message = "Laboratory details and credentials updated successfully!";
             
-            // Also attempt to update tenant's database password if folder exists
+            // Sync tenant database and files if tenant folder exists
             $folder_slug = LabProvisioner::slugify($name);
-            $tenant_config = dirname(__DIR__) . '/' . $folder_slug . '/db.php';
+            if (!empty($remarks) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-]+)/', $remarks, $m)) {
+                $folder_slug = $m[1];
+            }
+            $tenant_dir = dirname(__DIR__) . '/' . $folder_slug;
+            $tenant_config = $tenant_dir . '/db.php';
             if (file_exists($tenant_config)) {
                 try {
+                    // Refresh login.php blueprint to tenant folder
+                    $base_login = dirname(__DIR__) . '/base/login.php';
+                    if (file_exists($base_login)) {
+                        @copy($base_login, $tenant_dir . '/login.php');
+                    }
+
                     include $tenant_config;
                     if (isset($conn) && !$conn->connect_error) {
                         $hash = password_hash($password, PASSWORD_BCRYPT);
@@ -57,6 +67,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $t_stmt->bind_param("sss", $vendor_userid, $hash, $name);
                             $t_stmt->execute();
                             $t_stmt->close();
+                        }
+                        // Update admin_settings table with real lab name and address
+                        $s_stmt = $conn->prepare("UPDATE admin_settings SET company_name = ?, company_address = ?, updated_at = NOW() WHERE id = 1");
+                        if ($s_stmt) {
+                            $s_stmt->bind_param("ss", $name, $address);
+                            $s_stmt->execute();
+                            $s_stmt->close();
                         }
                     }
                 } catch (Exception $e) {
@@ -84,6 +101,44 @@ if (!$lab) {
 }
 
 $folder_slug = LabProvisioner::slugify($lab['name']);
+if (!empty($lab['remarks']) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-]+)/', $lab['remarks'], $m)) {
+    $folder_slug = $m[1];
+}
+
+// Handle 1-Click Sync Request
+if (isset($_GET['sync']) && $_GET['sync'] == '1') {
+    $tenant_dir = dirname(__DIR__) . '/' . $folder_slug;
+    $tenant_config = $tenant_dir . '/db.php';
+    $sync_ok = false;
+    if (file_exists($tenant_config)) {
+        try {
+            $base_login = dirname(__DIR__) . '/base/login.php';
+            if (file_exists($base_login)) {
+                @copy($base_login, $tenant_dir . '/login.php');
+            }
+
+            include $tenant_config;
+            if (isset($conn) && !$conn->connect_error) {
+                // Ensure admin_settings exists and update branding
+                $s_stmt = $conn->prepare("UPDATE admin_settings SET company_name = ?, company_address = ?, updated_at = NOW() WHERE id = 1");
+                if ($s_stmt) {
+                    $s_stmt->bind_param("ss", $lab['name'], $lab['address']);
+                    $s_stmt->execute();
+                    $s_stmt->close();
+                    $sync_ok = true;
+                }
+            }
+        } catch (Exception $e) {
+            $error = "Sync notice: " . $e->getMessage();
+        }
+        require __DIR__ . '/db.php';
+    }
+    if ($sync_ok) {
+        $message = "Successfully synchronized branding and portal files for '" . htmlspecialchars($lab['name']) . "'!";
+    } else {
+        $error = "Could not sync tenant files or database config for /" . htmlspecialchars($folder_slug);
+    }
+}
 ?>
 
 <div class="container py-4" style="max-width: 800px;">
@@ -96,7 +151,10 @@ $folder_slug = LabProvisioner::slugify($lab['name']);
       <h3 class="fw-bold mb-0 text-dark">Edit Diagnostic Laboratory #<?= $vendor_id ?></h3>
       <span class="text-muted small font-monospace">Folder: /<?= htmlspecialchars($folder_slug) ?></span>
     </div>
-    <div>
+    <div class="d-flex align-items-center gap-2">
+      <a href="lab_edit.php?id=<?= $vendor_id ?>&sync=1" class="btn btn-outline-info rounded-3 px-3 py-2 fw-semibold" title="Sync database branding and push latest portal files">
+        <i class="fas fa-sync-alt me-1"></i> Sync Portal & DB
+      </a>
       <a href="../<?= htmlspecialchars($folder_slug) ?>/login.php" target="_blank" class="btn btn-primary rounded-3 px-3 py-2 fw-semibold">
         <i class="fas fa-external-link-alt me-1"></i> Open Portal
       </a>

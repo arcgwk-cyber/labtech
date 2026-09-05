@@ -128,6 +128,9 @@ if ($conn && !$conn->connect_error) {
               $is_active = ($lab['status'] === 'active');
               $is_pending = ($lab['status'] === 'pending');
               $folder_slug = LabProvisioner::slugify($lab['name']);
+              if (!empty($lab['remarks']) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-]+)/', $lab['remarks'], $m)) {
+                  $folder_slug = $m[1];
+              }
               
               $days_left = null;
               if (!empty($lab['due_date'])) {
@@ -199,6 +202,11 @@ if ($conn && !$conn->connect_error) {
                       <!-- Open Portal -->
                       <a href="../<?= htmlspecialchars($folder_slug) ?>/login.php" target="_blank" class="btn btn-outline-primary" title="Open Lab Login Screen">
                         <i class="fas fa-external-link-alt"></i> Portal
+                      </a>
+
+                      <!-- Sync Branding / Files -->
+                      <a href="lab_edit.php?id=<?= $vid ?>&sync=1" class="btn btn-outline-info" title="Sync Database Branding & Portal Files">
+                        <i class="fas fa-sync-alt"></i>
                       </a>
 
                       <!-- Edit Details / Password -->

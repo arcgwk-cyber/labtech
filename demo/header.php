@@ -30,6 +30,21 @@ if ($conn) {
     }
 }
 
+// Dynamic Lab Name resolution for tenant portals
+$currentDir = basename(__DIR__);
+if ($currentDir !== 'base' && $currentDir !== 'demo') {
+    if (empty($app_settings['company_name']) || 
+        $app_settings['company_name'] === 'Amma Diagnostic Centre' || 
+        $app_settings['company_name'] === 'Diagnostic Centre ERP') {
+        
+        $words = explode('_', str_replace('-', '_', $currentDir));
+        $formatted = array_map(function($w) {
+            return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
+        }, $words);
+        $app_settings['company_name'] = implode(' ', $formatted);
+    }
+}
+
 // Check logo
 $app_logo = null;
 if (file_exists(__DIR__ . '/qrtemp/logo.jpg')) {

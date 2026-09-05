@@ -17,6 +17,30 @@ if ($conn) {
     }
 }
 
+// Dynamic Lab Name resolution & Self-healing for provisioned tenant portals
+$currentDir = basename(__DIR__);
+$isDemo = ($currentDir === 'demo' || $currentDir === 'base' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
+
+if (!$isDemo) {
+    // If company_name is still default/placeholder or empty, derive from folder slug and auto-heal DB
+    if (empty($settings['company_name']) || 
+        $settings['company_name'] === 'Amma Diagnostic Centre' || 
+        $settings['company_name'] === 'Diagnostic Centre ERP') {
+        
+        $words = explode('_', str_replace('-', '_', $currentDir));
+        $formatted = array_map(function($w) {
+            return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
+        }, $words);
+        $dynamicName = implode(' ', $formatted);
+        $settings['company_name'] = $dynamicName;
+
+        // Auto-heal database record so reports, bills, and PDFs persist this name immediately
+        if ($conn && !$conn->connect_error) {
+            @$conn->query("UPDATE admin_settings SET company_name = '" . $conn->real_escape_string($dynamicName) . "' WHERE id = 1");
+        }
+    }
+}
+
 // Check local trial / license validity
 $licenseExpired = false;
 if (!empty($settings['expiry_date'])) {
@@ -238,6 +262,7 @@ $logo_path = file_exists('qrtemp/logo.jpg') ? 'qrtemp/logo.jpg' : null;
           </button>
         </form>
 
+        <?php if ($isDemo): ?>
         <!-- Demo auto-fill convenience for testers -->
         <div class="demo-hint mb-3 text-center">
           <span class="fw-semibold"><i class="fas fa-key me-1"></i> Demo Login Quick-Fill:</span><br>
@@ -247,8 +272,13 @@ $logo_path = file_exists('qrtemp/logo.jpg') ? 'qrtemp/logo.jpg' : null;
         </div>
 
         <div class="text-center pt-3 border-top small">
-          Register new lab? <a href="register.php" class="fw-semibold text-primary">Start 14-Day Free Trial</a>
+          Register new lab? <a href="../register.php" class="fw-semibold text-primary">Start 14-Day Free Trial</a>
         </div>
+        <?php else: ?>
+        <div class="text-center pt-3 border-top small text-muted">
+          <i class="fas fa-shield-alt text-success me-1"></i> Diagnostic Centre Management Portal
+        </div>
+        <?php endif; ?>
 
       <?php endif; ?>
     </div>

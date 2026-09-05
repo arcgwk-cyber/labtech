@@ -167,6 +167,31 @@ function displayStatusPage($info) {
         $icon = 'bi-exclamation-triangle';
         $border_color = '#ef4444';
     }
+
+    global $conn;
+    $lab_brand_name = 'Diagnostic Centre';
+    $lab_phone_contact = '';
+    if (!empty($conn) && !$conn->connect_error) {
+        $res = $conn->query("SELECT company_name, phone FROM admin_settings WHERE id = 1 LIMIT 1");
+        if ($res && $r = $res->fetch_assoc()) {
+            if (!empty($r['company_name']) && $r['company_name'] !== 'Amma Diagnostic Centre') {
+                $lab_brand_name = $r['company_name'];
+            }
+            if (!empty($r['phone'])) {
+                $lab_phone_contact = $r['phone'];
+            }
+        }
+    }
+    if ($lab_brand_name === 'Diagnostic Centre') {
+        $currentDir = basename(__DIR__);
+        if ($currentDir !== 'base' && $currentDir !== 'demo') {
+            $words = explode('_', str_replace('-', '_', $currentDir));
+            $formatted = array_map(function($w) {
+                return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
+            }, $words);
+            $lab_brand_name = implode(' ', $formatted);
+        }
+    }
     ?>
     <!DOCTYPE html>
     <html lang="en">
@@ -223,7 +248,7 @@ function displayStatusPage($info) {
       <div class="portal-card">
         <div class="portal-header">
           <i class="bi bi-hospital fs-1 mb-2 d-block"></i>
-          <h4 class="fw-bold mb-1">Amma Diagnostic Centre</h4>
+          <h4 class="fw-bold mb-1"><?= htmlspecialchars($lab_brand_name) ?></h4>
           <p class="small mb-0 opacity-75">Digital Patient Report Verification Portal</p>
         </div>
         
@@ -272,14 +297,16 @@ function displayStatusPage($info) {
             <button onclick="window.location.reload();" class="btn btn-primary py-2 fw-semibold">
               <i class="bi bi-arrow-clockwise me-1"></i> Refresh Status
             </button>
-            <a href="tel:+918942222222" class="btn btn-outline-secondary py-2 small">
+            <?php if (!empty($lab_phone_contact)): ?>
+            <a href="tel:<?= htmlspecialchars($lab_phone_contact) ?>" class="btn btn-outline-secondary py-2 small">
               <i class="bi bi-telephone me-1"></i> Contact Laboratory Desk
             </a>
+            <?php endif; ?>
           </div>
         </div>
 
         <div class="card-footer bg-light text-center py-2 text-muted small border-top">
-          &copy; <?= date('Y') ?> Amma Diagnostic Centre &bull; All Rights Reserved
+          &copy; <?= date('Y') ?> <?= htmlspecialchars($lab_brand_name) ?> &bull; All Rights Reserved
         </div>
       </div>
     </body>

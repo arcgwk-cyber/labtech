@@ -265,6 +265,54 @@ try {
         // 7. Calculate trial expiry date
         $dueDate = date('Y-m-d', strtotime("+{$trialDays} days"));
 
+        // 8. Configure tenant admin_settings with the real lab details
+        try {
+            $labName = !empty($vendor['name']) ? trim($vendor['name']) : 'Diagnostic Centre';
+            $labAddr = !empty($vendor['address']) ? trim($vendor['address']) : '';
+            $labPhone = !empty($vendor['phone']) ? trim($vendor['phone']) : '';
+            $labEmail = !empty($vendor['email']) ? trim($vendor['email']) : '';
+
+            // Ensure columns exist in tenant's admin_settings table if needed
+            $cols = $pdoTenant->query("DESCRIBE admin_settings")->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('phone', $cols)) {
+                @$pdoTenant->exec("ALTER TABLE admin_settings ADD COLUMN phone VARCHAR(50) DEFAULT NULL");
+            }
+            if (!in_array('email', $cols)) {
+                @$pdoTenant->exec("ALTER TABLE admin_settings ADD COLUMN email VARCHAR(100) DEFAULT NULL");
+            }
+            if (!in_array('status', $cols)) {
+                @$pdoTenant->exec("ALTER TABLE admin_settings ADD COLUMN status VARCHAR(20) DEFAULT 'active'");
+            }
+            if (!in_array('expiry_date', $cols)) {
+                @$pdoTenant->exec("ALTER TABLE admin_settings ADD COLUMN expiry_date DATE DEFAULT NULL");
+            }
+            if (!in_array('grace_days', $cols)) {
+                @$pdoTenant->exec("ALTER TABLE admin_settings ADD COLUMN grace_days INT DEFAULT 7");
+            }
+
+            // Refresh available columns
+            $cols = $pdoTenant->query("DESCRIBE admin_settings")->fetchAll(PDO::FETCH_COLUMN);
+
+            $stmtCheck = $pdoTenant->query("SELECT id FROM admin_settings WHERE id = 1");
+            if ($stmtCheck && $stmtCheck->fetch()) {
+                $fields = ["company_name = ?", "company_address = ?"];
+                $params = [$labName, $labAddr];
+                if (in_array('phone', $cols)) { $fields[] = "phone = ?"; $params[] = $labPhone; }
+                if (in_array('email', $cols)) { $fields[] = "email = ?"; $params[] = $labEmail; }
+                if (in_array('status', $cols)) { $fields[] = "status = 'active'"; }
+                if (in_array('expiry_date', $cols)) { $fields[] = "expiry_date = ?"; $params[] = $dueDate; }
+                if (in_array('grace_days', $cols)) { $fields[] = "grace_days = 7"; }
+                
+                $sql = "UPDATE admin_settings SET " . implode(", ", $fields) . " WHERE id = 1";
+                $pdoTenant->prepare($sql)->execute($params);
+            } else {
+                $pdoTenant->prepare("INSERT INTO admin_settings (id, company_name, company_address) VALUES (1, ?, ?)")
+                          ->execute([$labName, $labAddr]);
+            }
+        } catch (Exception $e) {
+            // Non-fatal warning
+        }
+
         return [
             'success'        => true,
             'folder_slug'    => $slug,
