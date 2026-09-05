@@ -27,10 +27,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $status        = trim($_POST['status'] ?? 'active');
     $due_date      = trim($_POST['due_date'] ?? '');
     $remarks       = trim($_POST['remarks'] ?? '');
+    $db_name_post  = trim($_POST['db_name'] ?? '');
+    $db_user_post  = trim($_POST['db_user'] ?? '');
+    $db_pass_post  = trim($_POST['db_pass'] ?? '');
 
     if (empty($name)) {
         $error = "Lab name cannot be blank.";
     } else {
+        // If DB name was specified and remarks doesn't have it or needs update
+        if (!empty($db_name_post)) {
+            if (preg_match('/DB:\s*[a-zA-Z0-9_\-]+/', $remarks)) {
+                $remarks = preg_replace('/DB:\s*[a-zA-Z0-9_\-]+/', 'DB: ' . $db_name_post, $remarks);
+            } else {
+                $remarks = trim($remarks . ' | DB: ' . $db_name_post, ' |');
+            }
+        }
+
         $up = $conn->prepare("
             UPDATE vendor_master 
             SET name = ?, vendor_userid = ?, password = ?, phone = ?, email = ?, 
@@ -43,6 +55,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
         if ($up->execute()) {
             $message = "Laboratory details and credentials updated successfully!";
+
+            // If tenant directory exists, update db.php with submitted DB settings
+            $folder_slug_temp = LabProvisioner::slugify($name);
+            if (preg_match('/Provisioned at \/([a-zA-Z0-9_\-]+)/', $remarks, $m)) {
+                $folder_slug_temp = $m[1];
+            }
+            $tDir = dirname(__DIR__) . '/' . $folder_slug_temp;
+            if (!empty($db_name_post) && is_dir($tDir)) {
+                $h = getenv('DB_HOST') ?: 'localhost';
+                $u = !empty($db_user_post) ? $db_user_post : (getenv('DB_USER') ?: 'root');
+                $p = ($db_pass_post !== '') ? $db_pass_post : (getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
+                LabProvisioner::writeDbConfigFile($tDir . '/db.php', $h, $u, $p, $db_name_post);
+            }
         } else {
             $error = "Failed to update record: " . $conn->error;
         }
@@ -134,7 +159,13 @@ function syncOrPurgeTenantLab($lab, $action = 'sync') {
         $masterPass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
         $tConn = @new mysqli($db_host, $masterUser, $masterPass, $db_name);
         if ($tConn->connect_error) {
-            return ['success' => false, 'error' => "Database connection check failed for `{$db_name}`: " . $tConn->connect_error . ". Please make sure database `{$db_name}` exists in Hostinger Databases."];
+            $errDetail = "Database connection check failed for `{$db_name}`: " . $tConn->connect_error . ".<br><br>" .
+                         "<strong>To fix this in Hostinger hPanel:</strong><br>" .
+                         "1. Go to <strong>Hostinger hPanel &rarr; Databases (MySQL Databases)</strong>.<br>" .
+                         "2. Under <em>List of Current MySQL Databases</em>, check the exact database name and user.<br>" .
+                         "3. If user <code>" . htmlspecialchars($masterUser) . "</code> is not assigned to <code>" . htmlspecialchars($db_name) . "</code>, click <strong>Assign User</strong> with ALL PRIVILEGES.<br>" .
+                         "4. Or if you created a dedicated database user and password, enter them below under <strong>Dedicated Database Configuration</strong> and click <strong>Save Changes</strong>.";
+            return ['success' => false, 'error' => $errDetail];
         }
         $db_user = $masterUser;
         $db_pass = $masterPass;
@@ -288,6 +319,24 @@ if (isset($_GET['purge']) && $_GET['purge'] == '1') {
         $error = $pRes['error'];
     }
 }
+
+// Resolve current database details for form display
+$current_db_name = '';
+$current_db_user_val = '';
+$tenant_config_file = $tenant_dir . '/db.php';
+if (file_exists($tenant_config_file)) {
+    $cfg_content = file_get_contents($tenant_config_file);
+    if (preg_match('/\$dbname\s*=\s*[\'"]([^\'"]+)[\'"]/', $cfg_content, $m)) $current_db_name = $m[1];
+    if (preg_match('/\$user\s*=\s*[\'"]([^\'"]+)[\'"]/', $cfg_content, $m)) $current_db_user_val = $m[1];
+}
+if (empty($current_db_name) && !empty($lab['remarks']) && preg_match('/DB:\s*([a-zA-Z0-9_\-]+)/', $lab['remarks'], $m)) {
+    $current_db_name = $m[1];
+}
+if (empty($current_db_name)) {
+    $mUser = getenv('DB_USER') ?: 'root';
+    $pfx = (strpos($mUser, '_') !== false) ? substr($mUser, 0, strpos($mUser, '_') + 1) : '';
+    $current_db_name = $pfx . 'lab_' . $folder_slug;
+}
 ?>
 
 <div class="container py-4" style="max-width: 860px;">
@@ -419,6 +468,31 @@ if (isset($_GET['purge']) && $_GET['purge'] == '1') {
           <label class="form-label small fw-semibold text-muted">Admin Password (Plain Text / Master Reset)</label>
           <input type="text" name="password" class="form-control font-monospace" value="<?= htmlspecialchars($lab['password'] ?? '') ?>" required>
           <span class="text-muted small">Updating this also resets the tenant lab's login password.</span>
+        </div>
+      </div>
+
+      <h5 class="fw-bold text-dark border-bottom pb-2 mb-3"><i class="fas fa-database text-primary me-2"></i> Dedicated Database Configuration</h5>
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold text-muted">Hostinger Database Name</label>
+          <input type="text" name="db_name" class="form-control font-monospace" value="<?= htmlspecialchars($current_db_name) ?>" required>
+          <span class="text-muted small d-block mt-1" style="font-size: 0.75rem;">
+            Must match the database name in Hostinger hPanel &rarr; Databases.
+          </span>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold text-muted">Database Username (Optional Override)</label>
+          <input type="text" name="db_user" class="form-control font-monospace" value="<?= htmlspecialchars($current_db_user_val) ?>" placeholder="Default: <?= htmlspecialchars(getenv('DB_USER') ?: 'root') ?>">
+          <span class="text-muted small d-block mt-1" style="font-size: 0.75rem;">
+            Leave blank if using the default master user (<code><?= htmlspecialchars(getenv('DB_USER') ?: 'root') ?></code>).
+          </span>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold text-muted">Database Password (Optional Override)</label>
+          <input type="password" name="db_pass" class="form-control font-monospace" placeholder="Leave blank to use default DB password">
+          <span class="text-muted small d-block mt-1" style="font-size: 0.75rem;">
+            Only enter if a unique password was assigned to this database in Hostinger.
+          </span>
         </div>
       </div>
 
