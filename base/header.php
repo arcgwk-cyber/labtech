@@ -47,10 +47,15 @@ if ($currentDir !== 'base' && $currentDir !== 'demo') {
 
 // Check logo
 $app_logo = null;
-if (file_exists(__DIR__ . '/qrtemp/logo.jpg')) {
-    $app_logo = 'qrtemp/logo.jpg';
-} elseif (file_exists(__DIR__ . '/uploads/logo.jpg')) {
-    $app_logo = 'uploads/logo.jpg';
+foreach ([
+    'qrtemp/logo.jpg', 'qrtemp/logo.png', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
+    'uploads/logo.jpg', 'uploads/logo.png', 'uploads/logo.jpeg',
+    'logo.jpg', 'logo.png'
+] as $lp) {
+    if (file_exists(__DIR__ . '/' . $lp)) {
+        $app_logo = $lp;
+        break;
+    }
 }
 
 // Detect current active page

@@ -104,7 +104,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
     }
 }
 
-$logo_path = file_exists('qrtemp/logo.jpg') ? 'qrtemp/logo.jpg' : null;
+$logo_path = null;
+foreach ([
+    'qrtemp/logo.jpg', 'qrtemp/logo.png', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
+    'uploads/logo.jpg', 'uploads/logo.png', 'uploads/logo.jpeg',
+    'logo.jpg', 'logo.png'
+] as $lp) {
+    if (file_exists($lp)) {
+        $logo_path = $lp;
+        break;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

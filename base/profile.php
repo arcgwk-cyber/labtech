@@ -10,30 +10,54 @@ if (!isset($_SESSION['username']) || $_SESSION['role'] !== 'admin') {
 }
 
 $upload_dir = "qrtemp/";
-$allowed_types = ['image/jpeg', 'image/png'];
-$max_size = 2 * 1024 * 1024;
+$allowed_types = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+$max_size = 5 * 1024 * 1024;
 
 $messages = [];
 
-// Create upload dir if not exists
-if (!is_dir($upload_dir)) {
-    mkdir($upload_dir, 0777, true);
+if (!is_dir($upload_dir)) { @mkdir($upload_dir, 0755, true); }
+if (!is_dir(__DIR__ . '/uploads')) { @mkdir(__DIR__ . '/uploads', 0755, true); }
+
+function getActiveLogo() {
+    $candidates = [
+        'qrtemp/logo.jpg', 'qrtemp/logo.png', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
+        'uploads/logo.jpg', 'uploads/logo.png', 'uploads/logo.jpeg', 'uploads/logo.webp',
+        'logo.jpg', 'logo.png'
+    ];
+    foreach ($candidates as $c) {
+        if (file_exists(__DIR__ . '/' . $c)) return $c;
+    }
+    return null;
+}
+
+function getActiveLetterhead() {
+    $candidates = [
+        'qrtemp/letterhead.jpg', 'qrtemp/letterhead.png', 'qrtemp/letterhead.jpeg', 'qrtemp/letterhead.webp',
+        'uploads/letterhead.jpg', 'uploads/letterhead.png', 'uploads/letterhead.jpeg',
+        'letterhead.jpg', 'letterhead.png', 'ammaletterhead.jpg'
+    ];
+    foreach ($candidates as $c) {
+        if (file_exists(__DIR__ . '/' . $c)) return $c;
+    }
+    return null;
 }
 
 // Handle file deletion or saving
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($_POST['delete_logo'])) {
-        if (file_exists($upload_dir . 'logo.jpg')) {
-            unlink($upload_dir . 'logo.jpg');
-            $messages[] = '<div class="alert alert-warning">Logo removed.</div>';
+        foreach (['qrtemp/logo.jpg', 'qrtemp/logo.png', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
+                  'uploads/logo.jpg', 'uploads/logo.png', 'logo.jpg', 'logo.png'] as $f) {
+            if (file_exists(__DIR__ . '/' . $f)) { @unlink(__DIR__ . '/' . $f); }
         }
+        $messages[] = '<div class="alert alert-warning">Logo removed.</div>';
     }
 
     if (!empty($_POST['delete_letter'])) {
-        if (file_exists($upload_dir . 'letterhead.jpg')) {
-            unlink($upload_dir . 'letterhead.jpg');
-            $messages[] = '<div class="alert alert-warning">Letterhead removed.</div>';
+        foreach (['qrtemp/letterhead.jpg', 'qrtemp/letterhead.png', 'qrtemp/letterhead.jpeg', 'qrtemp/letterhead.webp',
+                  'uploads/letterhead.jpg', 'uploads/letterhead.png', 'letterhead.jpg', 'letterhead.png', 'ammaletterhead.jpg'] as $f) {
+            if (file_exists(__DIR__ . '/' . $f)) { @unlink(__DIR__ . '/' . $f); }
         }
+        $messages[] = '<div class="alert alert-warning">Letterhead removed.</div>';
     }
 
     if (!empty($_POST['save_settings'])) {
@@ -43,22 +67,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Upload logo
         if (!empty($_FILES['logo_file']['tmp_name'])) {
             $logo = $_FILES['logo_file'];
-            if (in_array($logo['type'], $allowed_types) && $logo['size'] <= $max_size) {
-                move_uploaded_file($logo['tmp_name'], $upload_dir . 'logo.jpg');
-                $messages[] = '<div class="alert alert-success">Logo uploaded successfully.</div>';
+            if ($logo['size'] <= $max_size) {
+                $ext = strtolower(pathinfo($logo['name'], PATHINFO_EXTENSION));
+                if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) $ext = 'jpg';
+                $dest = $upload_dir . 'logo.' . $ext;
+                if (move_uploaded_file($logo['tmp_name'], $dest)) {
+                    @copy($dest, $upload_dir . 'logo.jpg');
+                    @copy($dest, __DIR__ . '/uploads/logo.' . $ext);
+                    @copy($dest, __DIR__ . '/uploads/logo.jpg');
+                    @copy($dest, __DIR__ . '/logo.' . $ext);
+                    @copy($dest, __DIR__ . '/logo.jpg');
+                    $messages[] = '<div class="alert alert-success">Logo updated successfully across the portal.</div>';
+                }
             } else {
-                $messages[] = '<div class="alert alert-danger">Invalid logo file type or size.</div>';
+                $messages[] = '<div class="alert alert-danger">Invalid logo file type or size exceeds 5MB.</div>';
             }
         }
 
         // Upload letterhead
         if (!empty($_FILES['letter_file']['tmp_name'])) {
             $letter = $_FILES['letter_file'];
-            if (in_array($letter['type'], $allowed_types) && $letter['size'] <= $max_size) {
-                move_uploaded_file($letter['tmp_name'], $upload_dir . 'letterhead.jpg');
-                $messages[] = '<div class="alert alert-success">Letterhead uploaded successfully.</div>';
+            if ($letter['size'] <= $max_size) {
+                $ext = strtolower(pathinfo($letter['name'], PATHINFO_EXTENSION));
+                if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) $ext = 'jpg';
+                $dest = $upload_dir . 'letterhead.' . $ext;
+                if (move_uploaded_file($letter['tmp_name'], $dest)) {
+                    @copy($dest, $upload_dir . 'letterhead.jpg');
+                    @copy($dest, __DIR__ . '/uploads/letterhead.' . $ext);
+                    @copy($dest, __DIR__ . '/uploads/letterhead.jpg');
+                    @copy($dest, __DIR__ . '/letterhead.' . $ext);
+                    @copy($dest, __DIR__ . '/letterhead.jpg');
+                    @copy($dest, __DIR__ . '/ammaletterhead.jpg');
+                    $messages[] = '<div class="alert alert-success">Letterhead updated successfully for PDF reports.</div>';
+                }
             } else {
-                $messages[] = '<div class="alert alert-danger">Invalid letterhead file type or size.</div>';
+                $messages[] = '<div class="alert alert-danger">Invalid letterhead file type or size exceeds 5MB.</div>';
             }
         }
 
@@ -67,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($conn->query($sql)) {
             $messages[] = '<div class="alert alert-success">Settings updated successfully.</div>';
         } else {
-            $messages[] = '<div class="alert alert-danger">Failed to update settings.</div>';
+            $messages[] = '<div class="alert alert-danger">Failed to update settings: ' . $conn->error . '</div>';
         }
     }
 }
@@ -107,21 +150,21 @@ if ($result && $result->num_rows > 0) {
 
             <div class="mb-3">
                 <label class="form-label">Logo (for login & header)</label>
-                <input type="file" name="logo_file" class="form-control">
-                <?php if (file_exists($upload_dir . 'logo.jpg')): ?>
+                <input type="file" name="logo_file" class="form-control" accept="image/png, image/jpeg, image/jpg, image/webp">
+                <?php $active_logo = getActiveLogo(); if ($active_logo): ?>
                     <div class="mt-2 d-flex align-items-center">
-                        <img src="<?= $upload_dir ?>logo.jpg" alt="Logo" height="50" class="me-3">
+                        <img src="<?= htmlspecialchars($active_logo) ?>?v=<?= time() ?>" alt="Logo" height="50" class="me-3 p-1 border rounded bg-white shadow-sm" style="object-fit: contain;">
                         <button type="submit" name="delete_logo" value="1" class="btn btn-sm btn-outline-danger">Delete Logo</button>
                     </div>
                 <?php endif; ?>
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Letterhead (for PDF)</label>
-                <input type="file" name="letter_file" class="form-control">
-                <?php if (file_exists($upload_dir . 'letterhead.jpg')): ?>
+                <label class="form-label">Letterhead (for PDF Reports)</label>
+                <input type="file" name="letter_file" class="form-control" accept="image/png, image/jpeg, image/jpg, image/webp">
+                <?php $active_letterhead = getActiveLetterhead(); if ($active_letterhead): ?>
                     <div class="mt-2 d-flex align-items-center">
-                      <img src="<?= $upload_dir ?>letterhead.jpg" alt="Letterhead" height="250" class="me-3">
+                      <img src="<?= htmlspecialchars($active_letterhead) ?>?v=<?= time() ?>" alt="Letterhead" height="200" class="me-3 p-1 border rounded bg-white shadow-sm" style="object-fit: contain;">
                         <button type="submit" name="delete_letter" value="1" class="btn btn-sm btn-outline-danger">Delete Letterhead</button>
                     </div>
                 <?php endif; ?>

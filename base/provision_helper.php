@@ -46,6 +46,63 @@ class LabProvisioner {
         return true;
     }
 
+    public static function findUploadedAsset($relPath, $workspaceRoot) {
+        if (empty($relPath)) return null;
+        $rel = ltrim($relPath, '/\\');
+        $base = basename($rel);
+
+        $candidates = [
+            $workspaceRoot . '/' . $rel,
+            $workspaceRoot . '/uploads/' . $base,
+            $workspaceRoot . '/base/' . $rel,
+            $workspaceRoot . '/base/uploads/' . $base,
+            $workspaceRoot . '/demo/' . $rel,
+            $workspaceRoot . '/demo/uploads/' . $base,
+            $workspaceRoot . '/admin/' . $rel,
+            $workspaceRoot . '/admin/uploads/' . $base,
+            $workspaceRoot . '/uploads/vendors/' . $base,
+            dirname($workspaceRoot) . '/' . $rel,
+            dirname($workspaceRoot) . '/uploads/' . $base
+        ];
+
+        foreach ($candidates as $cand) {
+            if (file_exists($cand) && is_file($cand)) {
+                return $cand;
+            }
+        }
+        return null;
+    }
+
+    public static function installLabAssets($logoSrc, $letterheadSrc, $targetLabDir) {
+        $targetQrtemp  = $targetLabDir . '/qrtemp';
+        $targetUploads = $targetLabDir . '/uploads';
+        if (!is_dir($targetQrtemp))  { @mkdir($targetQrtemp, 0755, true); }
+        if (!is_dir($targetUploads)) { @mkdir($targetUploads, 0755, true); }
+
+        if (!empty($logoSrc) && file_exists($logoSrc)) {
+            $ext = strtolower(pathinfo($logoSrc, PATHINFO_EXTENSION));
+            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) $ext = 'jpg';
+            @copy($logoSrc, $targetQrtemp . '/logo.' . $ext);
+            @copy($logoSrc, $targetQrtemp . '/logo.jpg');
+            @copy($logoSrc, $targetUploads . '/logo.' . $ext);
+            @copy($logoSrc, $targetUploads . '/logo.jpg');
+            @copy($logoSrc, $targetLabDir . '/logo.' . $ext);
+            @copy($logoSrc, $targetLabDir . '/logo.jpg');
+        }
+
+        if (!empty($letterheadSrc) && file_exists($letterheadSrc)) {
+            $ext = strtolower(pathinfo($letterheadSrc, PATHINFO_EXTENSION));
+            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) $ext = 'jpg';
+            @copy($letterheadSrc, $targetQrtemp . '/letterhead.' . $ext);
+            @copy($letterheadSrc, $targetQrtemp . '/letterhead.jpg');
+            @copy($letterheadSrc, $targetUploads . '/letterhead.' . $ext);
+            @copy($letterheadSrc, $targetUploads . '/letterhead.jpg');
+            @copy($letterheadSrc, $targetLabDir . '/letterhead.' . $ext);
+            @copy($letterheadSrc, $targetLabDir . '/letterhead.jpg');
+            @copy($letterheadSrc, $targetLabDir . '/ammaletterhead.jpg');
+        }
+    }
+
     public static function createDatabase($host, $user, $pass, $db_name) {
         try {
             $pdo = new PDO("mysql:host={$host}", $user, $pass, [

@@ -85,6 +85,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     LabProvisioner::writeDbConfigFile($tDir . '/db.php', $h, $u, $p, $db_name_post);
                 }
             }
+
+            // Handle direct logo upload/replace in Super Admin
+            if (isset($_FILES['logo_file']) && $_FILES['logo_file']['error'] === UPLOAD_ERR_OK) {
+                $ext = strtolower(pathinfo($_FILES['logo_file']['name'], PATHINFO_EXTENSION));
+                if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
+                    $uDir = dirname(__DIR__) . '/uploads/vendors/';
+                    if (!is_dir($uDir)) { @mkdir($uDir, 0755, true); }
+                    $fname = 'logo_' . $vendor_id . '_' . time() . '.' . $ext;
+                    if (move_uploaded_file($_FILES['logo_file']['tmp_name'], $uDir . $fname)) {
+                        $relL = 'uploads/vendors/' . $fname;
+                        $conn->query("UPDATE vendor_master SET logo_image = '{$relL}' WHERE vendor_id = {$vendor_id}");
+                        $lab['logo_image'] = $relL;
+                        LabProvisioner::installLabAssets($uDir . $fname, null, $tDir);
+                    }
+                }
+            }
+
+            // Handle direct letterhead upload/replace in Super Admin
+            if (isset($_FILES['letter_file']) && $_FILES['letter_file']['error'] === UPLOAD_ERR_OK) {
+                $ext = strtolower(pathinfo($_FILES['letter_file']['name'], PATHINFO_EXTENSION));
+                if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
+                    $uDir = dirname(__DIR__) . '/uploads/vendors/';
+                    if (!is_dir($uDir)) { @mkdir($uDir, 0755, true); }
+                    $fname = 'letterhead_' . $vendor_id . '_' . time() . '.' . $ext;
+                    if (move_uploaded_file($_FILES['letter_file']['tmp_name'], $uDir . $fname)) {
+                        $relH = 'uploads/vendors/' . $fname;
+                        $conn->query("UPDATE vendor_master SET letterhead_image = '{$relH}' WHERE vendor_id = {$vendor_id}");
+                        $lab['letterhead_image'] = $relH;
+                        LabProvisioner::installLabAssets(null, $uDir . $fname, $tDir);
+                    }
+                }
+            }
+
+            // Ensure any existing registered logo and letterhead are synced into tenant portal
+            $logoSrcFound = LabProvisioner::findUploadedAsset($lab['logo_image'] ?? '', dirname(__DIR__));
+            $letterSrcFound = LabProvisioner::findUploadedAsset($lab['letterhead_image'] ?? '', dirname(__DIR__));
+            if ($logoSrcFound || $letterSrcFound) {
+                LabProvisioner::installLabAssets($logoSrcFound, $letterSrcFound, $tDir);
+            }
         } else {
             $error = "Failed to update record: " . $conn->error;
         }
@@ -271,48 +310,10 @@ function syncOrPurgeTenantLab($lab, $action = 'sync') {
     }
 
     // 9. Sync Logo and Letterhead assets
-    $targetQrtemp  = $tenant_dir . '/qrtemp';
-    $targetUploads = $tenant_dir . '/uploads';
-    if (!is_dir($targetQrtemp))  { @mkdir($targetQrtemp, 0755, true); }
-    if (!is_dir($targetUploads)) { @mkdir($targetUploads, 0755, true); }
-
-    if (!empty($lab['logo_image'])) {
-        $logoRel = ltrim($lab['logo_image'], '/\\');
-        $logoSrc = $workspaceRoot . '/' . $logoRel;
-        if (!file_exists($logoSrc) && file_exists(dirname(__DIR__) . '/' . $logoRel)) {
-            $logoSrc = dirname(__DIR__) . '/' . $logoRel;
-        }
-        if (file_exists($logoSrc)) {
-            @copy($logoSrc, $targetQrtemp . '/logo.jpg');
-            @copy($logoSrc, $targetUploads . '/logo.jpg');
-            @copy($logoSrc, $tenant_dir . '/logo.jpg');
-            $ext = strtolower(pathinfo($logoSrc, PATHINFO_EXTENSION));
-            if ($ext === 'png') {
-                @copy($logoSrc, $targetQrtemp . '/logo.png');
-                @copy($logoSrc, $targetUploads . '/logo.png');
-                @copy($logoSrc, $tenant_dir . '/logo.png');
-            }
-        }
-    }
-
-    if (!empty($lab['letterhead_image'])) {
-        $lhRel = ltrim($lab['letterhead_image'], '/\\');
-        $lhSrc = $workspaceRoot . '/' . $lhRel;
-        if (!file_exists($lhSrc) && file_exists(dirname(__DIR__) . '/' . $lhRel)) {
-            $lhSrc = dirname(__DIR__) . '/' . $lhRel;
-        }
-        if (file_exists($lhSrc)) {
-            @copy($lhSrc, $tenant_dir . '/letterhead.jpg');
-            @copy($lhSrc, $targetQrtemp . '/letterhead.jpg');
-            @copy($lhSrc, $targetUploads . '/letterhead.jpg');
-            @copy($lhSrc, $tenant_dir . '/ammaletterhead.jpg');
-            $ext = strtolower(pathinfo($lhSrc, PATHINFO_EXTENSION));
-            if ($ext === 'png') {
-                @copy($lhSrc, $tenant_dir . '/letterhead.png');
-                @copy($lhSrc, $targetUploads . '/letterhead.png');
-            }
-        }
-    }
+    // 9. Sync Logo and Letterhead assets
+    $logoSrc = LabProvisioner::findUploadedAsset($lab['logo_image'] ?? '', $workspaceRoot);
+    $letterheadSrc = LabProvisioner::findUploadedAsset($lab['letterhead_image'] ?? '', $workspaceRoot);
+    LabProvisioner::installLabAssets($logoSrc, $letterheadSrc, $tenant_dir);
 
     return ['success' => true, 'folder_slug' => $folder_slug, 'db_name' => $db_name];
 }
@@ -415,7 +416,7 @@ if (empty($current_db_name)) {
   <?php endif; ?>
 
   <div class="card-sa p-4 p-sm-5">
-    <form method="POST" action="lab_edit.php?id=<?= $vendor_id ?>">
+    <form method="POST" action="lab_edit.php?id=<?= $vendor_id ?>" enctype="multipart/form-data">
       
       <h5 class="fw-bold text-dark border-bottom pb-2 mb-3"><i class="fas fa-clinic-medical text-primary me-2"></i> General Information</h5>
       
@@ -435,42 +436,59 @@ if (empty($current_db_name)) {
         </div>
       </div>
 
-      <h5 class="fw-bold text-dark border-bottom pb-2 mb-3"><i class="fas fa-images text-primary me-2"></i> Branding Assets (Registered by Lab)</h5>
+      <h5 class="fw-bold text-dark border-bottom pb-2 mb-3"><i class="fas fa-images text-primary me-2"></i> Branding Assets (Logo & Report Letterhead)</h5>
       <div class="row g-3 mb-4">
         <div class="col-md-6">
           <label class="form-label small fw-semibold text-muted">Laboratory Logo</label>
           <div class="border rounded p-3 text-center bg-light">
             <?php 
-              $logoPath = !empty($lab['logo_image']) ? ltrim($lab['logo_image'], '/\\') : '';
-              $logoExists = (!empty($logoPath) && (file_exists(dirname(__DIR__) . '/' . $logoPath) || file_exists($tenant_dir . '/qrtemp/logo.jpg') || file_exists($tenant_dir . '/logo.jpg')));
+              $diskLogo = LabProvisioner::findUploadedAsset($lab['logo_image'] ?? '', dirname(__DIR__));
+              if (!$diskLogo) {
+                foreach ([$tenant_dir . '/qrtemp/logo.jpg', $tenant_dir . '/qrtemp/logo.png', $tenant_dir . '/uploads/logo.jpg', $tenant_dir . '/logo.jpg'] as $p) {
+                  if (file_exists($p)) { $diskLogo = $p; break; }
+                }
+              }
             ?>
-            <?php if ($logoExists): ?>
+            <?php if ($diskLogo): ?>
               <?php 
-                $displayLogo = file_exists(dirname(__DIR__) . '/' . $logoPath) ? '../' . $logoPath : '../' . $folder_slug . '/qrtemp/logo.jpg';
+                $webLogo = '../' . ltrim(str_replace('\\', '/', str_replace(dirname(__DIR__), '', $diskLogo)), '/');
               ?>
-              <img src="<?= htmlspecialchars($displayLogo) ?>" alt="Logo" class="img-fluid rounded mb-2 bg-white p-1 border shadow-sm" style="max-height: 80px; object-fit: contain;">
+              <img src="<?= htmlspecialchars($webLogo) ?>?v=<?= time() ?>" alt="Logo" class="img-fluid rounded mb-2 bg-white p-1 border shadow-sm" style="max-height: 80px; object-fit: contain;">
               <div class="text-success small fw-semibold"><i class="fas fa-check-circle me-1"></i> Custom Logo Active</div>
             <?php else: ?>
-              <div class="text-muted small py-3"><i class="fas fa-image fa-2x mb-2 d-block text-secondary"></i> No custom logo uploaded at registration.</div>
+              <div class="text-muted small py-2"><i class="fas fa-image fa-2x mb-2 d-block text-secondary"></i> No custom logo currently active.</div>
             <?php endif; ?>
+            <div class="mt-2 text-start">
+              <label class="form-label small text-muted mb-1">Upload / Replace Logo (JPG/PNG/WebP):</label>
+              <input type="file" name="logo_file" class="form-control form-control-sm" accept="image/png, image/jpeg, image/jpg, image/webp">
+            </div>
           </div>
         </div>
+
         <div class="col-md-6">
           <label class="form-label small fw-semibold text-muted">Report Letterhead</label>
           <div class="border rounded p-3 text-center bg-light">
             <?php 
-              $lhPath = !empty($lab['letterhead_image']) ? ltrim($lab['letterhead_image'], '/\\') : '';
-              $lhExists = (!empty($lhPath) && (file_exists(dirname(__DIR__) . '/' . $lhPath) || file_exists($tenant_dir . '/letterhead.jpg')));
+              $diskLh = LabProvisioner::findUploadedAsset($lab['letterhead_image'] ?? '', dirname(__DIR__));
+              if (!$diskLh) {
+                foreach ([$tenant_dir . '/qrtemp/letterhead.jpg', $tenant_dir . '/letterhead.jpg', $tenant_dir . '/ammaletterhead.jpg', $tenant_dir . '/uploads/letterhead.jpg'] as $p) {
+                  if (file_exists($p)) { $diskLh = $p; break; }
+                }
+              }
             ?>
-            <?php if ($lhExists): ?>
+            <?php if ($diskLh): ?>
               <?php 
-                $displayLh = file_exists(dirname(__DIR__) . '/' . $lhPath) ? '../' . $lhPath : '../' . $folder_slug . '/letterhead.jpg';
+                $webLh = '../' . ltrim(str_replace('\\', '/', str_replace(dirname(__DIR__), '', $diskLh)), '/');
               ?>
-              <img src="<?= htmlspecialchars($displayLh) ?>" alt="Letterhead" class="img-fluid rounded mb-2 bg-white p-1 border shadow-sm" style="max-height: 80px; object-fit: contain;">
+              <img src="<?= htmlspecialchars($webLh) ?>?v=<?= time() ?>" alt="Letterhead" class="img-fluid rounded mb-2 bg-white p-1 border shadow-sm" style="max-height: 80px; object-fit: contain;">
               <div class="text-success small fw-semibold"><i class="fas fa-check-circle me-1"></i> Custom Letterhead Active</div>
             <?php else: ?>
-              <div class="text-muted small py-3"><i class="fas fa-file-invoice fa-2x mb-2 d-block text-secondary"></i> No custom letterhead uploaded at registration.</div>
+              <div class="text-muted small py-2"><i class="fas fa-file-invoice fa-2x mb-2 d-block text-secondary"></i> No custom letterhead currently active.</div>
             <?php endif; ?>
+            <div class="mt-2 text-start">
+              <label class="form-label small text-muted mb-1">Upload / Replace Letterhead (JPG/PNG/WebP):</label>
+              <input type="file" name="letter_file" class="form-control form-control-sm" accept="image/png, image/jpeg, image/jpg, image/webp">
+            </div>
           </div>
         </div>
       </div>
