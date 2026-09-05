@@ -56,17 +56,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($up->execute()) {
             $message = "Laboratory details and credentials updated successfully!";
 
-            // If tenant directory exists, update db.php with submitted DB settings
+            // Ensure tenant directory exists and write db.php with submitted DB settings
             $folder_slug_temp = LabProvisioner::slugify($name);
             if (preg_match('/Provisioned at \/([a-zA-Z0-9_\-]+)/', $remarks, $m)) {
                 $folder_slug_temp = $m[1];
             }
             $tDir = dirname(__DIR__) . '/' . $folder_slug_temp;
-            if (!empty($db_name_post) && is_dir($tDir)) {
-                $h = getenv('DB_HOST') ?: 'localhost';
-                $u = !empty($db_user_post) ? $db_user_post : (getenv('DB_USER') ?: 'root');
-                $p = ($db_pass_post !== '') ? $db_pass_post : (getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
-                LabProvisioner::writeDbConfigFile($tDir . '/db.php', $h, $u, $p, $db_name_post);
+            if (!empty($db_name_post)) {
+                if (!is_dir($tDir)) {
+                    $baseDir = dirname(__DIR__) . '/base';
+                    if (is_dir($baseDir)) {
+                        LabProvisioner::copyDirectory($baseDir, $tDir);
+                    }
+                }
+                if (is_dir($tDir)) {
+                    $h = getenv('DB_HOST') ?: 'localhost';
+                    $u = !empty($db_user_post) ? $db_user_post : (getenv('DB_USER') ?: 'root');
+                    $p = $db_pass_post;
+                    if ($p === '' && file_exists($tDir . '/db.php')) {
+                        $cfg = file_get_contents($tDir . '/db.php');
+                        if (preg_match('/\$pass\s*=\s*[\'"]([^\'"]*)[\'"]/', $cfg, $pm)) {
+                            $p = $pm[1];
+                        }
+                    }
+                    if ($p === '') {
+                        $p = (getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
+                    }
+                    LabProvisioner::writeDbConfigFile($tDir . '/db.php', $h, $u, $p, $db_name_post);
+                }
             }
         } else {
             $error = "Failed to update record: " . $conn->error;
