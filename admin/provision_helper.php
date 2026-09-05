@@ -198,7 +198,7 @@ try {
         }
     }
 
-    public static function provisionLab($vendor, $customSlug = '', $customDbName = '', $customUser = '', $customPass = '', $trialDays = 14) {
+    public static function provisionLab($vendor, $customSlug = '', $customDbName = '', $customUser = '', $customPass = '', $trialDays = 14, $customDbUser = '', $customDbPass = '') {
         $workspaceRoot = dirname(__DIR__); // g:/LABTECH
         $baseTemplateDir = $workspaceRoot . '/base';
         $dumpSqlPath = $workspaceRoot . '/dump/diagnostic_lab_db.sql';
@@ -221,11 +221,11 @@ try {
 
         // 2. Database credentials
         $dbHost = getenv('DB_HOST') ?: 'localhost';
-        $dbUser = getenv('DB_USER') ?: 'root';
-        $dbPass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+        $dbUser = !empty($customDbUser) ? $customDbUser : (getenv('DB_USER') ?: 'root');
+        $dbPass = !empty($customDbPass) ? $customDbPass : (getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
         $dbName = !empty($customDbName) ? $customDbName : 'lab_' . $slug;
 
-        // 3. Create tenant database
+        // 3. Create tenant database (or connect to pre-created database)
         $dbCreateRes = self::createDatabase($dbHost, $dbUser, $dbPass, $dbName);
         if (!$dbCreateRes['success']) {
             return ['success' => false, 'error' => "Could not create database `{$dbName}`: " . $dbCreateRes['error']];

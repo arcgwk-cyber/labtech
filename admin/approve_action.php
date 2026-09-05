@@ -9,6 +9,8 @@ require_once __DIR__ . '/provision_helper.php';
 $vendor_id      = (int)($_POST['vendor_id'] ?? 0);
 $custom_slug    = trim($_POST['folder_slug'] ?? '');
 $custom_db      = trim($_POST['db_name'] ?? '');
+$custom_db_user = trim($_POST['db_user'] ?? '');
+$custom_db_pass = trim($_POST['db_pass'] ?? '');
 $admin_user     = trim($_POST['admin_username'] ?? '');
 $admin_pass     = trim($_POST['admin_password'] ?? '');
 $trial_days     = (int)($_POST['trial_days'] ?? 14);
@@ -30,7 +32,16 @@ if ($vendor_id <= 0) {
         $error = "Vendor application not found in database.";
     } else {
         // 2. Execute Automated Provisioning
-        $result = LabProvisioner::provisionLab($vendor, $custom_slug, $custom_db, $admin_user, $admin_pass, $trial_days);
+        $result = LabProvisioner::provisionLab(
+            $vendor, 
+            $custom_slug, 
+            $custom_db, 
+            $admin_user, 
+            $admin_pass, 
+            $trial_days, 
+            $custom_db_user, 
+            $custom_db_pass
+        );
 
         if (!$result['success']) {
             $error = $result['error'];

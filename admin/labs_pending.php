@@ -150,8 +150,20 @@ $highlight_id = (int)($_GET['approve_id'] ?? 0);
                     <label class="form-label small fw-semibold text-muted mb-1">Database Name</label>
                     <input type="text" name="db_name" class="form-control form-control-sm" value="<?= htmlspecialchars($suggested_db) ?>" required>
                     <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">
-                      <i class="fas fa-info-circle text-primary"></i> On Hostinger, create this DB in hPanel first with your MySQL user assigned.
+                      <i class="fas fa-database text-primary"></i> Separate DB name created in Hostinger hPanel.
                     </small>
+                  </div>
+                </div>
+
+                <!-- Database Credentials (Optional Override if different user/password created in Hostinger) -->
+                <div class="row g-2 mb-3">
+                  <div class="col-sm-6">
+                    <label class="form-label small fw-semibold text-muted mb-1">Database User (Optional)</label>
+                    <input type="text" name="db_user" class="form-control form-control-sm" placeholder="Leave blank to use default (<?= htmlspecialchars($current_db_user) ?>)">
+                  </div>
+                  <div class="col-sm-6">
+                    <label class="form-label small fw-semibold text-muted mb-1">Database Password (Optional)</label>
+                    <input type="password" name="db_pass" class="form-control form-control-sm font-monospace" placeholder="Leave blank to use .env DB_PASS">
                   </div>
                 </div>
 
