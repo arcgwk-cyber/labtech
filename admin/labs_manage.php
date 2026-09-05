@@ -205,8 +205,16 @@ if ($conn && !$conn->connect_error) {
                       </a>
 
                       <!-- Sync Branding / Files -->
-                      <a href="lab_edit.php?id=<?= $vid ?>&sync=1" class="btn btn-outline-info" title="Sync Database Branding & Portal Files">
+                      <a href="lab_edit.php?id=<?= $vid ?>&sync=1" class="btn btn-outline-info" title="Sync Database Branding, Logo, Letterhead & Portal Files">
                         <i class="fas fa-sync-alt"></i>
+                      </a>
+
+                      <!-- Purge Demo Data (Start Fresh) -->
+                      <a href="lab_edit.php?id=<?= $vid ?>&purge=1" 
+                         class="btn btn-outline-danger" 
+                         title="Start Fresh (Purge Demo Patients & Bills)"
+                         onclick="return confirm('Purge demo patients, bills, samples, and reports for <?= addslashes($lab['name']) ?>? All clinical master catalogs, tests, and ranges will be preserved.');">
+                        <i class="fas fa-trash-alt"></i>
                       </a>
 
                       <!-- Edit Details / Password -->

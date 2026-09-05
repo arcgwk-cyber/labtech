@@ -245,6 +245,90 @@ try {
             return ['success' => false, 'error' => "Failed during SQL import: " . $importRes['error']];
         }
 
+        // 4b. Purge demo operational / patient / billing data so the new lab starts 100% fresh!
+        // All clinical master test catalogs, parameter ranges, and reporting templates are preserved.
+        $tablesToPurge = [
+            'bills',
+            'bill_packages',
+            'bill_tests',
+            'patients',
+            'patient_extra_info',
+            'test_results',
+            'test_samples',
+            'transactions',
+            'sign_master',
+            'users'
+        ];
+
+        try {
+            $pdoTenant->exec("SET FOREIGN_KEY_CHECKS = 0;");
+            foreach ($tablesToPurge as $tbl) {
+                try {
+                    $pdoTenant->exec("TRUNCATE TABLE `{$tbl}`;");
+                } catch (PDOException $ex) {
+                    $pdoTenant->exec("DELETE FROM `{$tbl}`;");
+                    @$pdoTenant->exec("ALTER TABLE `{$tbl}` AUTO_INCREMENT = 1;");
+                }
+            }
+            $pdoTenant->exec("SET FOREIGN_KEY_CHECKS = 1;");
+        } catch (Exception $e) {
+            // Non-fatal warning
+        }
+
+        // 4c. Setup fresh upload folders & copy uploaded Logo and Letterhead
+        $targetQrtemp  = $targetLabDir . '/qrtemp';
+        $targetUploads = $targetLabDir . '/uploads';
+        if (!is_dir($targetQrtemp))  { @mkdir($targetQrtemp, 0755, true); }
+        if (!is_dir($targetUploads)) { @mkdir($targetUploads, 0755, true); }
+
+        // Clean out any leftover files in qrtemp/uploads
+        foreach (glob($targetQrtemp . '/*') as $f) {
+            if (basename($f) !== '.gitkeep') { @unlink($f); }
+        }
+        foreach (glob($targetUploads . '/*') as $f) {
+            if (basename($f) !== '.gitkeep') { @unlink($f); }
+        }
+
+        // Copy vendor's uploaded Logo
+        if (!empty($vendor['logo_image'])) {
+            $logoRel = ltrim($vendor['logo_image'], '/\\');
+            $logoSrc = $workspaceRoot . '/' . $logoRel;
+            if (!file_exists($logoSrc) && file_exists(dirname(__DIR__) . '/' . $logoRel)) {
+                $logoSrc = dirname(__DIR__) . '/' . $logoRel;
+            }
+            if (file_exists($logoSrc)) {
+                @copy($logoSrc, $targetQrtemp . '/logo.jpg');
+                @copy($logoSrc, $targetUploads . '/logo.jpg');
+                @copy($logoSrc, $targetLabDir . '/logo.jpg');
+                $ext = strtolower(pathinfo($logoSrc, PATHINFO_EXTENSION));
+                if ($ext === 'png') {
+                    @copy($logoSrc, $targetQrtemp . '/logo.png');
+                    @copy($logoSrc, $targetUploads . '/logo.png');
+                    @copy($logoSrc, $targetLabDir . '/logo.png');
+                }
+            }
+        }
+
+        // Copy vendor's uploaded Letterhead
+        if (!empty($vendor['letterhead_image'])) {
+            $lhRel = ltrim($vendor['letterhead_image'], '/\\');
+            $lhSrc = $workspaceRoot . '/' . $lhRel;
+            if (!file_exists($lhSrc) && file_exists(dirname(__DIR__) . '/' . $lhRel)) {
+                $lhSrc = dirname(__DIR__) . '/' . $lhRel;
+            }
+            if (file_exists($lhSrc)) {
+                @copy($lhSrc, $targetLabDir . '/letterhead.jpg');
+                @copy($lhSrc, $targetQrtemp . '/letterhead.jpg');
+                @copy($lhSrc, $targetUploads . '/letterhead.jpg');
+                @copy($lhSrc, $targetLabDir . '/ammaletterhead.jpg');
+                $ext = strtolower(pathinfo($lhSrc, PATHINFO_EXTENSION));
+                if ($ext === 'png') {
+                    @copy($lhSrc, $targetLabDir . '/letterhead.png');
+                    @copy($lhSrc, $targetUploads . '/letterhead.png');
+                }
+            }
+        }
+
         // 5. Write tenant db.php
         $targetDbPhp = $targetLabDir . '/db.php';
         $writeRes = self::writeDbConfigFile($targetDbPhp, $dbHost, $dbUser, $dbPass, $dbName);

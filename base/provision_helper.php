@@ -210,6 +210,25 @@ try {
             $importRes = self::importSqlFile($tenantPdo, $dumpSqlPath);
             $log[] = "Imported {$importRes['queries_executed']} SQL queries.";
 
+            // Step 5b: Purge demo operational / patient / billing data so the new lab starts 100% fresh!
+            $tablesToPurge = [
+                'bills', 'bill_packages', 'bill_tests',
+                'patients', 'patient_extra_info',
+                'test_results', 'test_samples',
+                'transactions', 'sign_master', 'users'
+            ];
+            $tenantPdo->exec("SET FOREIGN_KEY_CHECKS = 0;");
+            foreach ($tablesToPurge as $tbl) {
+                try {
+                    $tenantPdo->exec("TRUNCATE TABLE `{$tbl}`;");
+                } catch (PDOException $ex) {
+                    $tenantPdo->exec("DELETE FROM `{$tbl}`;");
+                    @$tenantPdo->exec("ALTER TABLE `{$tbl}` AUTO_INCREMENT = 1;");
+                }
+            }
+            $tenantPdo->exec("SET FOREIGN_KEY_CHECKS = 1;");
+            $log[] = "Purged demo transactions (bills, patients, samples, reports) for fresh start.";
+
             // Step 6: Provision Lab Admin User into tenant DB
             $vendor_username = $vendor['vendor_userid'];
             $vendor_password = $vendor['password']; // already hashed during registration or passed hashed
