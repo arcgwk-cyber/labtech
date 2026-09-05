@@ -79,10 +79,17 @@ $highlight_id = (int)($_GET['approve_id'] ?? 0);
   <?php else: ?>
 
     <div class="row g-4">
-      <?php foreach ($pending_requests as $req): 
+      <?php 
+      $current_db_user = getenv('DB_USER') ?: 'root';
+      $db_prefix = '';
+      if (preg_match('/^([a-zA-Z0-9]+_)/', $current_db_user, $matches)) {
+          $db_prefix = $matches[1];
+      }
+
+      foreach ($pending_requests as $req): 
         $vid = (int)$req['vendor_id'];
         $suggested_slug = LabProvisioner::slugify($req['name']);
-        $suggested_db   = 'lab_' . $suggested_slug;
+        $suggested_db   = $db_prefix ? ($db_prefix . substr($suggested_slug, 0, 16)) : ('lab_' . $suggested_slug);
         $suggested_user = !empty($req['vendor_userid']) ? $req['vendor_userid'] : 'admin_' . $suggested_slug;
         $suggested_pass = !empty($req['password']) ? $req['password'] : 'Lab@' . rand(1000, 9999);
         $is_highlighted = ($highlight_id === $vid);
@@ -142,6 +149,9 @@ $highlight_id = (int)($_GET['approve_id'] ?? 0);
                   <div class="col-sm-6">
                     <label class="form-label small fw-semibold text-muted mb-1">Database Name</label>
                     <input type="text" name="db_name" class="form-control form-control-sm" value="<?= htmlspecialchars($suggested_db) ?>" required>
+                    <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">
+                      <i class="fas fa-info-circle text-primary"></i> On Hostinger, create this DB in hPanel first with your MySQL user assigned.
+                    </small>
                   </div>
                 </div>
 

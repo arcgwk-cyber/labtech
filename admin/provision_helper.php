@@ -46,14 +46,42 @@ class LabProvisioner {
     }
 
     public static function createDatabase($host, $user, $pass, $db_name) {
+        // First check: does the database already exist? (e.g. pre-created in Hostinger hPanel / cPanel)
+        try {
+            $pdoExisting = new PDO("mysql:host={$host};dbname={$db_name};charset=utf8mb4", $user, $pass, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+            ]);
+            return ['success' => true, 'pdo' => $pdoExisting, 'already_existed' => true];
+        } catch (PDOException $e) {
+            // If connection failed because database doesn't exist (1049 Unknown database), we try to CREATE it.
+            // If it failed due to bad user/pass (1045), return error immediately.
+            if ($e->getCode() == 1045) {
+                return ['success' => false, 'error' => "MySQL Authentication failed for user '{$user}': " . $e->getMessage()];
+            }
+        }
+
+        // Second: attempt CREATE DATABASE
         try {
             $pdo = new PDO("mysql:host={$host}", $user, $pass, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
             ]);
             $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;");
-            return ['success' => true, 'pdo' => $pdo];
+            return ['success' => true, 'pdo' => $pdo, 'already_existed' => false];
         } catch (PDOException $e) {
-            return ['success' => false, 'error' => $e->getMessage()];
+            $msg = $e->getMessage();
+            // Check for error 1044 (Access denied to database / CREATE DATABASE not allowed on shared hosting)
+            if (strpos($msg, '1044') !== false || strpos($msg, 'Access denied') !== false) {
+                $userPrefix = '';
+                if (preg_match('/^([a-zA-Z0-9]+_)/', $user, $m)) {
+                    $userPrefix = $m[1];
+                }
+                return [
+                    'success' => false, 
+                    'error' => "Access denied to CREATE database `{$db_name}`. On Hostinger/Shared hosting, MySQL users cannot create arbitrary databases via PHP scripts. " .
+                               "Please go to Hostinger hPanel → Databases, create a database named `" . ($userPrefix ? "{$userPrefix}{$db_name}" : "{$db_name}") . "`, assign user `{$user}` to it with all privileges, and re-run approval with that exact database name."
+                ];
+            }
+            return ['success' => false, 'error' => $msg];
         }
     }
 
