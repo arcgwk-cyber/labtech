@@ -1,0 +1,31 @@
+# Operating System & IDE Files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+.vscode/
+.idea/
+
+# AI Coding Assistant Brain & Scratch Files
+.gemini/
+scratch/
+
+# Archives & Temporary Backups (Avoid Git 100MB file limit)
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Dynamic QR code temp generation (keep directory structure)
+base/qrtemp/*.png
+demo/qrtemp/*.png
+!base/qrtemp/.gitkeep
+!demo/qrtemp/.gitkeep
+
+# Session / Temp uploads if applicable
+*/uploads/temp/*
+
+# Environment variables & secrets (NEVER commit to Git)
+.env
+.env.local
+.env.*.local
