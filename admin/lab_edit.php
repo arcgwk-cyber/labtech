@@ -81,8 +81,16 @@ function syncOrPurgeTenantLab($lab, $action = 'sync') {
     }
     $tenant_dir = $workspaceRoot . '/' . $folder_slug;
 
+    // 1b. Auto-create tenant lab folder from blueprint if it doesn't exist yet!
     if (!is_dir($tenant_dir)) {
-        return ['success' => false, 'error' => "Tenant lab folder does not exist on disk at: /{$folder_slug}"];
+        $baseDir = $workspaceRoot . '/base';
+        if (!is_dir($baseDir)) {
+            return ['success' => false, 'error' => "Base template blueprint folder not found at: {$baseDir}"];
+        }
+        $copyOk = LabProvisioner::copyDirectory($baseDir, $tenant_dir);
+        if (!$copyOk) {
+            return ['success' => false, 'error' => "Failed to create tenant directory at: /{$folder_slug}. Please check server permissions."];
+        }
     }
 
     // 2. Resolve database credentials
@@ -105,14 +113,17 @@ function syncOrPurgeTenantLab($lab, $action = 'sync') {
         $db_name = $m[1];
     }
 
+    // Auto-detect Hostinger database prefix if still unknown
+    if (empty($db_name)) {
+        $masterUser = getenv('DB_USER') ?: 'root';
+        $prefix = (strpos($masterUser, '_') !== false) ? substr($masterUser, 0, strpos($masterUser, '_') + 1) : '';
+        $db_name = $prefix . 'lab_' . $folder_slug;
+    }
+
     // Fallback credentials from environment
     if (empty($db_host)) $db_host = getenv('DB_HOST') ?: 'localhost';
     if (empty($db_user)) $db_user = getenv('DB_USER') ?: 'root';
     if ($db_pass === null) $db_pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
-
-    if (empty($db_name)) {
-        return ['success' => false, 'error' => "Cannot determine tenant database name from remarks or {$tenant_config}"];
-    }
 
     // 3. Connect to tenant DB independently (DO NOT touch global $conn!)
     mysqli_report(MYSQLI_REPORT_OFF);
@@ -123,12 +134,28 @@ function syncOrPurgeTenantLab($lab, $action = 'sync') {
         $masterPass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
         $tConn = @new mysqli($db_host, $masterUser, $masterPass, $db_name);
         if ($tConn->connect_error) {
-            return ['success' => false, 'error' => "Database connection check failed for `{$db_name}`: " . $tConn->connect_error];
+            return ['success' => false, 'error' => "Database connection check failed for `{$db_name}`: " . $tConn->connect_error . ". Please make sure database `{$db_name}` exists in Hostinger Databases."];
         }
         $db_user = $masterUser;
         $db_pass = $masterPass;
     }
     $tConn->set_charset('utf8mb4');
+
+    // Check if database tables exist; if empty, import master SQL dump
+    $tblCheck = $tConn->query("SHOW TABLES");
+    if ($tblCheck && $tblCheck->num_rows === 0) {
+        $dumpPath = $workspaceRoot . '/dump/diagnostic_lab_db.sql';
+        if (file_exists($dumpPath)) {
+            try {
+                $pTenant = new PDO("mysql:host={$db_host};dbname={$db_name};charset=utf8mb4", $db_user, $db_pass, [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+                ]);
+                LabProvisioner::importSqlFile($pTenant, $dumpPath);
+            } catch (Exception $e) {
+                // non-fatal
+            }
+        }
+    }
 
     // 4. If purge action requested, truncate demo tables
     if ($action === 'purge') {
@@ -301,6 +328,23 @@ if (isset($_GET['purge']) && $_GET['purge'] == '1') {
       <i class="fas fa-exclamation-circle fa-lg"></i>
       <div><?= htmlspecialchars($error) ?></div>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  <?php endif; ?>
+
+  <?php if (!is_dir($tenant_dir)): ?>
+    <div class="alert alert-warning d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 p-3 mb-4 rounded-3 border-warning shadow-sm" role="alert">
+      <div class="d-flex align-items-center gap-3">
+        <div class="p-2 bg-warning bg-opacity-25 text-dark rounded-circle">
+          <i class="fas fa-folder-plus fa-lg"></i>
+        </div>
+        <div>
+          <strong class="text-dark d-block">Laboratory Portal Files Not Yet Deployed on Disk</strong>
+          <span class="small text-muted">Directory <code>/<?= htmlspecialchars($folder_slug) ?></code> is missing. Click to deploy fresh portal files and database setup.</span>
+        </div>
+      </div>
+      <a href="lab_edit.php?id=<?= $vendor_id ?>&purge=1" class="btn btn-warning fw-bold text-dark px-4 py-2 text-nowrap rounded-3">
+        <i class="fas fa-rocket me-1"></i> Deploy Lab Portal Now
+      </a>
     </div>
   <?php endif; ?>
 
