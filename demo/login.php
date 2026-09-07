@@ -350,6 +350,13 @@ foreach ([
         </div>
         <?php endif; ?>
 
+        <!-- PWA 1-Tap Install Action (Strictly hidden by default; ONLY visible when installable) -->
+        <div id="pwaLoginInstallBox" class="text-center mt-3 pt-2 border-top" style="display: none;">
+          <button type="button" id="pwaLoginInstallBtn" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-bold shadow-sm" style="font-size: 0.82rem;">
+            <i class="fas fa-arrow-down-to-bracket me-1"></i> Install <?= htmlspecialchars($settings['company_name']) ?> App
+          </button>
+        </div>
+
       <?php endif; ?>
     </div>
   </div>
@@ -361,11 +368,55 @@ foreach ([
     }
   </script>
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
+    // PWA Service Worker & Login Install Action (ONLY visible to install)
+    (function() {
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js').catch(() => {});
+        });
+      }
+
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                           window.navigator.standalone === true || 
+                           localStorage.getItem('pwa_installed') === 'true';
+
+      if (isStandalone) {
+        // App is already installed or running standalone; keep install button hidden
+        return;
+      }
+
+      let loginDeferredPrompt = null;
+      const installBox = document.getElementById('pwaLoginInstallBox');
+      const installBtn = document.getElementById('pwaLoginInstallBtn');
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        loginDeferredPrompt = e;
+        if (installBox) {
+          installBox.style.display = 'block';
+        }
       });
-    }
+
+      if (installBtn) {
+        installBtn.addEventListener('click', async () => {
+          if (loginDeferredPrompt) {
+            loginDeferredPrompt.prompt();
+            const { outcome } = await loginDeferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+              localStorage.setItem('pwa_installed', 'true');
+            }
+            loginDeferredPrompt = null;
+            if (installBox) installBox.style.display = 'none';
+          }
+        });
+      }
+
+      window.addEventListener('appinstalled', () => {
+        localStorage.setItem('pwa_installed', 'true');
+        if (installBox) installBox.style.display = 'none';
+        loginDeferredPrompt = null;
+      });
+    })();
   </script>
 
 </body>

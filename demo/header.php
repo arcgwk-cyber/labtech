@@ -37,10 +37,15 @@ if ($conn && !$conn->connect_error) {
         $app_settings['company_name'] = 'Amma Diagnostic Centre';
     } else {
         $labSlug = $conn->real_escape_string($currentDir);
-        $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
-        if ($res && $row = $res->fetch_assoc()) {
-            $app_settings = array_merge($app_settings, $row);
-        } else {
+        $found = false;
+        if ($currentDir !== 'base') {
+            $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+            if ($res && $row = $res->fetch_assoc()) {
+                $app_settings = array_merge($app_settings, $row);
+                $found = true;
+            }
+        }
+        if (!$found && $currentDir !== 'base') {
             $words = explode('_', str_replace('-', '_', $currentDir));
             $formatted = array_map(function($w) {
                 return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
@@ -53,9 +58,9 @@ if ($conn && !$conn->connect_error) {
 // Check logo
 $app_logo = null;
 foreach ([
-    'qrtemp/logo.png', 'qrtemp/logo.jpg', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
-    'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg',
-    'logo.png', 'logo.jpg', 'assets/amma_logo.png'
+    'qrtemp/logo.jpg', 'qrtemp/logo.png', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
+    'uploads/logo.jpg', 'uploads/logo.png', 'uploads/logo.jpeg',
+    'logo.jpg', 'logo.png'
 ] as $lp) {
     if (file_exists(__DIR__ . '/' . $lp)) {
         $app_logo = $lp;
@@ -344,7 +349,7 @@ function isNavActive($page_or_pages, $active_page) {
     }
   }
 
-  /* PWA Install Banner (Mobile Prompter) */
+  /* PWA Install Elements - ONLY visible when installable */
   .pwa-install-banner {
     display: none;
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
@@ -356,6 +361,11 @@ function isNavActive($page_or_pages, $active_page) {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+    animation: pwaSlideDown 0.3s ease-out;
+  }
+  @keyframes pwaSlideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   .pwa-install-banner .pwa-info {
     display: flex;
@@ -363,10 +373,25 @@ function isNavActive($page_or_pages, $active_page) {
     gap: 10px;
   }
   .pwa-install-banner img {
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
     border-radius: 8px;
+    object-fit: contain;
+    background: #ffffff;
+    padding: 2px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+  .btn-pwa-install {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #ffffff;
+    border: none;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+  .btn-pwa-install:hover {
+    background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+    color: #ffffff;
+    transform: translateY(-1px);
   }
 
 </style>
@@ -466,6 +491,11 @@ function isNavActive($page_or_pages, $active_page) {
 
       <!-- Right Action Pill & Profile -->
       <div class="d-flex align-items-center gap-2 mt-2 mt-xl-0">
+        <!-- PWA Install Button (Strictly hidden by default; ONLY visible when installable) -->
+        <button id="pwaTopNavBtn" type="button" class="btn btn-outline-light btn-sm fw-semibold d-none align-items-center gap-1 shadow-sm" style="border-radius: 20px; padding: 4px 12px; font-size: 0.8rem;" title="Install Application to Device">
+          <i class="fas fa-cloud-download-alt text-warning"></i> <span>Install App</span>
+        </button>
+
         <a href="bill_add.php" class="btn-quick-bill">
           <i class="fas fa-plus-circle"></i> Fast Bill
         </a>
@@ -485,6 +515,11 @@ function isNavActive($page_or_pages, $active_page) {
             </li>
             <li><a class="dropdown-item" href="profile.php"><i class="fas fa-clinic-medical text-muted me-2"></i> Clinic Settings</a></li>
             <li><a class="dropdown-item" href="subscription_status.php"><i class="fas fa-shield-alt text-muted me-2"></i> License Status</a></li>
+            <li id="pwaDropdownInstallItem" style="display: none;">
+              <a class="dropdown-item text-primary fw-semibold" href="javascript:void(0);" id="pwaDropdownInstallBtn">
+                <i class="fas fa-arrow-circle-down text-primary me-2"></i> Install App on Device
+              </a>
+            </li>
             <li><hr class="dropdown-divider my-1"></li>
             <li><a class="dropdown-item text-danger" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i> Sign Out</a></li>
           </ul>
@@ -495,18 +530,18 @@ function isNavActive($page_or_pages, $active_page) {
   </div>
 </nav>
 
-<!-- Mobile PWA Install Banner -->
+<!-- Mobile PWA Install Banner (Strictly hidden by default; ONLY visible when installable) -->
 <div id="pwaInstallBanner" class="pwa-install-banner">
   <div class="pwa-info">
-    <img src="assets/icon-192.png" alt="LabTech Icon">
+    <img src="<?= htmlspecialchars(!empty($app_logo) ? $app_logo : 'assets/icon-192.png') ?>" alt="App Icon">
     <div>
-      <div class="fw-bold" style="font-size: 0.88rem; line-height: 1.2;">VenSaas LabTech App</div>
-      <div style="font-size: 0.72rem; color: #94a3b8;">Install on your phone for 1-tap access</div>
+      <div class="fw-bold" style="font-size: 0.88rem; line-height: 1.2;"><?= htmlspecialchars($app_settings['company_name']) ?></div>
+      <div style="font-size: 0.72rem; color: #94a3b8;">Install app for fast 1-tap access</div>
     </div>
   </div>
   <div class="d-flex align-items-center gap-2">
-    <button id="pwaInstallBtn" type="button" class="btn btn-sm btn-primary py-1 px-3 fw-bold" style="font-size:0.8rem; border-radius: 6px;">
-      Install
+    <button id="pwaInstallBtn" type="button" class="btn btn-sm btn-pwa-install py-1 px-3 fw-bold" style="font-size:0.8rem; border-radius: 6px;">
+      <i class="fas fa-download me-1"></i> Install
     </button>
     <button type="button" class="btn btn-sm text-white-50 p-1" onclick="dismissPwaBanner()" title="Close">
       <i class="fas fa-times"></i>
@@ -620,51 +655,88 @@ function isNavActive($page_or_pages, $active_page) {
   initMobileMenu();
 
   // PWA Service Worker Registration & Installation Prompt Logic
-  let deferredPrompt = null;
-  const pwaBanner = document.getElementById('pwaInstallBanner');
-  const pwaBtn = document.getElementById('pwaInstallBtn');
+  // ONLY visible to install: Strictly hidden if already installed or unsupported
+  (function() {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                         window.navigator.standalone === true || 
+                         localStorage.getItem('pwa_installed') === 'true';
 
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    if (pwaBanner && !sessionStorage.getItem('pwa_dismissed')) {
-      pwaBanner.style.display = 'flex';
+    if (isStandalone) {
+      // App is already installed or running in standalone mode; keep install UI 100% hidden
+      return;
     }
-  });
 
-  if (pwaBtn) {
-    pwaBtn.addEventListener('click', async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        deferredPrompt = null;
-        if (pwaBanner) pwaBanner.style.display = 'none';
+    let deferredPrompt = null;
+    const pwaBanner = document.getElementById('pwaInstallBanner');
+    const pwaBtn = document.getElementById('pwaInstallBtn');
+    const pwaTopNavBtn = document.getElementById('pwaTopNavBtn');
+    const pwaDropdownItem = document.getElementById('pwaDropdownInstallItem');
+    const pwaDropdownBtn = document.getElementById('pwaDropdownInstallBtn');
+
+    function hideAllInstallUI() {
+      if (pwaBanner) pwaBanner.style.display = 'none';
+      if (pwaTopNavBtn) {
+        pwaTopNavBtn.classList.remove('d-inline-flex');
+        pwaTopNavBtn.classList.add('d-none');
+      }
+      if (pwaDropdownItem) pwaDropdownItem.style.display = 'none';
+    }
+
+    async function triggerInstall() {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        localStorage.setItem('pwa_installed', 'true');
+        hideAllInstallUI();
+      }
+      deferredPrompt = null;
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+
+      // Show top nav install button & dropdown menu option
+      if (pwaTopNavBtn) {
+        pwaTopNavBtn.classList.remove('d-none');
+        pwaTopNavBtn.classList.add('d-inline-flex');
+      }
+      if (pwaDropdownItem) {
+        pwaDropdownItem.style.display = 'block';
+      }
+
+      // Show banner on mobile/tablet only if not dismissed recently (within 48 hours)
+      const dismissedAt = localStorage.getItem('pwa_banner_dismissed_at');
+      const isDismissed = dismissedAt && (Date.now() - parseInt(dismissedAt, 10) < 48 * 60 * 60 * 1000);
+
+      if (pwaBanner && !isDismissed && window.innerWidth < 992) {
+        pwaBanner.style.display = 'flex';
       }
     });
-  }
 
-  window.dismissPwaBanner = function() {
-    if (pwaBanner) pwaBanner.style.display = 'none';
-    sessionStorage.setItem('pwa_dismissed', 'true');
-  };
+    if (pwaBtn) pwaBtn.addEventListener('click', triggerInstall);
+    if (pwaTopNavBtn) pwaTopNavBtn.addEventListener('click', triggerInstall);
+    if (pwaDropdownBtn) pwaDropdownBtn.addEventListener('click', triggerInstall);
 
-  window.addEventListener('appinstalled', () => {
-    if (pwaBanner) pwaBanner.style.display = 'none';
-    deferredPrompt = null;
-  });
+    window.dismissPwaBanner = function() {
+      if (pwaBanner) pwaBanner.style.display = 'none';
+      localStorage.setItem('pwa_banner_dismissed_at', Date.now().toString());
+    };
 
-  // Register Service Worker
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js')
-        .then((reg) => {
-          // Service worker registered successfully
-        })
-        .catch((err) => {
-          // SW registration ignored in non-https or local without error
-        });
+    window.addEventListener('appinstalled', () => {
+      localStorage.setItem('pwa_installed', 'true');
+      hideAllInstallUI();
+      deferredPrompt = null;
     });
-  }
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  })();
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initMobileMenu);

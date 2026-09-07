@@ -40,7 +40,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('/assets/') || event.request.url.includes('manifest.json')) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
-        return cachedResponse || fetch(event.request);
+        return cachedResponse || fetch(event.request).catch(() => null);
       })
     );
     return;
