@@ -433,6 +433,12 @@ function isNavActive($page_or_pages, $active_page) {
         </li>
 
         <li class="nav-item">
+          <a class="nav-link <?= isNavActive(['patient_history.php'], $active_page) ?>" href="patient_history.php">
+            <i class="fas fa-user-injured"></i> Patients
+          </a>
+        </li>
+
+        <li class="nav-item">
           <a class="nav-link <?= isNavActive(['sample_collection.php', 'sample_collected_list.php'], $active_page) ?>" href="sample_collection.php">
             <i class="fas fa-vial"></i> Samples
           </a>
@@ -468,10 +474,13 @@ function isNavActive($page_or_pages, $active_page) {
 
         <!-- Reports Dropdown -->
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle <?= isNavActive(['rate_card.php', 'category_tests.php', 'sample_collected_list.php'], $active_page) ?>" href="javascript:void(0);" data-nav-dropdown="toggle" role="button" aria-expanded="false">
+          <a class="nav-link dropdown-toggle <?= isNavActive(['rate_card.php', 'doctor_report.php', 'patient_history.php', 'category_tests.php', 'sample_collected_list.php'], $active_page) ?>" href="javascript:void(0);" data-nav-dropdown="toggle" role="button" aria-expanded="false">
             <i class="fas fa-file-medical-alt"></i> Reports
           </a>
           <ul class="dropdown-menu border-0 shadow">
+            <li><a class="dropdown-item" href="doctor_report.php"><i class="fas fa-user-md text-primary me-2"></i> Doctor Referral Report</a></li>
+            <li><a class="dropdown-item" href="patient_history.php"><i class="fas fa-history text-primary me-2"></i> Patient 360° History</a></li>
+            <li><hr class="dropdown-divider my-1"></li>
             <li><a class="dropdown-item" href="rate_card.php"><i class="fas fa-tags text-primary me-2"></i> Price Card / Rate List</a></li>
             <li><a class="dropdown-item" href="category_tests.php"><i class="fas fa-th-list text-primary me-2"></i> Tests by Category</a></li>
             <li><a class="dropdown-item" href="sample_collected_list.php"><i class="fas fa-vials text-primary me-2"></i> Collected Samples Log</a></li>

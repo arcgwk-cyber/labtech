@@ -88,7 +88,7 @@ $statsStmt->close();
 
 // 6. Fetch Main Bill Records
 $mainSql = "
-    SELECT b.*, p.full_name, p.phone, 
+    SELECT b.*, p.patient_id, p.full_name, p.phone, p.dr_ref,
            s.status as sample_status, s.sample_id,
            COUNT(DISTINCT bt.test_id) + COUNT(DISTINCT bp.package_id) as total_items
     FROM bills b
@@ -651,8 +651,18 @@ function buildUrl($overrides = []) {
                                 </td>
                                 <td data-label="Patient">
                                     <div class="text-end text-md-start">
-                                        <div class="fw-bold text-dark"><?= htmlspecialchars($row['full_name']) ?></div>
-                                        <small class="text-muted"><i class="bi bi-telephone me-1"></i><?= htmlspecialchars($row['phone'] ?: 'N/A') ?></small>
+                                        <a href="patient_history.php?patient_id=<?= $row['patient_id'] ?>" class="fw-bold text-primary text-decoration-none" title="View Patient 360° History">
+                                            <?= htmlspecialchars($row['full_name']) ?> <i class="fas fa-history text-muted ms-1" style="font-size: 0.72rem;"></i>
+                                        </a>
+                                        <div class="small text-muted mt-1">
+                                            <i class="bi bi-telephone me-1"></i><?= htmlspecialchars($row['phone'] ?: 'N/A') ?>
+                                            <?php if (!empty($row['dr_ref'])): ?>
+                                                <span class="mx-1">•</span>
+                                                <a href="doctor_report.php?doctor=<?= urlencode(trim($row['dr_ref'])) ?>" class="badge bg-light text-secondary border text-decoration-none" title="View Doctor Referral Report">
+                                                    <i class="fas fa-user-md me-1 text-primary"></i><?= htmlspecialchars($row['dr_ref']) ?>
+                                                </a>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </td>
                                 <td data-label="Amount">

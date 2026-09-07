@@ -1,14 +1,17 @@
 <?php
 include 'db.php';
 
-$term = $_GET['q'] ?? '';
-$term = "%".$conn->real_escape_string($term)."%";
+$term_plain = trim($_GET['q'] ?? '');
+$term = "%".$conn->real_escape_string($term_plain)."%";
 
-$sql = "SELECT * FROM patients 
-        WHERE full_name LIKE ? OR phone LIKE ?
-        ORDER BY full_name LIMIT 20";
+$sql = "SELECT p.*, COUNT(b.bill_id) as visit_count 
+        FROM patients p 
+        LEFT JOIN bills b ON p.patient_id = b.patient_id
+        WHERE p.full_name LIKE ? OR p.phone LIKE ? OR CAST(p.patient_id AS CHAR) = ?
+        GROUP BY p.patient_id
+        ORDER BY p.patient_id DESC LIMIT 20";
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("ss", $term, $term);
+$stmt->bind_param("sss", $term, $term, $term_plain);
 $stmt->execute();
 $result = $stmt->get_result();
 
