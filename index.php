@@ -575,9 +575,6 @@
           <li class="nav-item"><a class="nav-link nav-link-custom text-primary" href="brochure.php" target="_blank"><i class="fas fa-file-pdf me-1"></i> Brochure</a></li>
         </ul>
         <div class="d-flex align-items-center gap-2">
-          <a href="admin/login.php" class="btn btn-outline-secondary btn-sm fw-bold px-3 py-2" title="Super Admin Portal">
-            <i class="fas fa-user-shield me-1"></i> Admin Login
-          </a>
           <a href="demo/" class="btn btn-outline-primary btn-sm fw-bold px-3 py-2">
             <i class="fas fa-desktop me-1"></i> Explore Demo
           </a>
@@ -1155,11 +1152,6 @@
             <li class="mb-2"><i class="fas fa-envelope text-primary me-2"></i> support@vensaas.com</li>
             <li class="mb-2"><i class="fab fa-whatsapp text-success me-2"></i> +91 98765 43210</li>
             <li class="mb-2"><i class="fas fa-map-marker-alt text-danger me-2"></i> Health Tech Towers, Chennai, India</li>
-            <li class="mt-3">
-              <a href="admin/login.php" class="btn btn-outline-secondary btn-sm text-white w-100 py-2">
-                <i class="fas fa-lock me-1"></i> Super Admin Portal
-              </a>
-            </li>
           </ul>
         </div>
       </div>
@@ -1171,7 +1163,6 @@
         <div class="d-flex gap-3">
           <a href="#" class="text-muted text-decoration-none">Privacy Policy</a>
           <a href="#" class="text-muted text-decoration-none">Terms of Service</a>
-          <a href="admin/login.php" class="text-muted text-decoration-none">Admin Login</a>
         </div>
       </div>
     </div>
