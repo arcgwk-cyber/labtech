@@ -281,6 +281,7 @@ function syncOrPurgeTenantLab($lab, $action = 'sync') {
             $cols[] = $cRow['Field'];
         }
     }
+    if (!in_array('lab_slug', $cols))    { @$tConn->query("ALTER TABLE admin_settings ADD COLUMN lab_slug VARCHAR(100) DEFAULT NULL AFTER id"); @$tConn->query("ALTER TABLE admin_settings ADD INDEX (lab_slug)"); $cols[] = 'lab_slug'; }
     if (!in_array('phone', $cols))       { @$tConn->query("ALTER TABLE admin_settings ADD COLUMN phone VARCHAR(50) DEFAULT NULL"); $cols[] = 'phone'; }
     if (!in_array('email', $cols))       { @$tConn->query("ALTER TABLE admin_settings ADD COLUMN email VARCHAR(100) DEFAULT NULL"); $cols[] = 'email'; }
     if (!in_array('status', $cols))      { @$tConn->query("ALTER TABLE admin_settings ADD COLUMN status VARCHAR(20) DEFAULT 'active'"); $cols[] = 'status'; }
@@ -297,7 +298,36 @@ function syncOrPurgeTenantLab($lab, $action = 'sync') {
     if (in_array('expiry_date', $cols) && !empty($lab['due_date'])) $updateFields[] = "expiry_date = '" . $tConn->real_escape_string($lab['due_date']) . "'";
     if (in_array('grace_days', $cols)) $updateFields[] = "grace_days = 7";
 
-    $tConn->query("UPDATE admin_settings SET " . implode(", ", $updateFields) . " WHERE id = 1");
+    $escapedSlug = $tConn->real_escape_string($folder_slug);
+    $chkSlug = $tConn->query("SELECT id FROM admin_settings WHERE lab_slug = '{$escapedSlug}' LIMIT 1");
+    if ($chkSlug && $chkSlug->num_rows > 0) {
+        $rowS = $chkSlug->fetch_assoc();
+        $tConn->query("UPDATE admin_settings SET " . implode(", ", $updateFields) . " WHERE id = " . (int)$rowS['id']);
+    } else {
+        $cntRes = $tConn->query("SELECT COUNT(*) FROM admin_settings");
+        $totalRows = ($cntRes) ? (int)$cntRes->fetch_row()[0] : 0;
+        if ($totalRows === 0) {
+            $updateFields[] = "lab_slug = '{$escapedSlug}'";
+            $updateFields[] = "id = 1";
+            $tConn->query("INSERT INTO admin_settings SET " . implode(", ", $updateFields));
+        } else {
+            // Check if row 1 is NOT Amma / demo
+            $r1 = $tConn->query("SELECT id, company_name FROM admin_settings WHERE id = 1 LIMIT 1");
+            $canUpdateR1 = false;
+            if ($r1 && $row1 = $r1->fetch_assoc()) {
+                if ($row1['company_name'] !== 'Amma Diagnostic Centre' && $totalRows === 1) {
+                    $canUpdateR1 = true;
+                }
+            }
+            if ($canUpdateR1) {
+                $updateFields[] = "lab_slug = '{$escapedSlug}'";
+                $tConn->query("UPDATE admin_settings SET " . implode(", ", $updateFields) . " WHERE id = 1");
+            } else {
+                $updateFields[] = "lab_slug = '{$escapedSlug}'";
+                $tConn->query("INSERT INTO admin_settings SET " . implode(", ", $updateFields));
+            }
+        }
+    }
     $tConn->close();
 
     // 7. Re-write tenant db.php config so tenant portal is 100% properly configured

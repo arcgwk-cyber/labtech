@@ -17,40 +17,50 @@ $current_role      = $_SESSION['role'] ?? 'user';
 $current_full_name = $_SESSION['full_name'] ?? $current_username;
 
 // Fetch settings from admin_settings
+$currentDir = basename(__DIR__);
+$isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
+
+// Fetch settings from admin_settings
 $app_settings = [
-    'company_name' => 'Diagnostic Centre ERP',
+    'company_name' => $isDemo ? 'Amma Diagnostic Centre' : 'Diagnostic Centre ERP',
     'status'       => 'active',
     'expiry_date'  => null,
     'grace_days'   => 7
 ];
-if ($conn) {
-    $res = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
-    if ($res && $row = $res->fetch_assoc()) {
-        $app_settings = array_merge($app_settings, $row);
-    }
-}
 
-// Dynamic Lab Name resolution for tenant portals
-$currentDir = basename(__DIR__);
-if ($currentDir !== 'base' && $currentDir !== 'demo') {
-    if (empty($app_settings['company_name']) || 
-        $app_settings['company_name'] === 'Amma Diagnostic Centre' || 
-        $app_settings['company_name'] === 'Diagnostic Centre ERP') {
-        
-        $words = explode('_', str_replace('-', '_', $currentDir));
-        $formatted = array_map(function($w) {
-            return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
-        }, $words);
-        $app_settings['company_name'] = implode(' ', $formatted);
+if ($conn && !$conn->connect_error) {
+    if ($isDemo) {
+        $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = 'demo' LIMIT 1");
+        if ($res && $row = $res->fetch_assoc()) {
+            $app_settings = array_merge($app_settings, $row);
+        }
+        $app_settings['company_name'] = 'Amma Diagnostic Centre';
+    } else {
+        $labSlug = $conn->real_escape_string($currentDir);
+        $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+        if ($res && $row = $res->fetch_assoc()) {
+            $app_settings = array_merge($app_settings, $row);
+        } else {
+            $words = explode('_', str_replace('-', '_', $currentDir));
+            $formatted = array_map(function($w) {
+                return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
+            }, $words);
+            $app_settings['company_name'] = implode(' ', $formatted);
+        }
     }
 }
 
 // Check logo
 $app_logo = null;
-if (file_exists(__DIR__ . '/qrtemp/logo.jpg')) {
-    $app_logo = 'qrtemp/logo.jpg';
-} elseif (file_exists(__DIR__ . '/uploads/logo.jpg')) {
-    $app_logo = 'uploads/logo.jpg';
+foreach ([
+    'qrtemp/logo.png', 'qrtemp/logo.jpg', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
+    'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg',
+    'logo.png', 'logo.jpg', 'assets/amma_logo.png'
+] as $lp) {
+    if (file_exists(__DIR__ . '/' . $lp)) {
+        $app_logo = $lp;
+        break;
+    }
 }
 
 // Detect current active page

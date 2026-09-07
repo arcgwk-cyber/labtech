@@ -73,19 +73,41 @@ function calculateAge($dob) {
 }
 
 function getLabHeaderHTML($conn) {
-    $lab_name = "Amma Diagnostic Centre";
-    $lab_addr = "Srikakulam";
+    $currentDir = basename(__DIR__);
+    $isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
 
-    if ($conn) {
-        $res = $conn->query("SELECT company_name, company_address FROM admin_settings WHERE id = 1 LIMIT 1");
-        if ($res && $row = $res->fetch_assoc()) {
-            $lab_name = !empty($row['company_name']) ? $row['company_name'] : $lab_name;
-            $lab_addr = !empty($row['company_address']) ? $row['company_address'] : $lab_addr;
+    $lab_name = $isDemo ? "Amma Diagnostic Centre" : "Diagnostic Centre ERP";
+    $lab_addr = $isDemo ? "Gorjee Street, ICHAPURAM-532312, Srikakulam Dist, (A.P)" : "Diagnostic Laboratory";
+
+    if ($conn && !$conn->connect_error) {
+        if ($isDemo) {
+            $res = $conn->query("SELECT company_name, company_address FROM admin_settings WHERE lab_slug = 'demo' LIMIT 1");
+            if ($res && $row = $res->fetch_assoc()) {
+                if (!empty($row['company_address'])) $lab_addr = $row['company_address'];
+            }
+            $lab_name = "Amma Diagnostic Centre";
+        } else {
+            $labSlug = $conn->real_escape_string($currentDir);
+            $res = $conn->query("SELECT company_name, company_address FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+            if ($res && $row = $res->fetch_assoc()) {
+                $lab_name = !empty($row['company_name']) ? $row['company_name'] : $lab_name;
+                $lab_addr = !empty($row['company_address']) ? $row['company_address'] : $lab_addr;
+            } else {
+                $words = explode('_', str_replace('-', '_', $currentDir));
+                $formatted = array_map(function($w) {
+                    return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
+                }, $words);
+                $lab_name = implode(' ', $formatted);
+            }
         }
     }
 
     $logo_file = null;
-    foreach (['uploads/logo.png', 'uploads/logo.jpg', 'qrtemp/logo.jpg', 'logo.png', 'logo.jpg'] as $p) {
+    foreach ([
+        'qrtemp/logo.png', 'qrtemp/logo.jpg', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
+        'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg',
+        'logo.png', 'logo.jpg', 'assets/amma_logo.png'
+    ] as $p) {
         if (file_exists(__DIR__ . '/' . $p)) {
             $logo_file = __DIR__ . '/' . $p;
             break;

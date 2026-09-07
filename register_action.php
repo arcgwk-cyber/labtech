@@ -39,15 +39,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         function uploadFileSafely($inputName) {
             if (isset($_FILES[$inputName]) && $_FILES[$inputName]['error'] === UPLOAD_ERR_OK) {
                 $uploadDir = __DIR__ . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR;
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0755, true);
-                }
+                $vendorDir = $uploadDir . 'vendors' . DIRECTORY_SEPARATOR;
+                if (!is_dir($uploadDir)) { @mkdir($uploadDir, 0755, true); }
+                if (!is_dir($vendorDir)) { @mkdir($vendorDir, 0755, true); }
                 $ext = strtolower(pathinfo($_FILES[$inputName]['name'], PATHINFO_EXTENSION));
                 $allowed = ['jpg', 'jpeg', 'png', 'webp'];
                 if (in_array($ext, $allowed)) {
                     $fileName = time() . '_' . uniqid() . '.' . $ext;
                     $targetPath = $uploadDir . $fileName;
                     if (move_uploaded_file($_FILES[$inputName]['tmp_name'], $targetPath)) {
+                        @copy($targetPath, $vendorDir . $fileName);
                         return 'uploads/' . $fileName;
                     }
                 }

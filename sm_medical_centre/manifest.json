@@ -1,0 +1,75 @@
+{
+  "name": "VenSaas LabTech - Pathology Lab LIMS ERP",
+  "short_name": "LabTech",
+  "description": "Professional Diagnostic Laboratory Management, Billing & Reporting Software",
+  "start_url": "index.php",
+  "display": "standalone",
+  "background_color": "#0284c7",
+  "theme_color": "#0284c7",
+  "orientation": "portrait-primary",
+  "scope": "./",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Patient Bill",
+      "short_name": "New Bill",
+      "description": "Create a new patient invoice and investigations",
+      "url": "bill_add.php",
+      "icons": [
+        {
+          "src": "assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Sample Collection",
+      "short_name": "Samples",
+      "description": "Phlebotomy station and barcode stickers",
+      "url": "sample_collection.php",
+      "icons": [
+        {
+          "src": "assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Test Results Entry",
+      "short_name": "Results",
+      "description": "Enter test parameters and approve reports",
+      "url": "result_entry.php",
+      "icons": [
+        {
+          "src": "assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Invoices List",
+      "short_name": "All Bills",
+      "description": "View all patient diagnostic invoices",
+      "url": "bill_list.php",
+      "icons": [
+        {
+          "src": "assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

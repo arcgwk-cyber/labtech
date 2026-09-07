@@ -2,41 +2,101 @@
 session_start();
 require_once 'db.php';
 
+// Dynamic Lab Name resolution & Multi-tenant self-healing
+$currentDir = basename(__DIR__);
+$isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
+
 // Fetch settings from admin_settings if table exists
 $settings = [
-    'company_name' => 'Diagnostic Centre ERP',
+    'company_name' => $isDemo ? 'Amma Diagnostic Centre' : 'Diagnostic Centre ERP',
     'status'       => 'active',
     'expiry_date'  => null,
     'grace_days'   => 7
 ];
 
-if ($conn) {
-    $res = $conn->query("SELECT * FROM admin_settings LIMIT 1");
-    if ($res && $row = $res->fetch_assoc()) {
-        $settings = array_merge($settings, $row);
+if ($conn && !$conn->connect_error) {
+    // 1. Ensure lab_slug column exists in admin_settings for strict multi-tenant isolation
+    $colCheck = $conn->query("SHOW COLUMNS FROM admin_settings LIKE 'lab_slug'");
+    if ($colCheck && $colCheck->num_rows === 0) {
+        @$conn->query("ALTER TABLE admin_settings ADD COLUMN lab_slug VARCHAR(100) DEFAULT NULL AFTER id");
+        @$conn->query("ALTER TABLE admin_settings ADD INDEX (lab_slug)");
+
+        // Check row 1: if it's SM Medical Centre, preserve it under sm_medical_centre slug
+        $r1 = $conn->query("SELECT id, company_name FROM admin_settings WHERE id = 1 LIMIT 1");
+        if ($r1 && $row1 = $r1->fetch_assoc()) {
+            if ($row1['company_name'] === 'Amma Diagnostic Centre') {
+                @$conn->query("UPDATE admin_settings SET lab_slug = 'demo' WHERE id = 1");
+            } elseif (stripos($row1['company_name'], 'SM') !== false) {
+                @$conn->query("UPDATE admin_settings SET lab_slug = 'sm_medical_centre' WHERE id = 1");
+            }
+        }
     }
-}
 
-// Dynamic Lab Name resolution & Self-healing for provisioned tenant portals
-$currentDir = basename(__DIR__);
-$isDemo = ($currentDir === 'demo' || $currentDir === 'base' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
+    if ($isDemo) {
+        // Query specifically for demo record
+        $foundDemo = false;
+        $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = 'demo' LIMIT 1");
+        if ($res && $row = $res->fetch_assoc()) {
+            $settings = array_merge($settings, $row);
+            $foundDemo = true;
+        } else {
+            // Check if row 1 is Amma Diagnostic Centre
+            $r1 = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
+            if ($r1 && $row1 = $r1->fetch_assoc()) {
+                if ($row1['company_name'] === 'Amma Diagnostic Centre') {
+                    $settings = array_merge($settings, $row1);
+                    $foundDemo = true;
+                    @$conn->query("UPDATE admin_settings SET lab_slug = 'demo' WHERE id = 1");
+                }
+            }
+        }
 
-if (!$isDemo) {
-    // If company_name is still default/placeholder or empty, derive from folder slug and auto-heal DB
-    if (empty($settings['company_name']) || 
-        $settings['company_name'] === 'Amma Diagnostic Centre' || 
-        $settings['company_name'] === 'Diagnostic Centre ERP') {
-        
-        $words = explode('_', str_replace('-', '_', $currentDir));
-        $formatted = array_map(function($w) {
-            return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
-        }, $words);
-        $dynamicName = implode(' ', $formatted);
-        $settings['company_name'] = $dynamicName;
+        // Demo is strictly Amma Diagnostic Centre
+        $settings['company_name'] = 'Amma Diagnostic Centre';
+        $settings['company_address'] = !empty($settings['company_address']) && $settings['company_address'] !== 'Srikakulam' 
+            ? $settings['company_address'] 
+            : 'Gorjee Street, ICHAPURAM-532312, Srikakulam Dist, (A.P)';
 
-        // Auto-heal database record so reports, bills, and PDFs persist this name immediately
-        if ($conn && !$conn->connect_error) {
-            @$conn->query("UPDATE admin_settings SET company_name = '" . $conn->real_escape_string($dynamicName) . "' WHERE id = 1");
+        // Auto-heal DB so demo record is permanently protected under lab_slug = 'demo'
+        if ($foundDemo) {
+            @$conn->query("UPDATE admin_settings SET company_name = 'Amma Diagnostic Centre', lab_slug = 'demo' WHERE lab_slug = 'demo'");
+        } else {
+            // If row 1 was overwritten with SM Medical Centre, copy SM Medical Centre to its own row first
+            $r1 = $conn->query("SELECT id, company_name, company_address FROM admin_settings WHERE id = 1 LIMIT 1");
+            if ($r1 && $row1 = $r1->fetch_assoc()) {
+                if ($row1['company_name'] !== 'Amma Diagnostic Centre') {
+                    $chkSM = $conn->query("SELECT id FROM admin_settings WHERE lab_slug = 'sm_medical_centre' LIMIT 1");
+                    if (!$chkSM || $chkSM->num_rows === 0) {
+                        @$conn->query("INSERT INTO admin_settings (company_name, company_address, lab_slug, status) 
+                                      VALUES ('" . $conn->real_escape_string($row1['company_name']) . "', '" . $conn->real_escape_string($row1['company_address']) . "', 'sm_medical_centre', 'active')");
+                    }
+                }
+            }
+            // Insert/heal demo row
+            $chkDemo = $conn->query("SELECT id FROM admin_settings WHERE lab_slug = 'demo' LIMIT 1");
+            if (!$chkDemo || $chkDemo->num_rows === 0) {
+                @$conn->query("INSERT INTO admin_settings (company_name, company_address, phone, email, lab_slug, status) 
+                              VALUES ('Amma Diagnostic Centre', 'Gorjee Street, ICHAPURAM-532312, Srikakulam Dist, (A.P)', '+91 7702271571 / +91 9515680080', 'info@ammadiagnostics.com', 'demo', 'active')");
+            }
+        }
+    } else {
+        // Tenant Lab Portal (e.g. sm_medical_centre or any newly created lab)
+        $labSlug = $conn->real_escape_string($currentDir);
+        $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+        if ($res && $row = $res->fetch_assoc()) {
+            $settings = array_merge($settings, $row);
+        } else {
+            // Fallback: derive dynamic lab name from folder slug
+            $words = explode('_', str_replace('-', '_', $currentDir));
+            $formatted = array_map(function($w) {
+                return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
+            }, $words);
+            $dynamicName = implode(' ', $formatted);
+            $settings['company_name'] = $dynamicName;
+
+            // Auto-heal DB record with tenant's lab_slug
+            @$conn->query("INSERT INTO admin_settings (company_name, lab_slug, status) 
+                          VALUES ('" . $conn->real_escape_string($dynamicName) . "', '{$labSlug}', 'active')");
         }
     }
 }
@@ -104,7 +164,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
     }
 }
 
-$logo_path = file_exists('qrtemp/logo.jpg') ? 'qrtemp/logo.jpg' : null;
+$logo_path = null;
+foreach ([
+    'qrtemp/logo.png', 'qrtemp/logo.jpg', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
+    'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg',
+    'logo.png', 'logo.jpg', 'assets/amma_logo.png'
+] as $lp) {
+    if (file_exists($lp)) {
+        $logo_path = $lp;
+        break;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

@@ -22,10 +22,18 @@ if (!function_exists('getLetterheadImageFile')) {
     function getLetterheadImageFile() {
         foreach ([
             __DIR__ . '/letterhead.jpg',
+            __DIR__ . '/letterhead.png',
+            __DIR__ . '/letterhead.jpeg',
+            __DIR__ . '/letterhead.webp',
             __DIR__ . '/ammaletterhead.jpg',
             __DIR__ . '/qrtemp/letterhead.jpg',
+            __DIR__ . '/qrtemp/letterhead.png',
+            __DIR__ . '/qrtemp/letterhead.jpeg',
+            __DIR__ . '/qrtemp/letterhead.webp',
             __DIR__ . '/uploads/letterhead.jpg',
-            __DIR__ . '/uploads/letterhead.png'
+            __DIR__ . '/uploads/letterhead.png',
+            __DIR__ . '/uploads/letterhead.jpeg',
+            __DIR__ . '/uploads/letterhead.webp'
         ] as $path) {
             if (file_exists($path)) {
                 return $path;
