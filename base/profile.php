@@ -97,7 +97,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     @copy($dest, __DIR__ . '/uploads/letterhead.jpg');
                     @copy($dest, __DIR__ . '/letterhead.' . $ext);
                     @copy($dest, __DIR__ . '/letterhead.jpg');
-                    @copy($dest, __DIR__ . '/ammaletterhead.jpg');
                     $messages[] = '<div class="alert alert-success">Letterhead updated successfully for PDF reports.</div>';
                 }
             } else {

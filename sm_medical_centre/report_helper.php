@@ -20,12 +20,11 @@ if (!function_exists('encodeID')) {
 
 if (!function_exists('getLetterheadImageFile')) {
     function getLetterheadImageFile() {
-        foreach ([
+        $candidates = [
             __DIR__ . '/letterhead.jpg',
             __DIR__ . '/letterhead.png',
             __DIR__ . '/letterhead.jpeg',
             __DIR__ . '/letterhead.webp',
-            __DIR__ . '/ammaletterhead.jpg',
             __DIR__ . '/qrtemp/letterhead.jpg',
             __DIR__ . '/qrtemp/letterhead.png',
             __DIR__ . '/qrtemp/letterhead.jpeg',
@@ -34,7 +33,11 @@ if (!function_exists('getLetterheadImageFile')) {
             __DIR__ . '/uploads/letterhead.png',
             __DIR__ . '/uploads/letterhead.jpeg',
             __DIR__ . '/uploads/letterhead.webp'
-        ] as $path) {
+        ];
+        if (basename(__DIR__) === 'demo') {
+            $candidates[] = __DIR__ . '/ammaletterhead.jpg';
+        }
+        foreach ($candidates as $path) {
             if (file_exists($path)) {
                 return $path;
             }
