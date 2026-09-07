@@ -30,7 +30,7 @@ $p_query = "
     FROM lab_test_parameters ltp
     JOIN test_parameters p ON ltp.parameter_id = p.parameter_id
     LEFT JOIN parameter_reference_ranges r ON p.parameter_id = r.parameter_id
-    ORDER BY ltp.test_id, ltp.sort_order ASC, p.param_name ASC
+    ORDER BY ltp.test_id, ltp.param_order ASC, p.param_name ASC
 ";
 $p_res = $conn->query($p_query);
 if ($p_res) {
@@ -343,7 +343,10 @@ function getSpecimenBadge($test_name) {
         Catalog of laboratory test profiles, clinical parameters, reference intervals, and vacutainer specimen guidelines.
       </div>
     </div>
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <a href="update_pathology_catalog.php" class="btn btn-outline-success btn-sm fw-semibold">
+        <i class="bi bi-arrow-repeat me-1"></i> Master Catalog (92 Tests)
+      </a>
       <a href="rate_card.php" class="btn btn-outline-secondary btn-sm fw-semibold">
         <i class="bi bi-file-earmark-spreadsheet me-1"></i> Tariff Rate Card
       </a>

@@ -375,7 +375,10 @@ if ($pk_res) {
         Configure bundled diagnostic health checkup packages with multi-test inclusion and patient savings.
       </div>
     </div>
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <a href="update_pathology_catalog.php" class="btn btn-outline-success btn-sm fw-semibold">
+        <i class="bi bi-arrow-repeat me-1"></i> Master Packages (15)
+      </a>
       <a href="rate_card.php" class="btn btn-outline-secondary btn-sm fw-semibold">
         <i class="bi bi-file-earmark-spreadsheet me-1"></i> View Rate Card
       </a>

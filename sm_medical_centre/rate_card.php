@@ -98,7 +98,7 @@ $param_q = $conn->query("
     FROM lab_test_parameters ltp
     JOIN test_parameters p ON ltp.parameter_id = p.parameter_id
     LEFT JOIN parameter_reference_ranges r ON p.parameter_id = r.parameter_id
-    ORDER BY ltp.test_id, ltp.sort_order ASC, p.param_name ASC
+    ORDER BY ltp.test_id, ltp.param_order ASC, p.param_name ASC
 ");
 if ($param_q) {
     while ($p = $param_q->fetch_assoc()) {
