@@ -120,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
         $username = trim($_POST['username']);
         $password = trim($_POST['password']);
 
-        if ($conn) {
+        if ($conn && !$conn->connect_error) {
             $stmt = $conn->prepare("SELECT users.*, roles.role_name 
                                     FROM users 
                                     LEFT JOIN roles ON users.role_id = roles.role_id 
@@ -159,7 +159,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
                 $error = "Database query error: " . $conn->error;
             }
         } else {
-            $error = "Database connection unavailable.";
+            $connErr = ($conn && $conn->connect_error) ? $conn->connect_error : ($db_error ?? 'Unable to connect to database.');
+            $error = "Database connection unavailable: " . $connErr . ". Please verify database user and password in Admin Panel.";
         }
     }
 }
