@@ -78,8 +78,10 @@ if ($vendor_id <= 0) {
       <div class="kpi-icon-box bg-danger bg-opacity-10 text-danger mx-auto mb-3" style="width: 64px; height: 64px;">
         <i class="fas fa-exclamation-triangle fa-lg"></i>
       </div>
-      <h4 class="fw-bold text-dark">Provisioning Failed</h4>
-      <p class="text-danger small mb-4"><?= htmlspecialchars($error) ?></p>
+      <h4 class="fw-bold text-dark">Provisioning Could Not Complete</h4>
+      <div class="text-start bg-light p-3 rounded-3 border text-danger small mb-4">
+        <?= strip_tags($error, '<br><b><strong><code><em>&bull;<ul><li><p>') ?>
+      </div>
       <a href="labs_pending.php" class="btn btn-outline-secondary px-4 py-2 rounded-3 fw-semibold">
         <i class="fas fa-arrow-left me-1"></i> Back to Pending Queue
       </a>

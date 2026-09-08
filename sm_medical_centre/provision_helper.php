@@ -101,52 +101,120 @@ class LabProvisioner {
         }
     }
 
-    public static function createDatabase($host, $user, $pass, $db_name) {
-        $firstErr = '';
-        try {
-            $pdoExisting = new PDO("mysql:host={$host};dbname={$db_name};charset=utf8mb4", $user, $pass, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-            ]);
-            return ['success' => true, 'pdo' => $pdoExisting, 'already_existed' => true];
-        } catch (PDOException $e) {
-            $firstErr = $e->getMessage();
-            // If connection failed because database doesn't exist (1049 Unknown database), we try to CREATE it.
-            // If it failed due to bad user/pass (1045), return error immediately.
-            if ($e->getCode() == 1045) {
-                return ['success' => false, 'error' => "MySQL Authentication failed for user '{$user}': " . $e->getMessage()];
+    /**
+     * Connect to an existing database directly without attempting CREATE DATABASE.
+     * Tries candidate credentials (custom user/pass, master .env credentials, root fallback).
+     * Returns active PDO instance along with working username and password.
+     */
+    public static function connectDatabase($host, $customUser, $customPass, $db_name) {
+        $envUser = getenv('DB_USER') ?: '';
+        $envPass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+
+        // Build list of candidate credentials to try connecting directly to $db_name
+        $candidates = [];
+
+        // 1. Specified custom credentials (if provided)
+        if (!empty($customUser)) {
+            if ($customPass !== '') {
+                $candidates[] = ['user' => $customUser, 'pass' => $customPass, 'label' => "Specified User '{$customUser}'"];
+            } else {
+                // If custom password was left empty, try with env password and with blank password
+                if ($envPass !== '') {
+                    $candidates[] = ['user' => $customUser, 'pass' => $envPass, 'label' => "User '{$customUser}' with default password"];
+                }
+                $candidates[] = ['user' => $customUser, 'pass' => '', 'label' => "User '{$customUser}' with empty password"];
             }
         }
 
-        // Second: attempt CREATE DATABASE
-        try {
-            $pdo = new PDO("mysql:host={$host}", $user, $pass, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-            ]);
-            $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;");
-            return ['success' => true, 'pdo' => $pdo, 'already_existed' => false];
-        } catch (PDOException $e) {
-            $msg = $e->getMessage();
-            // Check for error 1044 (Access denied to database / CREATE DATABASE not allowed on shared hosting)
-            if (strpos($msg, '1044') !== false || strpos($msg, 'Access denied') !== false) {
-                $userPrefix = '';
-                if (preg_match('/^([a-zA-Z0-9]+_)/', $user, $m)) {
-                    $userPrefix = $m[1];
-                }
-                // Avoid duplicating prefix if db_name already starts with prefix
-                $expectedDbName = $db_name;
-                if ($userPrefix && strpos($expectedDbName, $userPrefix) !== 0) {
-                    $expectedDbName = $userPrefix . $expectedDbName;
-                }
+        // 2. Master environment credentials (.env DB_USER & DB_PASS)
+        if (!empty($envUser)) {
+            $candidates[] = ['user' => $envUser, 'pass' => $envPass, 'label' => "Master User '{$envUser}'"];
+        }
 
-                $connectErr = isset($firstErr) ? " (Connection check failed: {$firstErr})" : "";
+        // 3. Localhost root fallback
+        if ($host === 'localhost' || $host === '127.0.0.1') {
+            $candidates[] = ['user' => 'root', 'pass' => '', 'label' => "Local 'root' user"];
+        }
+
+        // De-duplicate candidates by user+pass
+        $uniqueCandidates = [];
+        $seen = [];
+        foreach ($candidates as $c) {
+            $key = $c['user'] . ':::' . $c['pass'];
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $uniqueCandidates[] = $c;
+            }
+        }
+
+        $connectionErrors = [];
+
+        // Connect directly to the database without attempting CREATE DATABASE
+        foreach ($uniqueCandidates as $cand) {
+            try {
+                $pdo = new PDO("mysql:host={$host};dbname={$db_name};charset=utf8mb4", $cand['user'], $cand['pass'], [
+                    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES   => false,
+                ]);
                 return [
-                    'success' => false, 
-                    'error' => "Cannot access database `{$db_name}`{$connectErr}. On Hostinger/Shared hosting, MySQL users cannot create arbitrary databases via PHP scripts. " .
-                               "Please create the database `{$expectedDbName}` in Hostinger hPanel → Databases, assign user `{$user}` to it with ALL privileges, and then approve with database name `{$expectedDbName}`."
+                    'success'         => true,
+                    'pdo'             => $pdo,
+                    'already_existed' => true,
+                    'working_user'    => $cand['user'],
+                    'working_pass'    => $cand['pass'],
                 ];
+            } catch (PDOException $e) {
+                $cleanMsg = preg_replace('/\s*\(using password:.*?\)/i', '', $e->getMessage());
+                $connectionErrors[] = "{$cand['label']}: " . $cleanMsg;
             }
-            return ['success' => false, 'error' => $msg];
         }
+
+        // If local dev environment (localhost with root) and DB doesn't exist, allow auto-create only locally
+        $isLocalhost = ($host === 'localhost' || $host === '127.0.0.1');
+        $isRemoteOrPrefixed = (!empty($envUser) && strpos($envUser, '_') !== false) || strpos($db_name, '_') !== false;
+
+        if ($isLocalhost && !$isRemoteOrPrefixed) {
+            try {
+                $rootPdo = new PDO("mysql:host={$host}", 'root', '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+                $rootPdo->exec("CREATE DATABASE IF NOT EXISTS `{$db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;");
+                $pdo = new PDO("mysql:host={$host};dbname={$db_name};charset=utf8mb4", 'root', '', [
+                    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES   => false,
+                ]);
+                return [
+                    'success'         => true,
+                    'pdo'             => $pdo,
+                    'already_existed' => false,
+                    'working_user'    => 'root',
+                    'working_pass'    => '',
+                ];
+            } catch (Exception $e) {
+                // Ignore local create error and report connection failure below
+            }
+        }
+
+        // Friendly, actionable error for Hostinger / Shared hosting
+        $errSummary = implode("<br>&bull; ", array_map('htmlspecialchars', $connectionErrors));
+        $effectiveUser = !empty($customUser) ? htmlspecialchars($customUser) : htmlspecialchars($envUser);
+        $masterUser = htmlspecialchars($envUser);
+
+        $errorMsg = "Could not connect to pre-created database `{$db_name}` on `{$host}`.<br><br>" .
+                    "<strong>Connection attempts:</strong><br>&bull; {$errSummary}<br><br>" .
+                    "<strong>How to resolve in Hostinger hPanel:</strong><br>" .
+                    "1. Confirm that database <code>{$db_name}</code> exists in Hostinger hPanel &rarr; Databases.<br>" .
+                    "2. If you created a dedicated user <code>{$effectiveUser}</code> in Hostinger, enter its password in the <em>Database Password</em> field.<br>" .
+                    "3. Or in Hostinger hPanel &rarr; Databases, assign master user <code>{$masterUser}</code> to database <code>{$db_name}</code> with <strong>ALL PRIVILEGES</strong>.";
+
+        return [
+            'success' => false,
+            'error'   => $errorMsg
+        ];
+    }
+
+    public static function createDatabase($host, $user, $pass, $db_name) {
+        return self::connectDatabase($host, $user, $pass, $db_name);
     }
 
     public static function importSqlFile($pdo, $sqlFilePath) {
@@ -179,16 +247,21 @@ class LabProvisioner {
     }
 
     public static function writeDbConfigFile($targetFilePath, $host, $user, $pass, $db_name) {
+        $escHost = addcslashes($host, "'\\");
+        $escUser = addcslashes($user, "'\\");
+        $escPass = addcslashes($pass, "'\\");
+        $escDb   = addcslashes($db_name, "'\\");
+
         $configContent = "<?php
 /**
  * Auto-generated Database Connection for Tenant Lab
  * Provisioned: " . date('Y-m-d H:i:s') . "
  */
 
-\$host = '{$host}';
-\$user = '{$user}';
-\$pass = '{$pass}';
-\$dbname = '{$db_name}';
+\$host = '{$escHost}';
+\$user = '{$escUser}';
+\$pass = '{$escPass}';
+\$dbname = '{$escDb}';
 
 // 1. Initialize MySQLi connection (\$conn)
 mysqli_report(MYSQLI_REPORT_OFF);
@@ -275,60 +348,67 @@ try {
             return ['success' => false, 'error' => "Failed to copy base blueprint files to {$targetLabDir}."];
         }
 
-        // 2. Database credentials
+        // 2. Database credentials & connection
         $dbHost = getenv('DB_HOST') ?: 'localhost';
-        $dbUser = !empty($customDbUser) ? $customDbUser : (getenv('DB_USER') ?: 'root');
-        $dbPass = !empty($customDbPass) ? $customDbPass : (getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
         $dbName = !empty($customDbName) ? $customDbName : 'lab_' . $slug;
 
-        // 3. Create tenant database (or connect to pre-created database)
-        $dbCreateRes = self::createDatabase($dbHost, $dbUser, $dbPass, $dbName);
-        if (!$dbCreateRes['success']) {
-            return ['success' => false, 'error' => "Could not create database `{$dbName}`: " . $dbCreateRes['error']];
+        // 3. Connect to pre-created tenant database directly
+        $dbConnRes = self::connectDatabase($dbHost, $customDbUser, $customDbPass, $dbName);
+        if (!$dbConnRes['success']) {
+            return ['success' => false, 'error' => $dbConnRes['error']];
         }
 
-        // 4. Import seed SQL
-        try {
-            $pdoTenant = new PDO("mysql:host={$dbHost};dbname={$dbName};charset=utf8mb4", $dbUser, $dbPass, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-            ]);
-        } catch (PDOException $e) {
-            return ['success' => false, 'error' => "Connected to MySQL but cannot select database `{$dbName}`: " . $e->getMessage()];
-        }
+        $pdoTenant   = $dbConnRes['pdo'];
+        $workingUser = $dbConnRes['working_user'];
+        $workingPass = $dbConnRes['working_pass'];
 
-        $importRes = self::importSqlFile($pdoTenant, $dumpSqlPath);
-        if (!$importRes['success']) {
-            return ['success' => false, 'error' => "Failed during SQL import: " . $importRes['error']];
-        }
+        // 4. Check if tables already exist
+        $stmtTables = $pdoTenant->query("SHOW TABLES");
+        $existingTables = $stmtTables ? $stmtTables->fetchAll(PDO::FETCH_COLUMN) : [];
+        $hasTables = !empty($existingTables);
 
-        // 4b. Purge demo operational / patient / billing data so the new lab starts 100% fresh!
-        // All clinical master test catalogs, parameter ranges, and reporting templates are preserved.
-        $tablesToPurge = [
-            'bills',
-            'bill_packages',
-            'bill_tests',
-            'patients',
-            'patient_extra_info',
-            'test_results',
-            'test_samples',
-            'transactions',
-            'sign_master',
-            'users'
-        ];
-
-        try {
-            $pdoTenant->exec("SET FOREIGN_KEY_CHECKS = 0;");
-            foreach ($tablesToPurge as $tbl) {
-                try {
-                    $pdoTenant->exec("TRUNCATE TABLE `{$tbl}`;");
-                } catch (PDOException $ex) {
-                    $pdoTenant->exec("DELETE FROM `{$tbl}`;");
-                    @$pdoTenant->exec("ALTER TABLE `{$tbl}` AUTO_INCREMENT = 1;");
-                }
+        if (!$hasTables) {
+            // Import master schema & clinical catalog if database is empty
+            $importRes = self::importSqlFile($pdoTenant, $dumpSqlPath);
+            if (!$importRes['success']) {
+                return ['success' => false, 'error' => "Failed during SQL import: " . $importRes['error']];
             }
-            $pdoTenant->exec("SET FOREIGN_KEY_CHECKS = 1;");
-        } catch (Exception $e) {
-            // Non-fatal warning
+
+            // Purge demo operational / patient / billing data so the new lab starts 100% fresh!
+            // All clinical master test catalogs, parameter ranges, and reporting templates are preserved.
+            $tablesToPurge = [
+                'bills',
+                'bill_packages',
+                'bill_tests',
+                'patients',
+                'patient_extra_info',
+                'test_results',
+                'test_samples',
+                'transactions',
+                'sign_master',
+                'users'
+            ];
+
+            try {
+                $pdoTenant->exec("SET FOREIGN_KEY_CHECKS = 0;");
+                foreach ($tablesToPurge as $tbl) {
+                    try {
+                        $pdoTenant->exec("TRUNCATE TABLE `{$tbl}`;");
+                    } catch (PDOException $ex) {
+                        $pdoTenant->exec("DELETE FROM `{$tbl}`;");
+                        @$pdoTenant->exec("ALTER TABLE `{$tbl}` AUTO_INCREMENT = 1;");
+                    }
+                }
+                $pdoTenant->exec("SET FOREIGN_KEY_CHECKS = 1;");
+            } catch (Exception $e) {
+                // Non-fatal warning
+            }
+        } elseif (!in_array('users', $existingTables) || !in_array('admin_settings', $existingTables)) {
+            // If some tables exist but critical schema is missing, run import
+            $importRes = self::importSqlFile($pdoTenant, $dumpSqlPath);
+            if (!$importRes['success']) {
+                return ['success' => false, 'error' => "Failed during SQL import: " . $importRes['error']];
+            }
         }
 
         // 4c. Setup fresh upload folders & copy uploaded Logo and Letterhead
@@ -338,7 +418,7 @@ try {
 
         // 5. Write tenant db.php
         $targetDbPhp = $targetLabDir . '/db.php';
-        $writeRes = self::writeDbConfigFile($targetDbPhp, $dbHost, $dbUser, $dbPass, $dbName);
+        $writeRes = self::writeDbConfigFile($targetDbPhp, $dbHost, $workingUser, $workingPass, $dbName);
         if (!$writeRes) {
             return ['success' => false, 'error' => "Failed writing config to {$targetDbPhp}."];
         }
