@@ -547,7 +547,7 @@ body {
             <p class="text-muted small mb-0 mt-1">Design report header layouts, parameter result columns, method styling, QR security seals, and doctor digital signatures.</p>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <a href="pdf_options.php" class="btn btn-outline-secondary btn-sm fw-semibold">
+            <a href="pdf_options.php?studio=1" class="btn btn-outline-secondary btn-sm fw-semibold">
                 <i class="fas fa-sliders-h me-1"></i> PDF Layout & Margins
             </a>
             <a href="sign_master.php" class="btn btn-outline-secondary btn-sm fw-semibold">
