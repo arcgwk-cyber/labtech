@@ -203,10 +203,9 @@ EOD;
         }
 
         // Lab info for "Sample Collected At" matching reference format:
-        // Line 1: Address Line / Center Name
-        // Line 2: City / Area
-        $lab_addr_line1 = "125, Main Road";
-        $lab_addr_line2 = "Diagnostic Centre";
+        // First Labname then City like "Vensaas LabTech, Visakhapatnam"
+        $lab_addr_line1 = "Vensaas LabTech";
+        $lab_addr_line2 = "Visakhapatnam";
 
         if ($conn) {
             $currentDir = basename(__DIR__);
@@ -218,20 +217,17 @@ EOD;
                 $adm = @$conn->query("SELECT company_name, company_address FROM admin_settings WHERE id = 1 LIMIT 1");
             }
             if ($adm && $ar = $adm->fetch_assoc()) {
-                $raw_addr = trim($ar['company_address'] ?? '');
-                if (!empty($raw_addr)) {
-                    $parts = array_map('trim', explode(',', $raw_addr));
-                    if (count($parts) >= 2) {
-                        $lab_addr_line2 = array_pop($parts);
-                        $lab_addr_line1 = implode(', ', $parts);
-                    } else {
-                        $lab_addr_line1 = $raw_addr;
-                        $lab_addr_line2 = (!empty($ar['company_name'])) ? trim($ar['company_name']) : '';
-                    }
-                } else {
-                    $lab_addr_line1 = (!empty($ar['company_name'])) ? trim($ar['company_name']) : 'Diagnostic Centre';
-                    $lab_addr_line2 = "Main Laboratory";
+                $comp_name = trim($ar['company_name'] ?? '');
+                $raw_addr  = trim($ar['company_address'] ?? '');
+
+                if ($isDemo && ($comp_name === 'Amma Diagnostic Centre' || empty($comp_name))) {
+                    $comp_name = "Vensaas LabTech";
+                } elseif (empty($comp_name)) {
+                    $comp_name = "Diagnostic Laboratory";
                 }
+
+                $lab_addr_line1 = $comp_name;
+                $lab_addr_line2 = !empty($raw_addr) ? $raw_addr : "Diagnostic Centre";
             }
         }
 
@@ -250,16 +246,17 @@ EOD;
             }
         }
 
-        // Generate inline QR Code as base64 PNG
+        // Generate inline QR Code as base64 PNG (increased size & crisp resolution)
         $qr_img_html = '';
         if (file_exists(__DIR__ . '/TCPDF/tcpdf_barcodes_2d.php')) {
             require_once __DIR__ . '/TCPDF/tcpdf_barcodes_2d.php';
             try {
                 $target_qr = !empty($qr_link) ? $qr_link : "https://labs.vensaas.com/demo/download_pdf.php?token=" . encodeID($bill_id_val);
                 $qc = new TCPDF2DBarcode($target_qr, 'QRCODE,L');
-                $qr_png = $qc->getBarcodePngData(3, 3, array(0,0,0));
+                // 4x4 matrix scaling for crisp edges
+                $qr_png = $qc->getBarcodePngData(4, 4, array(0,0,0));
                 if ($qr_png) {
-                    $qr_img_html = '<img src="@' . base64_encode($qr_png) . '" width="34" height="34">';
+                    $qr_img_html = '<img src="@' . base64_encode($qr_png) . '" width="42" height="42">';
                 }
             } catch (Exception $e) {
                 $qr_img_html = '';
@@ -290,7 +287,7 @@ EOD;
 <table width="100%" cellpadding="4" cellspacing="0" style="font-family: Helvetica, Arial, sans-serif; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">
     <tr>
         <!-- Col 1A: Patient Info -->
-        <td width="25%" valign="top">
+        <td width="24%" valign="top">
             <div style="font-size: 12.5px; font-weight: bold; color: #000000; line-height: 1.25;">{$patient_display_name}</div>
             <div style="font-size: 9px; color: #1e293b; line-height: 1.5; margin-top: 3px;">
                 Age : {$age_str}<br>
@@ -299,10 +296,10 @@ EOD;
             </div>
         </td>
 
-        <!-- Col 1B: QR Code (Starts aligned beside Age line) -->
-        <td width="11%" valign="top" align="center">
+        <!-- Col 1B: QR Code (Starts aligned beside Age line, larger size & better quality) -->
+        <td width="12%" valign="top" align="center">
             <div style="font-size: 12.5px; line-height: 1.25;">&nbsp;</div>
-            <div style="margin-top: 3px;">
+            <div style="margin-top: 2px;">
                 {$qr_img_html}
             </div>
         </td>
