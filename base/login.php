@@ -2,57 +2,56 @@
 session_start();
 require_once 'db.php';
 
-// Dynamic Lab Name resolution & Multi-tenant self-healing
+// Dynamic Lab Name resolution & Multi-tenant isolation
 $currentDir = basename(__DIR__);
 $isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
+$labSlug = $isDemo ? 'demo' : (($currentDir === 'base') ? 'base' : ($conn ? $conn->real_escape_string($currentDir) : $currentDir));
 
-// Fetch settings from admin_settings if table exists
+// Default settings
 $settings = [
-    'company_name' => $isDemo ? 'Amma Diagnostic Centre' : 'Diagnostic Centre ERP',
-    'status'       => 'active',
-    'expiry_date'  => null,
-    'grace_days'   => 7
+    'company_name'    => $isDemo ? 'Vensaas LabTech' : 'Diagnostic Centre ERP',
+    'company_address' => '',
+    'status'          => 'active',
+    'expiry_date'     => null,
+    'grace_days'      => 7
 ];
 
 if ($conn && !$conn->connect_error) {
-    // 1. Ensure lab_slug column exists in admin_settings
+    // 1. Ensure lab_slug column exists in admin_settings for strict multi-tenant isolation
     $colCheck = $conn->query("SHOW COLUMNS FROM admin_settings LIKE 'lab_slug'");
     if ($colCheck && $colCheck->num_rows === 0) {
         @$conn->query("ALTER TABLE admin_settings ADD COLUMN lab_slug VARCHAR(100) DEFAULT NULL AFTER id");
         @$conn->query("ALTER TABLE admin_settings ADD INDEX (lab_slug)");
     }
 
-    if ($isDemo) {
-        $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = 'demo' LIMIT 1");
-        if ($res && $row = $res->fetch_assoc()) {
-            $settings = array_merge($settings, $row);
-        }
-        $settings['company_name'] = 'Amma Diagnostic Centre';
+    // 2. Query admin_settings for current lab
+    $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+    if ($res && $row = $res->fetch_assoc()) {
+        $settings = array_merge($settings, $row);
     } else {
-        // Tenant Lab Portal (e.g. sm_medical_centre or any provisioned lab)
-        $labSlug = $conn->real_escape_string($currentDir);
-        $foundTenant = false;
-        if ($currentDir !== 'base') {
-            $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
-            if ($res && $row = $res->fetch_assoc()) {
-                $settings = array_merge($settings, $row);
-                $foundTenant = true;
-            }
+        // Fallback: try row 1 if no specific lab_slug record exists
+        $r1 = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
+        if ($r1 && $row1 = $r1->fetch_assoc()) {
+            $settings = array_merge($settings, $row1);
         }
+    }
 
-        if (!$foundTenant && $currentDir !== 'base') {
-            // Fallback: derive dynamic lab name from folder slug
-            $words = explode('_', str_replace('-', '_', $currentDir));
-            $formatted = array_map(function($w) {
-                return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
-            }, $words);
-            $dynamicName = implode(' ', $formatted);
-            $settings['company_name'] = $dynamicName;
-
-            // Auto-heal DB record with tenant's own lab_slug (never touching demo or id=1)
-            @$conn->query("INSERT INTO admin_settings (company_name, lab_slug, status) 
-                          VALUES ('" . $conn->real_escape_string($dynamicName) . "', '{$labSlug}', 'active')");
+    // If demo still has old hardcoded 'Amma Diagnostic Centre' in DB, migrate it to 'Vensaas LabTech'
+    if ($isDemo && ($settings['company_name'] === 'Amma Diagnostic Centre' || empty($settings['company_name']))) {
+        $settings['company_name'] = 'Vensaas LabTech';
+        if (empty($settings['company_address']) || strpos($settings['company_address'], 'ICHAPURAM') !== false || $settings['company_address'] === 'Srikakulam') {
+            $settings['company_address'] = 'Visakhapatnam-530016 (A.P)';
         }
+        @$conn->query("UPDATE admin_settings SET company_name = 'Vensaas LabTech', company_address = '" . $conn->real_escape_string($settings['company_address']) . "', lab_slug = 'demo' WHERE lab_slug = 'demo' OR (id = 1 AND (lab_slug IS NULL OR lab_slug = ''))");
+    }
+
+    // If tenant lab and company_name is still default, derive from folder name
+    if (!$isDemo && ($settings['company_name'] === 'Diagnostic Centre ERP' || empty($settings['company_name']))) {
+        $words = explode('_', str_replace('-', '_', $currentDir));
+        $formatted = array_map(function($w) {
+            return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
+        }, $words);
+        $settings['company_name'] = implode(' ', $formatted);
     }
 }
 
@@ -122,9 +121,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
 
 $logo_path = null;
 foreach ([
-    'qrtemp/logo.jpg', 'qrtemp/logo.png', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
-    'uploads/logo.jpg', 'uploads/logo.png', 'uploads/logo.jpeg',
-    'logo.jpg', 'logo.png'
+    'qrtemp/logo.png', 'qrtemp/logo.jpg', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
+    'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg',
+    'logo.png', 'logo.jpg', 'assets/amma_logo.png'
 ] as $lp) {
     if (file_exists($lp)) {
         $logo_path = $lp;

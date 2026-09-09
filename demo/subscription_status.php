@@ -4,15 +4,25 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+$currentDir = basename(__DIR__);
+$isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
+$labSlug = $isDemo ? 'demo' : (($currentDir === 'base') ? 'base' : ($conn ? $conn->real_escape_string($currentDir) : $currentDir));
+
 $settings = null;
-if ($conn) {
-    $res = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
+if ($conn && !$conn->connect_error) {
+    $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+    if (!$res || $res->num_rows === 0) {
+        $res = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
+    }
     if ($res) {
         $settings = $res->fetch_assoc();
     }
 }
 
-$company_name = $settings['company_name'] ?? 'Diagnostic Centre';
+$company_name = $settings['company_name'] ?? ($isDemo ? 'Vensaas LabTech' : 'Diagnostic Centre');
+if ($isDemo && ($company_name === 'Amma Diagnostic Centre' || empty($company_name))) {
+    $company_name = 'Vensaas LabTech';
+}
 $expiry_date  = $settings['expiry_date'] ?? date('Y-m-d', strtotime('+30 days'));
 $grace_days   = (int)($settings['grace_days'] ?? 7);
 

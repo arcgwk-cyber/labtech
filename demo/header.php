@@ -19,33 +19,33 @@ $current_full_name = $_SESSION['full_name'] ?? $current_username;
 // Fetch settings from admin_settings
 $currentDir = basename(__DIR__);
 $isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
+$labSlug = $isDemo ? 'demo' : (($currentDir === 'base') ? 'base' : ($conn ? $conn->real_escape_string($currentDir) : $currentDir));
 
 // Fetch settings from admin_settings
 $app_settings = [
-    'company_name' => $isDemo ? 'Amma Diagnostic Centre' : 'Diagnostic Centre ERP',
+    'company_name' => $isDemo ? 'Vensaas LabTech' : 'Diagnostic Centre ERP',
     'status'       => 'active',
     'expiry_date'  => null,
     'grace_days'   => 7
 ];
 
 if ($conn && !$conn->connect_error) {
-    if ($isDemo) {
-        $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = 'demo' LIMIT 1");
-        if ($res && $row = $res->fetch_assoc()) {
-            $app_settings = array_merge($app_settings, $row);
-        }
-        $app_settings['company_name'] = 'Amma Diagnostic Centre';
+    $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+    if ($res && $row = $res->fetch_assoc()) {
+        $app_settings = array_merge($app_settings, $row);
     } else {
-        $labSlug = $conn->real_escape_string($currentDir);
-        $found = false;
-        if ($currentDir !== 'base') {
-            $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
-            if ($res && $row = $res->fetch_assoc()) {
-                $app_settings = array_merge($app_settings, $row);
-                $found = true;
-            }
+        $r1 = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
+        if ($r1 && $row1 = $r1->fetch_assoc()) {
+            $app_settings = array_merge($app_settings, $row1);
         }
-        if (!$found && $currentDir !== 'base') {
+    }
+    // If demo still has old Amma name from old code revert, default to Vensaas LabTech
+    if ($isDemo && ($app_settings['company_name'] === 'Amma Diagnostic Centre' || empty($app_settings['company_name']))) {
+        $app_settings['company_name'] = 'Vensaas LabTech';
+    }
+    // If tenant lab and company_name is still default, derive from folder name
+    if (!$isDemo && ($app_settings['company_name'] === 'Diagnostic Centre ERP' || empty($app_settings['company_name']))) {
+        if ($currentDir !== 'base') {
             $words = explode('_', str_replace('-', '_', $currentDir));
             $formatted = array_map(function($w) {
                 return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);

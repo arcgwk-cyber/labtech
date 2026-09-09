@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Master Branding & Database Isolation Self-Healing Utility
  * Ensures lab_slug column exists in admin_settings and restores
@@ -54,36 +54,34 @@ if ($row1 && (stripos($row1['company_name'] ?? '', 'SM') !== false)) {
         $log[] = "Preserved SM Medical Centre under lab_slug = 'sm_medical_centre'.";
     }
 
-    // Now restore row 1 to Amma Diagnostic Centre
+    // Set row 1 to demo (Vensaas LabTech) if it was Amma
     $conn->query("UPDATE admin_settings SET 
-                  company_name = 'Amma Diagnostic Centre',
-                  company_address = 'Gorjee Street, ICHAPURAM-532312, Srikakulam Dist, (A.P)',
-                  phone = '+91 7702271571 / +91 9515680080',
-                  email = 'info@ammadiagnostics.com',
+                  company_name = 'Vensaas LabTech',
+                  company_address = 'Visakhapatnam-530016 (A.P)',
+                  phone = '+91 9515680080',
+                  email = 'info@vensaas.com',
                   lab_slug = 'demo',
                   status = 'active'
-                  WHERE id = 1");
-    $log[] = "Restored row 1 to Amma Diagnostic Centre (lab_slug = 'demo').";
+                  WHERE id = 1 AND (company_name = 'Amma Diagnostic Centre' OR company_name = '')");
+    $log[] = "Updated row 1 to demo (lab_slug = 'demo').";
 } else {
     // Ensure demo row exists with lab_slug = 'demo'
-    $chkDemo = $conn->query("SELECT id FROM admin_settings WHERE lab_slug = 'demo' LIMIT 1");
+    $chkDemo = $conn->query("SELECT id, company_name FROM admin_settings WHERE lab_slug = 'demo' LIMIT 1");
     if (!$chkDemo || $chkDemo->num_rows === 0) {
-        if ($row1 && stripos($row1['company_name'] ?? '', 'Amma') !== false) {
-            $conn->query("UPDATE admin_settings SET lab_slug = 'demo' WHERE id = 1");
-            $log[] = "Marked row 1 with lab_slug = 'demo'.";
-        } else {
-            $conn->query("INSERT INTO admin_settings (company_name, company_address, phone, email, lab_slug, status) 
-                          VALUES ('Amma Diagnostic Centre', 'Gorjee Street, ICHAPURAM-532312, Srikakulam Dist, (A.P)', '+91 7702271571 / +91 9515680080', 'info@ammadiagnostics.com', 'demo', 'active')");
-            $log[] = "Created separate demo row for Amma Diagnostic Centre.";
-        }
+        $conn->query("INSERT INTO admin_settings (company_name, company_address, phone, email, lab_slug, status) 
+                      VALUES ('Vensaas LabTech', 'Visakhapatnam-530016 (A.P)', '+91 9515680080', 'info@vensaas.com', 'demo', 'active')");
+        $log[] = "Created separate demo row for Vensaas LabTech.";
     } else {
-        $conn->query("UPDATE admin_settings SET 
-                      company_name = 'Amma Diagnostic Centre',
-                      company_address = 'Gorjee Street, ICHAPURAM-532312, Srikakulam Dist, (A.P)',
-                      phone = '+91 7702271571 / +91 9515680080',
-                      email = 'info@ammadiagnostics.com'
-                      WHERE lab_slug = 'demo'");
-        $log[] = "Verified Amma Diagnostic Centre demo settings under lab_slug = 'demo'.";
+        $demoRow = $chkDemo->fetch_assoc();
+        if ($demoRow['company_name'] === 'Amma Diagnostic Centre') {
+            $conn->query("UPDATE admin_settings SET 
+                          company_name = 'Vensaas LabTech',
+                          company_address = 'Visakhapatnam-530016 (A.P)',
+                          phone = '+91 9515680080',
+                          email = 'info@vensaas.com'
+                          WHERE lab_slug = 'demo'");
+            $log[] = "Migrated demo from Amma Diagnostic Centre to Vensaas LabTech.";
+        }
     }
 
     // Ensure SM Medical Centre row exists if SM Medical Centre folder exists

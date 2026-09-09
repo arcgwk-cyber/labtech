@@ -14,16 +14,28 @@ $role      = $_SESSION['role'] ?? 'admin';
 $full_name = $_SESSION['full_name'] ?? $username;
 
 // Fetch settings from admin_settings
+$currentDir = basename(__DIR__);
+$isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
+$labSlug = $isDemo ? 'demo' : (($currentDir === 'base') ? 'base' : ($conn ? $conn->real_escape_string($currentDir) : $currentDir));
+
 $settings = [
-    'company_name' => 'Diagnostic Centre ERP',
+    'company_name' => $isDemo ? 'Vensaas LabTech' : 'Diagnostic Centre ERP',
     'status'       => 'active',
     'expiry_date'  => null,
     'grace_days'   => 7
 ];
-if ($conn) {
-    $res = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
+if ($conn && !$conn->connect_error) {
+    $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
     if ($res && $row = $res->fetch_assoc()) {
         $settings = array_merge($settings, $row);
+    } else {
+        $r1 = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
+        if ($r1 && $row1 = $r1->fetch_assoc()) {
+            $settings = array_merge($settings, $row1);
+        }
+    }
+    if ($isDemo && ($settings['company_name'] === 'Amma Diagnostic Centre' || empty($settings['company_name']))) {
+        $settings['company_name'] = 'Vensaas LabTech';
     }
 }
 

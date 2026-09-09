@@ -88,10 +88,20 @@ if (isset($_GET['action']) && $_GET['action'] === 'print_label') {
     }
 
     // Lab Name
-    $lab_title = 'Diagnostic Centre ERP';
-    $adm = $conn->query("SELECT company_name FROM admin_settings WHERE id = 1 LIMIT 1");
+    $currentDir = basename(__DIR__);
+    $isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
+    $labSlug = $isDemo ? 'demo' : (($currentDir === 'base') ? 'base' : ($conn ? $conn->real_escape_string($currentDir) : $currentDir));
+
+    $lab_title = $isDemo ? 'Vensaas LabTech' : 'Diagnostic Centre ERP';
+    $adm = $conn->query("SELECT company_name FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+    if (!$adm || $adm->num_rows === 0) {
+        $adm = $conn->query("SELECT company_name FROM admin_settings WHERE id = 1 LIMIT 1");
+    }
     if ($adm && $ar = $adm->fetch_assoc()) {
         if (!empty($ar['company_name'])) $lab_title = trim($ar['company_name']);
+    }
+    if ($isDemo && ($lab_title === 'Amma Diagnostic Centre' || empty($lab_title))) {
+        $lab_title = 'Vensaas LabTech';
     }
     ?>
     <!DOCTYPE html>

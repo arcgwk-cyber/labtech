@@ -49,16 +49,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 }
 
 // 1. Fetch Lab Branding Details
+$currentDir = basename(__DIR__);
+$isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
+$labSlug = $isDemo ? 'demo' : (($currentDir === 'base') ? 'base' : ($conn ? $conn->real_escape_string($currentDir) : $currentDir));
+
 $lab_info = [
-    'company_name'    => 'Diagnostic Centre ERP',
+    'company_name'    => $isDemo ? 'Vensaas LabTech' : 'Diagnostic Centre ERP',
     'company_address' => 'Main Road, Healthcare Complex',
     'phone'           => '+91 98765 43210',
     'email'           => 'contact@pathlab.com',
     'reg_no'          => 'REG-LAB-2025'
 ];
-$adm_q = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
+$adm_q = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+if (!$adm_q || $adm_q->num_rows === 0) {
+    $adm_q = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
+}
 if ($adm_q && $ar = $adm_q->fetch_assoc()) {
     $lab_info = array_merge($lab_info, array_filter($ar));
+}
+if ($isDemo && ($lab_info['company_name'] === 'Amma Diagnostic Centre' || empty($lab_info['company_name']))) {
+    $lab_info['company_name'] = 'Vensaas LabTech';
 }
 
 // Dynamic logo search

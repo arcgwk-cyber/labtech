@@ -118,7 +118,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($chkSlug && $chkSlug->num_rows > 0) {
             $sql = "UPDATE admin_settings SET company_name = '$company_name', company_address = '$company_address' WHERE lab_slug = '{$labSlug}'";
         } else {
-            $sql = "INSERT INTO admin_settings (company_name, company_address, lab_slug, status) VALUES ('$company_name', '$company_address', '{$labSlug}', 'active')";
+            $chk1 = $conn->query("SELECT id, lab_slug FROM admin_settings WHERE id = 1 LIMIT 1");
+            if ($chk1 && $r1 = $chk1->fetch_assoc()) {
+                if ($labSlug === 'demo' || empty($r1['lab_slug']) || $r1['lab_slug'] === 'demo') {
+                    $sql = "UPDATE admin_settings SET company_name = '$company_name', company_address = '$company_address', lab_slug = '{$labSlug}' WHERE id = 1";
+                } else {
+                    $sql = "INSERT INTO admin_settings (company_name, company_address, lab_slug, status) VALUES ('$company_name', '$company_address', '{$labSlug}', 'active')";
+                }
+            } else {
+                $sql = "INSERT INTO admin_settings (company_name, company_address, lab_slug, status) VALUES ('$company_name', '$company_address', '{$labSlug}', 'active')";
+            }
         }
 
         if ($conn->query($sql)) {
@@ -136,12 +145,15 @@ $settings = ['company_name' => '', 'company_address' => ''];
 
 if ($conn && !$conn->connect_error) {
     $result = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        $result = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
+    }
     if ($result && $row = $result->fetch_assoc()) {
         $settings = $row;
     } else {
         if ($labSlug === 'demo') {
-            $settings['company_name'] = 'Amma Diagnostic Centre';
-            $settings['company_address'] = 'Gorjee Street, ICHAPURAM-532312, Srikakulam Dist, (A.P)';
+            $settings['company_name'] = 'Vensaas Labtech';
+            $settings['company_address'] = 'Visakhapatnam-530016 (A.P)';
         } else {
             $words = explode('_', str_replace('-', '_', $currentDir));
             $formatted = array_map(function($w) {

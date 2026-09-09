@@ -169,12 +169,19 @@ function displayStatusPage($info) {
     }
 
     global $conn;
-    $lab_brand_name = 'Diagnostic Centre';
+    $currentDir = basename(__DIR__);
+    $isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
+    $labSlug = $isDemo ? 'demo' : (($currentDir === 'base') ? 'base' : ($conn ? $conn->real_escape_string($currentDir) : $currentDir));
+
+    $lab_brand_name = $isDemo ? 'Vensaas LabTech' : 'Diagnostic Centre';
     $lab_phone_contact = '';
     if (!empty($conn) && !$conn->connect_error) {
-        $res = $conn->query("SELECT company_name, phone FROM admin_settings WHERE id = 1 LIMIT 1");
+        $res = $conn->query("SELECT company_name, phone FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+        if (!$res || $res->num_rows === 0) {
+            $res = $conn->query("SELECT company_name, phone FROM admin_settings WHERE id = 1 LIMIT 1");
+        }
         if ($res && $r = $res->fetch_assoc()) {
-            if (!empty($r['company_name']) && $r['company_name'] !== 'Amma Diagnostic Centre') {
+            if (!empty($r['company_name'])) {
                 $lab_brand_name = $r['company_name'];
             }
             if (!empty($r['phone'])) {
@@ -182,8 +189,10 @@ function displayStatusPage($info) {
             }
         }
     }
-    if ($lab_brand_name === 'Diagnostic Centre') {
-        $currentDir = basename(__DIR__);
+    if ($isDemo && ($lab_brand_name === 'Amma Diagnostic Centre' || empty($lab_brand_name))) {
+        $lab_brand_name = 'Vensaas LabTech';
+    }
+    if ($lab_brand_name === 'Diagnostic Centre' || empty($lab_brand_name)) {
         if ($currentDir !== 'base' && $currentDir !== 'demo') {
             $words = explode('_', str_replace('-', '_', $currentDir));
             $formatted = array_map(function($w) {

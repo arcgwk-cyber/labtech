@@ -75,35 +75,29 @@ function calculateAge($dob) {
 function getLabHeaderHTML($conn) {
     $currentDir = basename(__DIR__);
     $isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
+    $labSlug = $isDemo ? 'demo' : (($currentDir === 'base') ? 'base' : ($conn ? $conn->real_escape_string($currentDir) : $currentDir));
 
-    $lab_name = $isDemo ? "Amma Diagnostic Centre" : "Diagnostic Centre ERP";
-    $lab_addr = $isDemo ? "Gorjee Street, ICHAPURAM-532312, Srikakulam Dist, (A.P)" : "Diagnostic Laboratory";
+    $lab_name = $isDemo ? "Vensaas LabTech" : "Diagnostic Centre ERP";
+    $lab_addr = "Diagnostic Laboratory";
 
     if ($conn && !$conn->connect_error) {
-        if ($isDemo) {
-            $res = $conn->query("SELECT company_name, company_address FROM admin_settings WHERE lab_slug = 'demo' LIMIT 1");
-            if ($res && $row = $res->fetch_assoc()) {
-                if (!empty($row['company_address'])) $lab_addr = $row['company_address'];
-            }
-            $lab_name = "Amma Diagnostic Centre";
-        } else {
-            $labSlug = $conn->real_escape_string($currentDir);
-            $found = false;
-            if ($currentDir !== 'base') {
-                $res = $conn->query("SELECT company_name, company_address FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
-                if ($res && $row = $res->fetch_assoc()) {
-                    $lab_name = !empty($row['company_name']) ? $row['company_name'] : $lab_name;
-                    $lab_addr = !empty($row['company_address']) ? $row['company_address'] : $lab_addr;
-                    $found = true;
-                }
-            }
-            if (!$found && $currentDir !== 'base') {
-                $words = explode('_', str_replace('-', '_', $currentDir));
-                $formatted = array_map(function($w) {
-                    return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
-                }, $words);
-                $lab_name = implode(' ', $formatted);
-            }
+        $res = $conn->query("SELECT company_name, company_address FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+        if (!$res || $res->num_rows === 0) {
+            $res = $conn->query("SELECT company_name, company_address FROM admin_settings WHERE id = 1 LIMIT 1");
+        }
+        if ($res && $row = $res->fetch_assoc()) {
+            if (!empty($row['company_name']))    $lab_name = $row['company_name'];
+            if (!empty($row['company_address'])) $lab_addr = $row['company_address'];
+        }
+        if ($isDemo && ($lab_name === 'Amma Diagnostic Centre' || empty($lab_name))) {
+            $lab_name = "Vensaas LabTech";
+        }
+        if (!$isDemo && ($lab_name === 'Diagnostic Centre ERP' || empty($lab_name))) {
+            $words = explode('_', str_replace('-', '_', $currentDir));
+            $formatted = array_map(function($w) {
+                return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
+            }, $words);
+            $lab_name = implode(' ', $formatted);
         }
     }
 
@@ -111,7 +105,7 @@ function getLabHeaderHTML($conn) {
     foreach ([
         'qrtemp/logo.png', 'qrtemp/logo.jpg', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
         'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg',
-        'logo.png', 'logo.jpg'
+        'logo.png', 'logo.jpg', 'assets/amma_logo.png'
     ] as $p) {
         if (file_exists(__DIR__ . '/' . $p)) {
             $logo_file = __DIR__ . '/' . $p;

@@ -70,40 +70,36 @@ $packages = $packages_stmt->get_result();
 // 4. Dynamic Lab Branding & Information from admin_settings
 $currentDir = basename(__DIR__);
 $isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
+$labSlug = $isDemo ? 'demo' : (($currentDir === 'base') ? 'base' : ($conn ? $conn->real_escape_string($currentDir) : $currentDir));
 
-$lab_name     = $isDemo ? 'Amma Diagnostic Centre' : 'Diagnostic Centre ERP';
+$lab_name     = $isDemo ? 'Vensaas LabTech' : 'Diagnostic Centre ERP';
 $lab_tagline  = 'Accurate | Caring | Instant';
-$lab_address  = $isDemo ? 'Gorjee Street, ICHAPURAM-532312, Srikakulam Dist, (A.P)' : '';
-$lab_phone    = $isDemo ? '+91 7702271571 / +91 9515680080' : '';
-$lab_email    = $isDemo ? 'info@ammadiagnostics.com' : '';
-$lab_reg      = $isDemo ? 'Regd. No. 258/2013' : '';
+$lab_address  = '';
+$lab_phone    = '';
+$lab_email    = '';
+$lab_reg      = '';
 
 if ($conn && !$conn->connect_error) {
-    if ($isDemo) {
-        $sres = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = 'demo' LIMIT 1");
-        if ($sres && $srow = $sres->fetch_assoc()) {
-            if (!empty($srow['company_address'])) $lab_address = trim($srow['company_address']);
-            if (!empty($srow['phone']))           $lab_phone   = trim($srow['phone']);
-            if (!empty($srow['email']))           $lab_email   = trim($srow['email']);
-            if (!empty($srow['reg_no']))          $lab_reg     = trim($srow['reg_no']);
-        }
-        $lab_name = 'Amma Diagnostic Centre';
-    } else {
-        $labSlug = $conn->real_escape_string($currentDir);
-        $sres = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
-        if ($sres && $srow = $sres->fetch_assoc()) {
-            if (!empty($srow['company_name']))    $lab_name    = trim($srow['company_name']);
-            if (!empty($srow['company_address'])) $lab_address = trim($srow['company_address']);
-            if (!empty($srow['phone']))           $lab_phone   = trim($srow['phone']);
-            if (!empty($srow['email']))           $lab_email   = trim($srow['email']);
-            if (!empty($srow['reg_no']))          $lab_reg     = trim($srow['reg_no']);
-        } else {
-            $words = explode('_', str_replace('-', '_', $currentDir));
-            $formatted = array_map(function($w) {
-                return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
-            }, $words);
-            $lab_name = implode(' ', $formatted);
-        }
+    $sres = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+    if (!$sres || $sres->num_rows === 0) {
+        $sres = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
+    }
+    if ($sres && $srow = $sres->fetch_assoc()) {
+        if (!empty($srow['company_name']))    $lab_name    = trim($srow['company_name']);
+        if (!empty($srow['company_address'])) $lab_address = trim($srow['company_address']);
+        if (!empty($srow['phone']))           $lab_phone   = trim($srow['phone']);
+        if (!empty($srow['email']))           $lab_email   = trim($srow['email']);
+        if (!empty($srow['reg_no']))          $lab_reg     = trim($srow['reg_no']);
+    }
+    if ($isDemo && ($lab_name === 'Amma Diagnostic Centre' || empty($lab_name))) {
+        $lab_name = 'Vensaas LabTech';
+    }
+    if (!$isDemo && ($lab_name === 'Diagnostic Centre ERP' || empty($lab_name))) {
+        $words = explode('_', str_replace('-', '_', $currentDir));
+        $formatted = array_map(function($w) {
+            return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
+        }, $words);
+        $lab_name = implode(' ', $formatted);
     }
 }
 
@@ -112,7 +108,7 @@ $logo_file = null;
 foreach ([
     'qrtemp/logo.png', 'qrtemp/logo.jpg', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
     'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg',
-    'logo.png', 'logo.jpg'
+    'logo.png', 'logo.jpg', 'assets/amma_logo.png'
 ] as $lp) {
     if (file_exists(__DIR__ . '/' . $lp)) {
         $logo_file = $lp;
