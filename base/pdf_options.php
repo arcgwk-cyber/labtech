@@ -48,7 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         'include_interpretation' => isset($_POST['include_interpretation']) && $_POST['include_interpretation'] === '1',
         'pagebreak_per_test'     => isset($_POST['pagebreak_per_test']) && $_POST['pagebreak_per_test'] === '1',
         'include_signature'      => isset($_POST['include_signature']) && $_POST['include_signature'] === '1',
-        'top_margin'             => isset($_POST['top_margin']) && is_numeric($_POST['top_margin']) ? floatval($_POST['top_margin']) : 55.0
+        'top_margin'             => isset($_POST['top_margin']) && is_numeric($_POST['top_margin']) ? floatval($_POST['top_margin']) : 55.0,
+        'bottom_margin'          => isset($_POST['bottom_margin']) && is_numeric($_POST['bottom_margin']) ? floatval($_POST['bottom_margin']) : 35.0
     ];
 
     if ($_POST['action'] === 'save_default') {
@@ -82,6 +83,7 @@ $include_interpretation = $prefs['include_interpretation'];
 $pagebreak_per_test     = $prefs['pagebreak_per_test'];
 $include_signature      = $prefs['include_signature'];
 $selected_top_margin    = $prefs['top_margin'] ?? 55.0;
+$selected_bottom_margin = $prefs['bottom_margin'] ?? 35.0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -295,31 +297,62 @@ $selected_top_margin    = $prefs['top_margin'] ?? 55.0;
 
         </div>
 
-        <!-- Header Margin / Spacing Adjustment Slider -->
+        <!-- Header & Footer Margin / Spacing Adjustment Box -->
         <div id="marginAdjustmentBox" class="p-3 bg-light rounded-3 border mb-4">
-          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
-            <div>
-              <span class="fw-bold text-dark small"><i class="bi bi-arrows-expand-vertical text-primary me-1"></i> Letterhead Top Spacing / Content Margin:</span>
-              <span id="topMarginDisplay" class="badge bg-primary fs-7 ms-1"><?= (int)($selected_top_margin ?? 55) ?> mm</span>
+          <!-- 1. Top Margin / Header Spacing -->
+          <div class="mb-3 pb-3 border-bottom">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+              <div>
+                <span class="fw-bold text-dark small"><i class="bi bi-arrow-down-circle text-primary me-1"></i> Header Top Spacing / Content Margin:</span>
+                <span id="topMarginDisplay" class="badge bg-primary fs-7 ms-1"><?= (int)($selected_top_margin ?? 55) ?> mm</span>
+              </div>
+              <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTopMargin(45)">45mm</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTopMargin(50)">50mm</button>
+                <button type="button" class="btn btn-outline-primary btn-sm fw-bold active" onclick="setTopMargin(55)">55mm (Standard)</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTopMargin(60)">60mm</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTopMargin(65)">65mm</button>
+              </div>
             </div>
-            <div class="btn-group btn-group-sm" role="group">
-              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTopMargin(45)">45mm</button>
-              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTopMargin(50)">50mm</button>
-              <button type="button" class="btn btn-outline-primary btn-sm fw-bold active" onclick="setTopMargin(55)">55mm (Standard)</button>
-              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTopMargin(60)">60mm</button>
-              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTopMargin(65)">65mm</button>
+            <div class="d-flex align-items-center gap-3">
+              <input type="range" class="form-range flex-grow-1" id="topMarginRange" min="30" max="85" step="1" value="<?= (int)($selected_top_margin ?? 55) ?>" oninput="onTopMarginChange(this.value)">
+              <div class="input-group input-group-sm" style="width: 105px;">
+                <input type="number" class="form-control text-center font-monospace fw-bold" id="topMarginInput" min="30" max="85" value="<?= (int)($selected_top_margin ?? 55) ?>" onchange="onTopMarginChange(this.value)">
+                <span class="input-group-text">mm</span>
+              </div>
             </div>
+            <small class="text-muted d-block mt-1" style="font-size: 0.73rem;">
+              <i class="bi bi-info-circle-fill text-primary"></i> <strong>Header adjust:</strong> If patient details touch your letterhead logo or green divider line, increase this slider (recommended <strong>55mm - 60mm</strong>).
+            </small>
           </div>
-          <div class="d-flex align-items-center gap-3">
-            <input type="range" class="form-range flex-grow-1" id="topMarginRange" min="30" max="85" step="1" value="<?= (int)($selected_top_margin ?? 55) ?>" oninput="onTopMarginChange(this.value)">
-            <div class="input-group input-group-sm" style="width: 105px;">
-              <input type="number" class="form-control text-center font-monospace fw-bold" id="topMarginInput" min="30" max="85" value="<?= (int)($selected_top_margin ?? 55) ?>" onchange="onTopMarginChange(this.value)">
-              <span class="input-group-text">mm</span>
+
+          <!-- 2. Bottom Margin / Footer Spacing -->
+          <div>
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+              <div>
+                <span class="fw-bold text-dark small"><i class="bi bi-arrow-up-circle text-success me-1"></i> Footer Bottom Spacing / Margin:</span>
+                <span id="bottomMarginDisplay" class="badge bg-success fs-7 ms-1"><?= (int)($selected_bottom_margin ?? 35) ?> mm</span>
+              </div>
+              <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setBottomMargin(25)">25mm</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setBottomMargin(30)">30mm</button>
+                <button type="button" class="btn btn-outline-success btn-sm fw-bold active" onclick="setBottomMargin(35)">35mm (Standard)</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setBottomMargin(45)">45mm</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setBottomMargin(50)">50mm</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setBottomMargin(55)">55mm</button>
+              </div>
             </div>
+            <div class="d-flex align-items-center gap-3">
+              <input type="range" class="form-range flex-grow-1" id="bottomMarginRange" min="15" max="75" step="1" value="<?= (int)($selected_bottom_margin ?? 35) ?>" oninput="onBottomMarginChange(this.value)">
+              <div class="input-group input-group-sm" style="width: 105px;">
+                <input type="number" class="form-control text-center font-monospace fw-bold" id="bottomMarginInput" min="15" max="75" value="<?= (int)($selected_bottom_margin ?? 35) ?>" onchange="onBottomMarginChange(this.value)">
+                <span class="input-group-text">mm</span>
+              </div>
+            </div>
+            <small class="text-muted d-block mt-1" style="font-size: 0.73rem;">
+              <i class="bi bi-info-circle-fill text-success"></i> <strong>Footer adjust:</strong> If test rows, doctor signatures, or the QR code overlap your bottom address or swoosh graphic, increase this slider (recommended <strong>45mm - 50mm</strong> for Vensaas Labtech letterhead).
+            </small>
           </div>
-          <small class="text-muted d-block mt-1" style="font-size: 0.73rem;">
-            <i class="bi bi-info-circle-fill text-primary"></i> <strong>How to adjust:</strong> If patient details or test rows overlap your letterhead logo or green divider line, increase this slider (recommended <strong>55mm - 60mm</strong> for Vensaas Labtech letterhead).
-          </small>
         </div>
 
         <!-- Section 2: Table Format Styles -->
@@ -489,6 +522,7 @@ $selected_top_margin    = $prefs['top_margin'] ?? 55.0;
 let currentStyle = '<?= htmlspecialchars($selected_style) ?>';
 let currentHeaderMode = '<?= htmlspecialchars($selected_header_mode) ?>';
 let currentTopMargin = <?= (float)$selected_top_margin ?>;
+let currentBottomMargin = <?= (float)$selected_bottom_margin ?>;
 const billId = <?= $bill_id ?>;
 
 function onTopMarginChange(val) {
@@ -502,6 +536,19 @@ function onTopMarginChange(val) {
 
 function setTopMargin(val) {
   onTopMarginChange(val);
+}
+
+function onBottomMarginChange(val) {
+  val = parseFloat(val) || 35;
+  currentBottomMargin = val;
+  document.getElementById('bottomMarginRange').value = val;
+  document.getElementById('bottomMarginInput').value = val;
+  document.getElementById('bottomMarginDisplay').textContent = val + ' mm';
+  updateLivePreview();
+}
+
+function setBottomMargin(val) {
+  onBottomMarginChange(val);
 }
 
 function selectReportStyle(styleName) {
@@ -545,6 +592,7 @@ function buildPdfUrl(isPrint = false, isDownload = false) {
             '&style=' + encodeURIComponent(currentStyle) +
             '&header_mode=' + encodeURIComponent(currentHeaderMode) +
             '&top_margin=' + encodeURIComponent(currentTopMargin) +
+            '&bottom_margin=' + encodeURIComponent(currentBottomMargin) +
             '&include_method=' + method +
             '&include_notes=' + notes +
             '&include_interpretation=' + interp +
@@ -593,6 +641,7 @@ function getSelectedOptionsFormData(actionName) {
   formData.append('style', currentStyle);
   formData.append('header_mode', currentHeaderMode);
   formData.append('top_margin', currentTopMargin);
+  formData.append('bottom_margin', currentBottomMargin);
   formData.append('include_method', method);
   formData.append('include_notes', notes);
   formData.append('include_interpretation', interp);

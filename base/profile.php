@@ -130,14 +130,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Save letterhead top margin preference if provided
+        // Save letterhead top & bottom margin preferences if provided
+        $pref_file = __DIR__ . '/report_preferences.json';
+        $prefs = [];
+        if (file_exists($pref_file)) {
+            $prefs = json_decode(file_get_contents($pref_file), true) ?: [];
+        }
         if (isset($_POST['letterhead_top_margin']) && is_numeric($_POST['letterhead_top_margin'])) {
-            $pref_file = __DIR__ . '/report_preferences.json';
-            $prefs = [];
-            if (file_exists($pref_file)) {
-                $prefs = json_decode(file_get_contents($pref_file), true) ?: [];
-            }
             $prefs['top_margin'] = floatval($_POST['letterhead_top_margin']);
+        }
+        if (isset($_POST['letterhead_bottom_margin']) && is_numeric($_POST['letterhead_bottom_margin'])) {
+            $prefs['bottom_margin'] = floatval($_POST['letterhead_bottom_margin']);
+        }
+        if (isset($_POST['letterhead_top_margin']) || isset($_POST['letterhead_bottom_margin'])) {
             @file_put_contents($pref_file, json_encode($prefs, JSON_PRETTY_PRINT));
         }
 
@@ -182,6 +187,7 @@ if (file_exists($pref_file)) {
     $lab_prefs = json_decode(file_get_contents($pref_file), true) ?: [];
 }
 $letterhead_top_margin = isset($lab_prefs['top_margin']) ? (float)$lab_prefs['top_margin'] : 55.0;
+$letterhead_bottom_margin = isset($lab_prefs['bottom_margin']) ? (float)$lab_prefs['bottom_margin'] : 35.0;
 ?>
 <!DOCTYPE html>
 <html>
@@ -230,15 +236,32 @@ $letterhead_top_margin = isset($lab_prefs['top_margin']) ? (float)$lab_prefs['to
             </div>
 
             <div class="mb-4 p-3 border rounded bg-light">
-                <label class="form-label fw-bold mb-1">
-                    <i class="bi bi-arrows-expand-vertical text-primary me-1"></i> Letterhead Top Spacing / Content Margin (mm)
-                </label>
-                <div class="input-group" style="max-width: 220px;">
-                    <input type="number" step="0.5" name="letterhead_top_margin" class="form-control" value="<?= htmlspecialchars($letterhead_top_margin) ?>" min="30" max="85" required>
-                    <span class="input-group-text">mm</span>
-                </div>
-                <div class="form-text text-muted mt-1" style="font-size: 0.85rem;">
-                    Distance from the top of the A4 page before patient info starts. Default: <strong>55 mm</strong>. If patient details touch or overlap your letterhead logo, hospital name, or horizontal line, increase this to <strong>58 - 62 mm</strong>. (You can also adjust this live per report in the Report Customization Studio).
+                <h6 class="fw-bold text-dark mb-3"><i class="bi bi-sliders text-primary me-2"></i>Letterhead Report Margins & Spacing (mm)</h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold mb-1">
+                            <i class="bi bi-arrow-down-circle text-primary me-1"></i> Top Margin / Header Spacing
+                        </label>
+                        <div class="input-group" style="max-width: 220px;">
+                            <input type="number" step="0.5" name="letterhead_top_margin" class="form-control" value="<?= htmlspecialchars($letterhead_top_margin) ?>" min="30" max="85" required>
+                            <span class="input-group-text">mm</span>
+                        </div>
+                        <div class="form-text text-muted mt-1" style="font-size: 0.8rem;">
+                            Distance from top of page before patient info begins. Default: <strong>55 mm</strong>. Increase to <strong>58 - 62 mm</strong> if patient info touches your header artwork or divider line.
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold mb-1">
+                            <i class="bi bi-arrow-up-circle text-success me-1"></i> Bottom Margin / Footer Spacing
+                        </label>
+                        <div class="input-group" style="max-width: 220px;">
+                            <input type="number" step="0.5" name="letterhead_bottom_margin" class="form-control" value="<?= htmlspecialchars($letterhead_bottom_margin) ?>" min="15" max="75" required>
+                            <span class="input-group-text">mm</span>
+                        </div>
+                        <div class="form-text text-muted mt-1" style="font-size: 0.8rem;">
+                            Distance from bottom of page before tests and signatures stop. Default: <strong>35 mm</strong>. Increase to <strong>45 - 50 mm</strong> if signatures, test rows, or QR code overlap your footer address, phone, or artwork.
+                        </div>
+                    </div>
                 </div>
             </div>
 

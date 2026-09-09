@@ -321,7 +321,7 @@ function renderTestNotesAndInterpretation($test_id, $pdf, $include_notes, $inclu
     }
 }
 
-function renderReportFooterSignature($pdf, $qr_link, $include_signature) {
+function renderReportFooterSignature($pdf, $qr_link, $include_signature, $bottom_margin = 35.0) {
     global $conn;
     if (!$include_signature) return;
 
@@ -365,12 +365,13 @@ function renderReportFooterSignature($pdf, $qr_link, $include_signature) {
     $curY = $pdf->GetY();
     $pageHeight = $pdf->getPageHeight();
 
-    if ($curY + $requiredHeight > $pageHeight - 12) {
+    // Respect bottom_margin safe zone so elements never overlap footer graphics
+    if ($curY + $requiredHeight > ($pageHeight - $bottom_margin)) {
         $pdf->AddPage();
         $curY = $pdf->GetY();
     }
 
-    $footerY = max($curY + 4, $pageHeight - $requiredHeight - 2);
+    $footerY = max($curY + 4, $pageHeight - $bottom_margin - $requiredHeight);
 
     // Temporarily turn OFF auto page break so drawing bottom elements NEVER adds extra pages!
     $pdf->SetAutoPageBreak(false);
@@ -459,7 +460,7 @@ function renderReportFooterSignature($pdf, $qr_link, $include_signature) {
     }
 
     // Re-enable auto page break
-    $pdf->SetAutoPageBreak(true, 25);
+    $pdf->SetAutoPageBreak(true, $bottom_margin);
 }
 
 // --- Custom TCPDF class supporting full-page letterhead background image ---
@@ -497,7 +498,7 @@ if ($header_mode === 'letterhead_image' && $letterhead_image_file) {
     $pdf->setPrintHeader(true);
     $pdf->setPrintFooter(false);
     $top_margin = ($configured_top_margin !== null && $configured_top_margin > 0) ? $configured_top_margin : 55.0; // 55mm leaves clear space below letterhead banner
-    $bottom_margin = ($configured_bottom_margin !== null && $configured_bottom_margin > 0) ? $configured_bottom_margin : 28.0; // Leaves space above footer
+    $bottom_margin = ($configured_bottom_margin !== null && $configured_bottom_margin > 0) ? $configured_bottom_margin : 35.0; // Leaves space above footer
     $show_lab_header = false;
 } elseif ($header_mode === 'blank_1_5') {
     $pdf->setPrintHeader(false);
@@ -624,7 +625,7 @@ if ($pagebreak_per_test) {
             renderTestNotesAndInterpretation($curr_test_id, $pdf, $include_notes, $include_interpretation);
 
             // Signature footer for this test's page
-            renderReportFooterSignature($pdf, $qr_link, $include_signature);
+            renderReportFooterSignature($pdf, $qr_link, $include_signature, $bottom_margin);
         }
     }
 } else {
@@ -670,7 +671,7 @@ if ($pagebreak_per_test) {
     $pdf->writeHTML($html, true, false, true, false, '');
 
     // Render signature block once at the end of the entire report
-    renderReportFooterSignature($pdf, $qr_link, $include_signature);
+    renderReportFooterSignature($pdf, $qr_link, $include_signature, $bottom_margin);
 }
 
 // Auto-trigger browser print dialog if requested

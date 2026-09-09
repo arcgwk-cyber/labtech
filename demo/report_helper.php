@@ -69,7 +69,8 @@ if (!function_exists('getBillReportOptions')) {
                         'include_interpretation' => (bool)($row['include_interpretation'] ?? 1),
                         'pagebreak_per_test'     => (bool)($row['pagebreak_per_test'] ?? 0),
                         'include_signature'      => (bool)($row['include_signature'] ?? 1),
-                        'top_margin'             => isset($row['top_margin']) && $row['top_margin'] > 0 ? floatval($row['top_margin']) : 55.0
+                        'top_margin'             => isset($row['top_margin']) && $row['top_margin'] > 0 ? floatval($row['top_margin']) : 55.0,
+                        'bottom_margin'          => isset($row['bottom_margin']) && $row['bottom_margin'] > 0 ? floatval($row['bottom_margin']) : 35.0
                     ];
                 }
                 $stmt->close();
@@ -101,9 +102,10 @@ if (!function_exists('saveBillReportOptions')) {
         $imethod    = !empty($options['include_method']) ? 1 : 0;
         $inotes     = !empty($options['include_notes']) ? 1 : 0;
         $iinterp    = !empty($options['include_interpretation']) ? 1 : 0;
-        $ipagebreak = !empty($options['pagebreak_per_test']) ? 1 : 0;
-        $isig       = !empty($options['include_signature']) ? 1 : 0;
-        $topMargin  = isset($options['top_margin']) && is_numeric($options['top_margin']) ? floatval($options['top_margin']) : 55.0;
+        $ipagebreak   = !empty($options['pagebreak_per_test']) ? 1 : 0;
+        $isig         = !empty($options['include_signature']) ? 1 : 0;
+        $topMargin    = isset($options['top_margin']) && is_numeric($options['top_margin']) ? floatval($options['top_margin']) : 55.0;
+        $bottomMargin = isset($options['bottom_margin']) && is_numeric($options['bottom_margin']) ? floatval($options['bottom_margin']) : 35.0;
 
         // 1. Save to DB table
         if ($conn) {
@@ -118,19 +120,24 @@ if (!function_exists('saveBillReportOptions')) {
                   `pagebreak_per_test` tinyint(1) DEFAULT 0,
                   `include_signature` tinyint(1) DEFAULT 1,
                   `top_margin` decimal(5,2) DEFAULT 55.00,
+                  `bottom_margin` decimal(5,2) DEFAULT 35.00,
                   `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ");
 
-            // Ensure column exists
+            // Ensure columns exist
             $colCheck = $conn->query("SHOW COLUMNS FROM bill_report_options LIKE 'top_margin'");
             if ($colCheck && $colCheck->num_rows === 0) {
                 @$conn->query("ALTER TABLE bill_report_options ADD COLUMN top_margin DECIMAL(5,2) DEFAULT 55.00");
             }
+            $colCheck2 = $conn->query("SHOW COLUMNS FROM bill_report_options LIKE 'bottom_margin'");
+            if ($colCheck2 && $colCheck2->num_rows === 0) {
+                @$conn->query("ALTER TABLE bill_report_options ADD COLUMN bottom_margin DECIMAL(5,2) DEFAULT 35.00");
+            }
 
             $stmt = @$conn->prepare("
-                INSERT INTO bill_report_options (bill_id, style, header_mode, include_method, include_notes, include_interpretation, pagebreak_per_test, include_signature, top_margin)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO bill_report_options (bill_id, style, header_mode, include_method, include_notes, include_interpretation, pagebreak_per_test, include_signature, top_margin, bottom_margin)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                   style = VALUES(style),
                   header_mode = VALUES(header_mode),
@@ -139,10 +146,11 @@ if (!function_exists('saveBillReportOptions')) {
                   include_interpretation = VALUES(include_interpretation),
                   pagebreak_per_test = VALUES(pagebreak_per_test),
                   include_signature = VALUES(include_signature),
-                  top_margin = VALUES(top_margin)
+                  top_margin = VALUES(top_margin),
+                  bottom_margin = VALUES(bottom_margin)
             ");
             if ($stmt) {
-                $stmt->bind_param("issiiiiid", $bill_id, $style, $hmode, $imethod, $inotes, $iinterp, $ipagebreak, $isig, $topMargin);
+                $stmt->bind_param("issiiiiidd", $bill_id, $style, $hmode, $imethod, $inotes, $iinterp, $ipagebreak, $isig, $topMargin, $bottomMargin);
                 $stmt->execute();
                 $stmt->close();
             }
@@ -154,6 +162,7 @@ if (!function_exists('saveBillReportOptions')) {
             @mkdir($dir, 0777, true);
         }
         $options['top_margin'] = $topMargin;
+        $options['bottom_margin'] = $bottomMargin;
         @file_put_contents($dir . '/bill_' . $bill_id . '.json', json_encode($options, JSON_PRETTY_PRINT));
         return true;
     }
@@ -174,7 +183,7 @@ if (!function_exists('getEffectiveReportOptions')) {
             'pagebreak_per_test'     => false,
             'include_signature'      => true,
             'top_margin'             => 55.0,
-            'bottom_margin'          => 28.0
+            'bottom_margin'          => 35.0
         ];
 
         // Tier 3: Lab global default preferences (report_preferences.json)
@@ -205,6 +214,9 @@ if (!function_exists('getEffectiveReportOptions')) {
             if (isset($url_params['include_signature'])) $options['include_signature'] = (bool)$url_params['include_signature'];
             if (isset($url_params['top_margin']) && is_numeric($url_params['top_margin'])) {
                 $options['top_margin'] = floatval($url_params['top_margin']);
+            }
+            if (isset($url_params['bottom_margin']) && is_numeric($url_params['bottom_margin'])) {
+                $options['bottom_margin'] = floatval($url_params['bottom_margin']);
             }
         }
 
