@@ -224,7 +224,7 @@ EOD;
             require_once __DIR__ . '/TCPDF/tcpdf_barcodes_1d.php';
             try {
                 $bc = new TCPDFBarcode((string)$bill_id_val, 'C128');
-                $png_data = $bc->getBarcodePngData(1.4, 22, array(0,0,0));
+                $png_data = $bc->getBarcodePngData(2, 30, array(0,0,0));
                 if ($png_data) {
                     $barcode_img_html = '<img src="@' . base64_encode($png_data) . '" height="18" style="vertical-align:middle;">';
                 }
@@ -240,49 +240,67 @@ EOD;
             try {
                 $target_qr = !empty($qr_link) ? $qr_link : "https://labs.vensaas.com/demo/download_pdf.php?token=" . encodeID($bill_id_val);
                 $qc = new TCPDF2DBarcode($target_qr, 'QRCODE,L');
-                $qr_png = $qc->getBarcodePngData(3, 3, array(0,0,0));
+                $qr_png = $qc->getBarcodePngData(4, 4, array(0,0,0));
                 if ($qr_png) {
-                    $qr_img_html = '<img src="@' . base64_encode($qr_png) . '" width="46" height="46" style="vertical-align:middle;">';
+                    $qr_img_html = '<img src="@' . base64_encode($qr_png) . '" width="40" height="40" style="vertical-align:middle;">';
                 }
             } catch (Exception $e) {
                 $qr_img_html = '';
             }
         }
 
-        $patient_display_name = strtoupper(htmlspecialchars($bill['full_name']));
+        $patient_display_name = htmlspecialchars($bill['full_name']);
+
+        // Doctor label formatting
+        $dr_name_only = !empty($dr_ref) ? preg_replace('/^(dr\.?|doctor)\s+/i', '', trim($dr_ref)) : 'Self / Direct';
 
         return <<<EOD
-<table width="100%" cellpadding="3" cellspacing="0" style="font-family: Helvetica, Arial, sans-serif; font-size: 8.5px; border-top: 1.5px solid #0f172a; border-bottom: 1.5px solid #0f172a; padding-top: 4px; padding-bottom: 4px;">
+<table width="100%" cellpadding="3" cellspacing="0" style="font-family: Helvetica, Arial, sans-serif; font-size: 8.5px; border-top: 1.5px solid #0f172a; border-bottom: 1.5px solid #0f172a; padding-top: 5px; padding-bottom: 5px;">
     <tr>
-        <!-- Col 1: Patient Details -->
-        <td width="36%" valign="top" style="line-height: 1.35; padding-right: 6px;">
-            <div style="font-size: 11px; font-weight: bold; color: #0f172a;">{$patient_display_name}</div>
-            <div style="font-size: 8.5px; color: #334155; margin-top: 2px;">
-                <strong>Age :</strong> {$age} &nbsp;&nbsp; <strong>Sex :</strong> {$gender}<br>
-                <strong>Bill ID / PID :</strong> #{$bill_id_val}
-            </div>
-        </td>
-        <!-- Col 2: QR Code & Center Details -->
-        <td width="30%" valign="top" style="line-height: 1.35; border-left: 1px solid #e2e8f0; padding-left: 6px; padding-right: 6px;">
+        <!-- Col 1: Patient Name, Age/Sex, PID + QR Code on right of Col 1 -->
+        <td width="36%" valign="middle" style="padding-right: 8px;">
             <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                    <td width="50" align="left" valign="top">{$qr_img_html}</td>
-                    <td align="left" valign="top" style="font-size: 8px; color: #334155; padding-left: 4px; line-height: 1.3;">
-                        <strong>Sample Collected At:</strong><br>
-                        {$lab_info}<br>
-                        <strong>Ref. By :</strong> Dr. {$dr_label}
+                    <td width="72%" valign="middle" style="line-height: 1.45;">
+                        <div style="font-size: 11.5px; font-weight: bold; color: #000000; letter-spacing: 0.2px;">{$patient_display_name}</div>
+                        <div style="font-size: 8.5px; color: #1e293b; margin-top: 2px;">
+                            Age : {$age}<br>
+                            Sex : {$gender}<br>
+                            PID : #{$bill_id_val}
+                        </div>
+                    </td>
+                    <td width="28%" align="right" valign="middle">
+                        {$qr_img_html}
                     </td>
                 </tr>
             </table>
         </td>
-        <!-- Col 3: Barcode & Timing Details -->
-        <td width="34%" valign="top" align="right" style="line-height: 1.35; border-left: 1px solid #e2e8f0; padding-left: 6px;">
-            <div style="margin-bottom: 2px;">{$barcode_img_html}</div>
-            <div style="font-size: 8px; color: #334155; text-align: right;">
-                <strong>Registered on :</strong> {$registered_on}<br>
-                <strong>Collected on :</strong> {$collected_on}<br>
-                <strong>Reported on :</strong> {$reported_on}
+
+        <!-- Col 2: Sample Collected At & Ref By Doctor -->
+        <td width="32%" valign="middle" style="border-left: 1px solid #cbd5e1; padding-left: 10px; padding-right: 8px; line-height: 1.4;">
+            <div style="font-size: 9px; font-weight: bold; color: #000000; margin-bottom: 1px;">Sample Collected At:</div>
+            <div style="font-size: 8px; color: #475569; line-height: 1.35; margin-bottom: 4px;">{$lab_info}</div>
+            <div style="font-size: 8.5px; color: #000000;">
+                Ref. By: <strong>Dr. {$dr_name_only}</strong>
             </div>
+        </td>
+
+        <!-- Col 3: Barcode & Timing Details -->
+        <td width="32%" valign="middle" align="right" style="border-left: 1px solid #cbd5e1; padding-left: 8px; line-height: 1.4;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td align="right" style="padding-bottom: 2px;">
+                        {$barcode_img_html}
+                    </td>
+                </tr>
+                <tr>
+                    <td align="right" style="font-size: 7.8px; color: #1e293b; line-height: 1.35;">
+                        <strong>Registered on:</strong> {$registered_on}<br>
+                        <strong>Collected on:</strong> {$collected_on}<br>
+                        <strong>Reported on:</strong> {$reported_on}
+                    </td>
+                </tr>
+            </table>
         </td>
     </tr>
 </table>
