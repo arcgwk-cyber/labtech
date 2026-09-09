@@ -191,8 +191,8 @@ class TCPDFBarcode {
 	 */
 	public function getBarcodePngData($w=2, $h=30, $color=array(0,0,0)) {
 		// calculate image size
-		$width = ($this->barcode_array['maxw'] * $w);
-		$height = $h;
+		$width = (int)round($this->barcode_array['maxw'] * $w);
+		$height = (int)round($h);
 		if (function_exists('imagecreate')) {
 			// GD library
 			$imagick = false;
@@ -220,9 +220,9 @@ class TCPDFBarcode {
 				$y = round(($v['p'] * $h / $this->barcode_array['maxh']), 3);
 				// draw a vertical bar
 				if ($imagick) {
-					$bar->rectangle($x, $y, ($x + $bw - 1), ($y + $bh - 1));
+					$bar->rectangle((int)round($x), (int)round($y), (int)round($x + $bw - 1), (int)round($y + $bh - 1));
 				} else {
-					imagefilledrectangle($png, $x, $y, ($x + $bw - 1), ($y + $bh - 1), $fgcol);
+					imagefilledrectangle($png, (int)round($x), (int)round($y), (int)round($x + $bw - 1), (int)round($y + $bh - 1), $fgcol);
 				}
 			}
 			$x += $bw;

@@ -192,8 +192,8 @@ class TCPDF2DBarcode {
 	 */
 	public function getBarcodePngData($w=3, $h=3, $color=array(0,0,0)) {
 		// calculate image size
-		$width = ($this->barcode_array['num_cols'] * $w);
-		$height = ($this->barcode_array['num_rows'] * $h);
+		$width = (int)round($this->barcode_array['num_cols'] * $w);
+		$height = (int)round($this->barcode_array['num_rows'] * $h);
 		if (function_exists('imagecreate')) {
 			// GD library
 			$imagick = false;
@@ -222,9 +222,9 @@ class TCPDF2DBarcode {
 				if ($this->barcode_array['bcode'][$r][$c] == 1) {
 					// draw a single barcode cell
 					if ($imagick) {
-						$bar->rectangle($x, $y, ($x + $w - 1), ($y + $h - 1));
+						$bar->rectangle((int)round($x), (int)round($y), (int)round($x + $w - 1), (int)round($y + $h - 1));
 					} else {
-						imagefilledrectangle($png, $x, $y, ($x + $w - 1), ($y + $h - 1), $fgcol);
+						imagefilledrectangle($png, (int)round($x), (int)round($y), (int)round($x + $w - 1), (int)round($y + $h - 1), $fgcol);
 					}
 				}
 				$x += $w;
