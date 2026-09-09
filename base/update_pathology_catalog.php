@@ -57,6 +57,56 @@ if (isset($_POST['execute_migration'])) {
     }
 }
 
+if (isset($_POST['sync_notes_interpretations'])) {
+    require_once __DIR__ . '/pathology_catalog_data.php';
+    $updated_count = 0;
+    
+    // Check if columns exist in lab_tests
+    $col1 = $conn->query("SHOW COLUMNS FROM lab_tests LIKE 'notes'");
+    if ($col1 && $col1->num_rows === 0) {
+        @$conn->query("ALTER TABLE lab_tests ADD COLUMN notes TEXT DEFAULT NULL");
+    }
+    $col2 = $conn->query("SHOW COLUMNS FROM lab_tests LIKE 'interpretations'");
+    if ($col2 && $col2->num_rows === 0) {
+        @$conn->query("ALTER TABLE lab_tests ADD COLUMN interpretations TEXT DEFAULT NULL");
+    }
+
+    $stmt1 = @$conn->prepare("UPDATE lab_tests SET notes = ?, interpretations = ? WHERE test_code = ?");
+    $stmt2 = @$conn->prepare("UPDATE lab_tests SET notes = ?, interpretations = ? WHERE test_name = ?");
+    $stmt3 = @$conn->prepare("UPDATE lab_tests SET notes = ?, interpretations = ? WHERE test_id = ?");
+
+    foreach ($MASTER_CATALOG_TESTS as $t) {
+        $notes = $t['notes'] ?? '';
+        $interp = $t['interpretations'] ?? '';
+        $code = $t['code'] ?? '';
+        $tid = (int)($t['test_id'] ?? 0);
+        $tname = $t['name'] ?? '';
+
+        $matched = false;
+        if (!empty($code) && $stmt1) {
+            $stmt1->bind_param("sss", $notes, $interp, $code);
+            $stmt1->execute();
+            if ($stmt1->affected_rows > 0) { $matched = true; $updated_count++; }
+        }
+        if (!$matched && !empty($tname) && $stmt2) {
+            $stmt2->bind_param("sss", $notes, $interp, $tname);
+            $stmt2->execute();
+            if ($stmt2->affected_rows > 0) { $matched = true; $updated_count++; }
+        }
+        if (!$matched && $tid > 0 && $stmt3) {
+            $stmt3->bind_param("ssi", $notes, $interp, $tid);
+            $stmt3->execute();
+            if ($stmt3->affected_rows > 0) { $matched = true; $updated_count++; }
+        }
+    }
+
+    if ($stmt1) $stmt1->close();
+    if ($stmt2) $stmt2->close();
+    if ($stmt3) $stmt3->close();
+
+    $message = "Successfully synchronized standard NABL/ICMR Clinical Notes & Interpretations across your lab tests catalog!";
+}
+
 // Fetch current database counts
 $cat_cnt = (int)($conn->query("SELECT COUNT(*) as c FROM test_categories")->fetch_assoc()['c'] ?? 0);
 $test_cnt = (int)($conn->query("SELECT COUNT(*) as c FROM lab_tests")->fetch_assoc()['c'] ?? 0);
@@ -206,11 +256,16 @@ $is_up_to_date = ($test_cnt >= 92 && $pkg_cnt >= 15);
       </div>
       <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
         <form method="POST" onsubmit="return confirm('Upgrade pathology catalog now? This will clean and update all 92 laboratory tests, 144 parameters, reference ranges, and 15 packages with standard values.');">
-          <button type="submit" name="execute_migration" class="btn btn-light btn-lg px-4 py-3 fw-bold text-primary shadow-sm rounded-pill">
+          <button type="submit" name="execute_migration" class="btn btn-light btn-lg px-4 py-3 fw-bold text-primary shadow-sm rounded-pill mb-2">
             <i class="fas fa-sync-alt me-2"></i> <?= $is_up_to_date ? 'Refresh / Re-sync Catalog' : 'Upgrade Master Catalog Now' ?>
           </button>
         </form>
-        <div class="mt-2 text-white-50 small">1-Click instant database setup</div>
+        <form method="POST">
+          <button type="submit" name="sync_notes_interpretations" class="btn btn-outline-light btn-sm px-3 py-2 fw-semibold rounded-pill">
+            <i class="fas fa-file-medical-alt me-1"></i> Sync Clinical Notes & Interpretations Only
+          </button>
+        </form>
+        <div class="mt-2 text-white-50 small">1-Click instant database setup & sync</div>
       </div>
     </div>
   </div>

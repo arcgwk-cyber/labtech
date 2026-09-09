@@ -295,27 +295,89 @@ function getResultDisplay($row, $min, $max) {
     return $highlight ? '<strong style="color:#dc2626; font-size:10.5px;">' . htmlspecialchars($value) . ' *</strong>' : '<strong>' . htmlspecialchars($value) . '</strong>';
 }
 
-function renderTestNotesAndInterpretation($test_id, $pdf, $include_notes, $include_interpretation) {
-    global $conn;
-    if (!$include_notes && !$include_interpretation) return;
+function getTestNotesAndInterpretationHTML($test_id, $test_name, $include_notes, $include_interpretation) {
+    global $conn, $MASTER_CATALOG_TESTS;
+    if (!$include_notes && !$include_interpretation) return '';
 
-    $stmt = $conn->prepare("SELECT notes, interpretations FROM lab_tests WHERE test_id = ? LIMIT 1");
-    if (!$stmt) return;
-    $stmt->bind_param("i", $test_id);
-    $stmt->execute();
-    $stmt->bind_result($notes, $interpretation);
-    $stmt->fetch();
-    $stmt->close();
+    $notes = '';
+    $interpretation = '';
+
+    // 1. Try fetching from Database
+    if ($conn && $test_id > 0) {
+        $stmt = @$conn->prepare("SELECT notes, interpretations FROM lab_tests WHERE test_id = ? LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param("i", $test_id);
+            $stmt->execute();
+            $stmt->bind_result($db_notes, $db_interp);
+            if ($stmt->fetch()) {
+                $notes = trim($db_notes ?? '');
+                $interpretation = trim($db_interp ?? '');
+            }
+            $stmt->close();
+        }
+    }
+
+    // 2. Automatic fallback to Master Catalog Data if notes or interpretation are empty
+    if (empty($notes) || empty($interpretation)) {
+        if (!isset($MASTER_CATALOG_TESTS) && file_exists(__DIR__ . '/pathology_catalog_data.php')) {
+            require_once __DIR__ . '/pathology_catalog_data.php';
+        }
+        if (!empty($MASTER_CATALOG_TESTS)) {
+            foreach ($MASTER_CATALOG_TESTS as $mc) {
+                $match = false;
+                if (!empty($mc['test_id']) && (int)$mc['test_id'] === (int)$test_id) {
+                    $match = true;
+                } elseif (!empty($test_name) && !empty($mc['name']) && (strcasecmp(trim($mc['name']), trim($test_name)) === 0 || stripos($test_name, $mc['name']) !== false || stripos($mc['name'], $test_name) !== false)) {
+                    $match = true;
+                } elseif (!empty($test_name) && !empty($mc['code']) && stripos($test_name, $mc['code']) !== false) {
+                    $match = true;
+                }
+                if ($match) {
+                    if (empty($notes) && !empty($mc['notes'])) {
+                        $notes = trim($mc['notes']);
+                    }
+                    if (empty($interpretation) && !empty($mc['interpretations'])) {
+                        $interpretation = trim($mc['interpretations']);
+                    }
+                    break;
+                }
+            }
+        }
+    }
 
     $html = '';
-    if ($include_notes && !empty($notes) && trim($notes) !== '') {
-        $html .= '<div style="font-size:8.5px; color:#475569; margin-top:4px;"><strong>Clinical Notes:</strong> ' . htmlspecialchars($notes) . '</div>';
-    }
-    if ($include_interpretation && !empty($interpretation) && trim($interpretation) !== '') {
-        $clean_interp = strip_tags($interpretation, '<br><b><strong><ul><li><p>');
-        $html .= '<div style="font-size:8.5px; color:#334155; margin-top:4px; background-color:#f8fafc; padding:4px; border-left:3px solid #0284c7;"><strong>Interpretation:</strong> ' . $clean_interp . '</div>';
+
+    // A. Clinical Notes Table (compact, neat medical guidance)
+    if ($include_notes && !empty($notes)) {
+        $html .= '<table width="100%" cellpadding="2" cellspacing="0" style="margin-top:2px; margin-bottom:2px; font-family:Helvetica, Arial, sans-serif; border-collapse:collapse;">
+            <tr>
+                <td style="font-size:7.5pt; color:#475569; padding:2px 4px; line-height:1.3;">
+                    <span style="font-weight:bold; color:#1e293b;">Note:</span> ' . htmlspecialchars($notes) . '
+                </td>
+            </tr>
+        </table>';
     }
 
+    // B. Clinical Interpretation Table (NABL/CAP formatted light callout box with blue left accent bar)
+    if ($include_interpretation && !empty($interpretation)) {
+        $clean_interp = strip_tags($interpretation, '<br><b><strong><ul><li><p><i><em><u>');
+        if (strpos($clean_interp, '<p>') === false && strpos($clean_interp, '<br') === false) {
+            $clean_interp = nl2br($clean_interp);
+        }
+        $html .= '<table width="100%" cellpadding="3" cellspacing="0" style="margin-top:3px; margin-bottom:6px; font-family:Helvetica, Arial, sans-serif; border-collapse:collapse;">
+            <tr>
+                <td style="background-color:#f8fafc; border-left:3px solid #0284c7; font-size:7.8pt; color:#334155; padding:4px 8px; line-height:1.35;">
+                    <span style="font-weight:bold; color:#0369a1;">Clinical Interpretation:</span> ' . $clean_interp . '
+                </td>
+            </tr>
+        </table>';
+    }
+
+    return $html;
+}
+
+function renderTestNotesAndInterpretation($test_id, $pdf, $include_notes, $include_interpretation, $test_name = '') {
+    $html = getTestNotesAndInterpretationHTML($test_id, $test_name, $include_notes, $include_interpretation);
     if (!empty($html)) {
         $pdf->writeHTML($html, true, false, true, false, '');
     }
@@ -619,10 +681,9 @@ if ($pagebreak_per_test) {
                 }
             }
             $html .= '</table>';
+            // Append formatted Clinical Notes & Interpretation for this test
+            $html .= getTestNotesAndInterpretationHTML($curr_test_id, $test_name, $include_notes, $include_interpretation);
             $pdf->writeHTML($html, true, false, true, false, '');
-
-            // Notes for this specific test
-            renderTestNotesAndInterpretation($curr_test_id, $pdf, $include_notes, $include_interpretation);
 
             // Signature footer for this test's page
             renderReportFooterSignature($pdf, $qr_link, $include_signature, $bottom_margin);
@@ -665,6 +726,9 @@ if ($pagebreak_per_test) {
                 }
             }
             $html .= '</table>';
+
+            // Append formatted Clinical Notes & Interpretation for this test
+            $html .= getTestNotesAndInterpretationHTML($curr_test_id, $test_name, $include_notes, $include_interpretation);
         }
     }
 
