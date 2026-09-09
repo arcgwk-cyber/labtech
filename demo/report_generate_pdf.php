@@ -180,6 +180,112 @@ EOD;
     </tr>
 </table>
 EOD;
+    } elseif ($style === 'smart') {
+        // Smart Barcode 3-Column Top Header format
+        global $conn, $qr_link;
+        $bill_id_val = (int)$bill['bill_id'];
+        
+        // Formatted dates matching image: "11:30 AM 22 Oct, 25"
+        $registered_on = date('h:i A d M, y', strtotime($bill['bill_date']));
+        $reported_on   = date('h:i A d M, y', !empty($report_date) && strtotime($report_date) ? strtotime($report_date) : time());
+
+        // Fetch collection date from test_samples if recorded, fallback to bill_date
+        $collected_on = $registered_on;
+        if ($conn) {
+            $s_res = @$conn->query("SELECT sample_date FROM test_samples WHERE bill_id = {$bill_id_val} AND sample_date IS NOT NULL LIMIT 1");
+            if ($s_res && $s_row = $s_res->fetch_assoc()) {
+                if (!empty($s_row['sample_date'])) {
+                    $collected_on = date('h:i A d M, y', strtotime($s_row['sample_date']));
+                }
+            }
+        }
+
+        // Lab info for "Sample Collected At"
+        $lab_info = "Main Lab / Diagnostic Centre";
+        if ($conn) {
+            $adm = @$conn->query("SELECT company_name, company_address FROM admin_settings LIMIT 1");
+            if ($adm && $ar = $adm->fetch_assoc()) {
+                $cname = !empty($ar['company_name']) ? trim($ar['company_name']) : '';
+                $caddr = !empty($ar['company_address']) ? trim($ar['company_address']) : '';
+                if ($cname) {
+                    $lab_info = htmlspecialchars($cname);
+                    if ($caddr) {
+                        $short_addr = explode(',', $caddr)[0];
+                        $lab_info .= ", " . htmlspecialchars($short_addr);
+                    }
+                }
+            }
+        }
+
+        // Generate inline Barcode (Code128) for Bill ID as base64 PNG
+        $barcode_img_html = '';
+        if (file_exists(__DIR__ . '/TCPDF/tcpdf_barcodes_1d.php')) {
+            require_once __DIR__ . '/TCPDF/tcpdf_barcodes_1d.php';
+            try {
+                $bc = new TCPDFBarcode((string)$bill_id_val, 'C128');
+                $png_data = $bc->getBarcodePngData(1.4, 22, array(0,0,0));
+                if ($png_data) {
+                    $barcode_img_html = '<img src="@' . base64_encode($png_data) . '" height="18" style="vertical-align:middle;">';
+                }
+            } catch (Exception $e) {
+                $barcode_img_html = '';
+            }
+        }
+
+        // Generate inline QR Code as base64 PNG
+        $qr_img_html = '';
+        if (file_exists(__DIR__ . '/TCPDF/tcpdf_barcodes_2d.php')) {
+            require_once __DIR__ . '/TCPDF/tcpdf_barcodes_2d.php';
+            try {
+                $target_qr = !empty($qr_link) ? $qr_link : "https://labs.vensaas.com/demo/download_pdf.php?token=" . encodeID($bill_id_val);
+                $qc = new TCPDF2DBarcode($target_qr, 'QRCODE,L');
+                $qr_png = $qc->getBarcodePngData(3, 3, array(0,0,0));
+                if ($qr_png) {
+                    $qr_img_html = '<img src="@' . base64_encode($qr_png) . '" width="46" height="46" style="vertical-align:middle;">';
+                }
+            } catch (Exception $e) {
+                $qr_img_html = '';
+            }
+        }
+
+        $patient_display_name = strtoupper(htmlspecialchars($bill['full_name']));
+
+        return <<<EOD
+<table width="100%" cellpadding="3" cellspacing="0" style="font-family: Helvetica, Arial, sans-serif; font-size: 8.5px; border-top: 1.5px solid #0f172a; border-bottom: 1.5px solid #0f172a; padding-top: 4px; padding-bottom: 4px;">
+    <tr>
+        <!-- Col 1: Patient Details -->
+        <td width="36%" valign="top" style="line-height: 1.35; padding-right: 6px;">
+            <div style="font-size: 11px; font-weight: bold; color: #0f172a;">{$patient_display_name}</div>
+            <div style="font-size: 8.5px; color: #334155; margin-top: 2px;">
+                <strong>Age :</strong> {$age} &nbsp;&nbsp; <strong>Sex :</strong> {$gender}<br>
+                <strong>Bill ID / PID :</strong> #{$bill_id_val}
+            </div>
+        </td>
+        <!-- Col 2: QR Code & Center Details -->
+        <td width="30%" valign="top" style="line-height: 1.35; border-left: 1px solid #e2e8f0; padding-left: 6px; padding-right: 6px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td width="50" align="left" valign="top">{$qr_img_html}</td>
+                    <td align="left" valign="top" style="font-size: 8px; color: #334155; padding-left: 4px; line-height: 1.3;">
+                        <strong>Sample Collected At:</strong><br>
+                        {$lab_info}<br>
+                        <strong>Ref. By :</strong> Dr. {$dr_label}
+                    </td>
+                </tr>
+            </table>
+        </td>
+        <!-- Col 3: Barcode & Timing Details -->
+        <td width="34%" valign="top" align="right" style="line-height: 1.35; border-left: 1px solid #e2e8f0; padding-left: 6px;">
+            <div style="margin-bottom: 2px;">{$barcode_img_html}</div>
+            <div style="font-size: 8px; color: #334155; text-align: right;">
+                <strong>Registered on :</strong> {$registered_on}<br>
+                <strong>Collected on :</strong> {$collected_on}<br>
+                <strong>Reported on :</strong> {$reported_on}
+            </div>
+        </td>
+    </tr>
+</table>
+EOD;
     } else {
         // Clinical NABL standard (default) & letterhead
         return <<<EOD
@@ -214,7 +320,18 @@ EOD;
 }
 
 function getTestHeader($style) {
-    if ($style === 'modern') {
+    if ($style === 'smart') {
+        return <<<EOD
+<table width="100%" cellpadding="4" cellspacing="0" style="font-family: Helvetica, Arial, sans-serif; font-size: 9.5px; border-top: 1.5px solid #0f172a; border-bottom: 1.5px solid #0f172a; border-collapse: collapse;">
+    <tr style="font-weight:bold; color:#0f172a;">
+        <td width="42%">Investigation</td>
+        <td width="20%">Result</td>
+        <td width="23%">Reference Value</td>
+        <td width="15%">Unit</td>
+    </tr>
+</table>
+EOD;
+    } elseif ($style === 'modern') {
         return <<<EOD
 <table width="100%" cellpadding="4" cellspacing="0" style="font-family: Helvetica, Arial, sans-serif; font-size: 10px; border-bottom: 2px solid #0f172a; border-collapse: collapse;">
     <tr style="background-color:#0f172a; color:#ffffff; font-weight:bold;">
@@ -274,21 +391,36 @@ function calculateRefRange($row, $gender, $age_years) {
     return [$ref_range, $min, $max];
 }
 
-function getResultDisplay($row, $min, $max) {
+function getResultDisplay($row, $min, $max, $style = 'clinical') {
     $value = $row['result_value'] ?? '';
     if ($value === '') return '<span style="color:#94a3b8;">Not Tested</span>';
 
     $highlight = false;
+    $flag = '';
     $val_lower = strtolower(trim($value));
 
     if (in_array($val_lower, ['positive', 'reactive', 'high', 'present', 'detected', 'abnormal'])) {
         $highlight = true;
+        $flag = 'High';
     }
 
     if (!$highlight && is_numeric($value) && $min !== null && $max !== null) {
         $val = floatval($value);
-        if ($val < $min || $val > $max) {
+        if ($val > $max) {
             $highlight = true;
+            $flag = 'High';
+        } elseif ($val < $min) {
+            $highlight = true;
+            $flag = 'Low';
+        }
+    }
+
+    if ($style === 'smart') {
+        if ($highlight) {
+            $flag_badge = $flag ? '&nbsp;<span style="color:#dc2626; font-size:8px; font-weight:bold;">' . htmlspecialchars($flag) . '</span>' : '';
+            return '<strong style="color:#dc2626; font-size:10px;">' . htmlspecialchars($value) . '</strong>' . $flag_badge;
+        } else {
+            return '<strong style="color:#0f172a; font-size:9.5px;">' . htmlspecialchars($value) . '</strong>';
         }
     }
 
@@ -383,7 +515,7 @@ function renderTestNotesAndInterpretation($test_id, $pdf, $include_notes, $inclu
     }
 }
 
-function renderReportFooterSignature($pdf, $qr_link, $include_signature, $bottom_margin = 35.0) {
+function renderReportFooterSignature($pdf, $qr_link, $include_signature, $bottom_margin = 35.0, $style = 'clinical') {
     global $conn;
     if (!$include_signature) return;
 
@@ -470,12 +602,14 @@ function renderReportFooterSignature($pdf, $qr_link, $include_signature, $bottom
         $pdf->Image($stampPath, 152, $footerY + 15, 34, 19, '', '', '', false, 300, '', false, false, 0);
         $baseY = $footerY + 34;
 
-        // QR code on the bottom left aligned with the stamp baseline
-        $qrY = $baseY - 20;
-        $pdf->write2DBarcode($qr_link, 'QRCODE,L', 12, $qrY, 18, 18);
-        $pdf->SetFont('helvetica', '', 7);
-        $pdf->SetXY(12, $baseY - 1);
-        $pdf->Cell(25, 4, "Scan to Verify", 0, 0, 'L');
+        // QR code on the bottom left aligned with the stamp baseline (suppressed if top QR already present in smart style)
+        if ($style !== 'smart') {
+            $qrY = $baseY - 20;
+            $pdf->write2DBarcode($qr_link, 'QRCODE,L', 12, $qrY, 18, 18);
+            $pdf->SetFont('helvetica', '', 7);
+            $pdf->SetXY(12, $baseY - 1);
+            $pdf->Cell(25, 4, "Scan to Verify", 0, 0, 'L');
+        }
 
     } elseif ($has_sig && !$has_stamp) {
         // Mode 2: Signature available, Stamp not available -> Show Signature + Doctor Details
@@ -489,12 +623,14 @@ function renderReportFooterSignature($pdf, $qr_link, $include_signature, $bottom
         $pdf->SetXY(130, $nameY + 4);
         $pdf->Cell(65, 4, $designation_label, 0, 1, 'R');
 
-        // QR code aligned with doctor text
-        $qrY = $nameY - 16;
-        $pdf->write2DBarcode($qr_link, 'QRCODE,L', 12, $qrY, 18, 18);
-        $pdf->SetFont('helvetica', '', 7);
-        $pdf->SetXY(12, $nameY + 3);
-        $pdf->Cell(25, 4, "Scan to Verify", 0, 0, 'L');
+        // QR code aligned with doctor text (suppressed if top QR already present in smart style)
+        if ($style !== 'smart') {
+            $qrY = $nameY - 16;
+            $pdf->write2DBarcode($qr_link, 'QRCODE,L', 12, $qrY, 18, 18);
+            $pdf->SetFont('helvetica', '', 7);
+            $pdf->SetXY(12, $nameY + 3);
+            $pdf->Cell(25, 4, "Scan to Verify", 0, 0, 'L');
+        }
 
     } else {
         // Mode 3: Images not available -> Dynamically print signatory line + Doctor Details
@@ -513,12 +649,14 @@ function renderReportFooterSignature($pdf, $qr_link, $include_signature, $bottom
         $pdf->SetXY(130, $nameY + 6);
         $pdf->Cell(65, 4, $designation_label, 0, 1, 'R');
 
-        // QR code aligned with doctor text
-        $qrY = $nameY - 14;
-        $pdf->write2DBarcode($qr_link, 'QRCODE,L', 12, $qrY, 18, 18);
-        $pdf->SetFont('helvetica', '', 7);
-        $pdf->SetXY(12, $nameY + 5);
-        $pdf->Cell(25, 4, "Scan to Verify", 0, 0, 'L');
+        // QR code aligned with doctor text (suppressed if top QR already present in smart style)
+        if ($style !== 'smart') {
+            $qrY = $nameY - 14;
+            $pdf->write2DBarcode($qr_link, 'QRCODE,L', 12, $qrY, 18, 18);
+            $pdf->SetFont('helvetica', '', 7);
+            $pdf->SetXY(12, $nameY + 5);
+            $pdf->Cell(25, 4, "Scan to Verify", 0, 0, 'L');
+        }
     }
 
     // Re-enable auto page break
@@ -691,26 +829,43 @@ if ($pagebreak_per_test) {
                 }
                 foreach ($params as $row) {
                     list($ref_range, $min, $max) = calculateRefRange($row, strtolower($gender), $age_years);
-                    $result_display = getResultDisplay($row, $min, $max);
+                    $result_display = getResultDisplay($row, $min, $max, $report_style);
                     $method = ($include_method && !empty($row['method'])) ? '<br><span style="color:#64748b; font-size:7.5px;">Method: ' . htmlspecialchars($row['method']) . '</span>' : '';
                     $bg = ($report_style === 'modern' && $row_idx % 2 === 1) ? 'background-color:#f8fafc;' : '';
 
-                    $html .= '<tr style="' . $bg . ' border-bottom:1px solid ' . $border_color . ';">
-                        <td width="42%" style="' . $cell_padding . '">' . htmlspecialchars($row['param_name']) . $method . '</td>
-                        <td width="18%" style="' . $cell_padding . '">' . $result_display . '</td>
-                        <td width="15%" style="' . $cell_padding . '">' . htmlspecialchars($row['unit']) . '</td>
-                        <td width="25%" style="' . $cell_padding . ' color:#334155;">' . htmlspecialchars($ref_range) . '</td>
-                    </tr>';
+                    if ($report_style === 'smart') {
+                        $html .= '<tr style="border-bottom:1px solid ' . $border_color . ';">
+                            <td width="42%" style="' . $cell_padding . '">' . htmlspecialchars($row['param_name']) . $method . '</td>
+                            <td width="20%" style="' . $cell_padding . '">' . $result_display . '</td>
+                            <td width="23%" style="' . $cell_padding . ' color:#334155;">' . htmlspecialchars($ref_range) . '</td>
+                            <td width="15%" style="' . $cell_padding . '">' . htmlspecialchars($row['unit']) . '</td>
+                        </tr>';
+                    } else {
+                        $html .= '<tr style="' . $bg . ' border-bottom:1px solid ' . $border_color . ';">
+                            <td width="42%" style="' . $cell_padding . '">' . htmlspecialchars($row['param_name']) . $method . '</td>
+                            <td width="18%" style="' . $cell_padding . '">' . $result_display . '</td>
+                            <td width="15%" style="' . $cell_padding . '">' . htmlspecialchars($row['unit']) . '</td>
+                            <td width="25%" style="' . $cell_padding . ' color:#334155;">' . htmlspecialchars($ref_range) . '</td>
+                        </tr>';
+                    }
                     $row_idx++;
                 }
             }
             $html .= '</table>';
             // Append formatted Clinical Notes & Interpretation for this test
             $html .= getTestNotesAndInterpretationHTML($curr_test_id, $test_name, $include_notes, $include_interpretation);
+
+            if ($report_style === 'smart') {
+                $html .= '<div style="margin-top:8px; text-align:center; font-size:8.5px; font-weight:bold; color:#64748b;">
+                    Thanks for Reference<br>
+                    <span style="font-size:8px; letter-spacing:1px;">****End of Report****</span>
+                </div>';
+            }
+
             $pdf->writeHTML($html, true, false, true, false, '');
 
             // Signature footer for this test's page
-            renderReportFooterSignature($pdf, $qr_link, $include_signature, $bottom_margin);
+            renderReportFooterSignature($pdf, $qr_link, $include_signature, $bottom_margin, $report_style);
         }
     }
 } else {
@@ -736,16 +891,25 @@ if ($pagebreak_per_test) {
                 }
                 foreach ($params as $row) {
                     list($ref_range, $min, $max) = calculateRefRange($row, strtolower($gender), $age_years);
-                    $result_display = getResultDisplay($row, $min, $max);
+                    $result_display = getResultDisplay($row, $min, $max, $report_style);
                     $method = ($include_method && !empty($row['method'])) ? '<br><span style="color:#64748b; font-size:7.5px;">Method: ' . htmlspecialchars($row['method']) . '</span>' : '';
                     $bg = ($report_style === 'modern' && $row_idx % 2 === 1) ? 'background-color:#f8fafc;' : '';
 
-                    $html .= '<tr style="' . $bg . ' border-bottom:1px solid ' . $border_color . ';">
-                        <td width="42%" style="' . $cell_padding . '">' . htmlspecialchars($row['param_name']) . $method . '</td>
-                        <td width="18%" style="' . $cell_padding . '">' . $result_display . '</td>
-                        <td width="15%" style="' . $cell_padding . '">' . htmlspecialchars($row['unit']) . '</td>
-                        <td width="25%" style="' . $cell_padding . ' color:#334155;">' . htmlspecialchars($ref_range) . '</td>
-                    </tr>';
+                    if ($report_style === 'smart') {
+                        $html .= '<tr style="border-bottom:1px solid ' . $border_color . ';">
+                            <td width="42%" style="' . $cell_padding . '">' . htmlspecialchars($row['param_name']) . $method . '</td>
+                            <td width="20%" style="' . $cell_padding . '">' . $result_display . '</td>
+                            <td width="23%" style="' . $cell_padding . ' color:#334155;">' . htmlspecialchars($ref_range) . '</td>
+                            <td width="15%" style="' . $cell_padding . '">' . htmlspecialchars($row['unit']) . '</td>
+                        </tr>';
+                    } else {
+                        $html .= '<tr style="' . $bg . ' border-bottom:1px solid ' . $border_color . ';">
+                            <td width="42%" style="' . $cell_padding . '">' . htmlspecialchars($row['param_name']) . $method . '</td>
+                            <td width="18%" style="' . $cell_padding . '">' . $result_display . '</td>
+                            <td width="15%" style="' . $cell_padding . '">' . htmlspecialchars($row['unit']) . '</td>
+                            <td width="25%" style="' . $cell_padding . ' color:#334155;">' . htmlspecialchars($ref_range) . '</td>
+                        </tr>';
+                    }
                     $row_idx++;
                 }
             }
@@ -756,10 +920,17 @@ if ($pagebreak_per_test) {
         }
     }
 
+    if ($report_style === 'smart') {
+        $html .= '<div style="margin-top:10px; text-align:center; font-size:8.5px; font-weight:bold; color:#64748b;">
+            Thanks for Reference<br>
+            <span style="font-size:8px; letter-spacing:1px;">****End of Report****</span>
+        </div>';
+    }
+
     $pdf->writeHTML($html, true, false, true, false, '');
 
     // Render signature block once at the end of the entire report
-    renderReportFooterSignature($pdf, $qr_link, $include_signature, $bottom_margin);
+    renderReportFooterSignature($pdf, $qr_link, $include_signature, $bottom_margin, $report_style);
 }
 
 // Auto-trigger browser print dialog if requested

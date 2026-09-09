@@ -363,35 +363,46 @@ $selected_bottom_margin = $prefs['bottom_margin'] ?? 35.0;
         <div class="row g-2 mb-4">
           
           <!-- Style 1: Clinical Standard -->
-          <div class="col-sm-4">
+          <div class="col-sm-6 col-md-3">
             <div class="style-card style-opt-card <?= $selected_style === 'clinical' ? 'selected' : '' ?>" data-style="clinical" onclick="selectReportStyle('clinical')">
               <div class="style-badge bg-primary text-white">
                 <i class="bi bi-table"></i>
               </div>
               <h6 class="fw-bold text-dark mb-1 small">Standard Clinical</h6>
-              <p class="text-muted mb-0" style="font-size: 0.75rem;">NABL blue table layout with official borders.</p>
+              <p class="text-muted mb-0" style="font-size: 0.72rem;">NABL blue table layout with official borders.</p>
             </div>
           </div>
 
           <!-- Style 2: Modern Minimalist -->
-          <div class="col-sm-4">
+          <div class="col-sm-6 col-md-3">
             <div class="style-card style-opt-card <?= $selected_style === 'modern' ? 'selected' : '' ?>" data-style="modern" onclick="selectReportStyle('modern')">
               <div class="style-badge bg-dark text-white">
                 <i class="bi bi-layout-text-window-reverse"></i>
               </div>
               <h6 class="fw-bold text-dark mb-1 small">Modern Minimalist</h6>
-              <p class="text-muted mb-0" style="font-size: 0.75rem;">Slate headers and alternating soft zebra rows.</p>
+              <p class="text-muted mb-0" style="font-size: 0.72rem;">Slate headers and alternating soft zebra rows.</p>
             </div>
           </div>
 
           <!-- Style 3: High Density Compact -->
-          <div class="col-sm-4">
+          <div class="col-sm-6 col-md-3">
             <div class="style-card style-opt-card <?= $selected_style === 'compact' ? 'selected' : '' ?>" data-style="compact" onclick="selectReportStyle('compact')">
               <div class="style-badge bg-info text-white">
                 <i class="bi bi-grid-3x2"></i>
               </div>
               <h6 class="fw-bold text-dark mb-1 small">Compact Panel</h6>
-              <p class="text-muted mb-0" style="font-size: 0.75rem;">Tight 8.5pt font, packs 25+ tests per page.</p>
+              <p class="text-muted mb-0" style="font-size: 0.72rem;">Tight 8.5pt font, packs 25+ tests per page.</p>
+            </div>
+          </div>
+
+          <!-- Style 4: Smart Barcode (New!) -->
+          <div class="col-sm-6 col-md-3">
+            <div class="style-card style-opt-card <?= $selected_style === 'smart' ? 'selected' : '' ?>" data-style="smart" onclick="selectReportStyle('smart')">
+              <div class="style-badge bg-success text-white">
+                <i class="bi bi-qr-code-scan"></i>
+              </div>
+              <h6 class="fw-bold text-dark mb-1 small">Smart Barcode</h6>
+              <p class="text-muted mb-0" style="font-size: 0.72rem;">Top QR & Barcode, 3-column header, Bill ID & Collected on.</p>
             </div>
           </div>
 
