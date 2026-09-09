@@ -602,16 +602,25 @@ $age_years = (int)date_diff(date_create($bill['date_of_birth'] ?? 'now'), date_c
 
 // Fetch test results
 $stmt = $conn->prepare("
-    SELECT g.group_name, t.test_id, t.test_name, ltp.param_order, ltp.section_name, tp.param_name, tp.unit, tp.method,
+    SELECT g.group_name, t.test_id, t.test_name, ltp.param_order, ltp.section_name, tp.parameter_id, tp.param_name, tp.unit, tp.method,
            r.result_value, rr.child_min, rr.child_max, rr.female_min, rr.female_max, rr.male_min, rr.male_max, rr.use_reference_text, rr.reference_text
     FROM test_results r
     JOIN test_parameters tp ON r.parameter_id = tp.parameter_id
-    JOIN lab_test_parameters ltp ON tp.parameter_id = ltp.parameter_id
+    JOIN lab_test_parameters ltp ON tp.parameter_id = ltp.parameter_id AND ltp.test_id = r.test_id
     JOIN lab_tests t ON ltp.test_id = t.test_id
     LEFT JOIN test_groups g ON t.group_id = g.group_id
-    LEFT JOIN parameter_reference_ranges rr ON tp.parameter_id = rr.parameter_id
+    LEFT JOIN (
+        SELECT parameter_id,
+               MAX(child_min) as child_min, MAX(child_max) as child_max,
+               MAX(female_min) as female_min, MAX(female_max) as female_max,
+               MAX(male_min) as male_min, MAX(male_max) as male_max,
+               MAX(use_reference_text) as use_reference_text,
+               MAX(reference_text) as reference_text
+        FROM parameter_reference_ranges
+        GROUP BY parameter_id
+    ) rr ON tp.parameter_id = rr.parameter_id
     WHERE r.bill_id = ? AND r.test_id = t.test_id
-    ORDER BY g.group_name, t.test_name, ltp.param_order
+    ORDER BY g.group_name, t.test_name, ltp.param_order, r.result_id DESC
 ");
 $stmt->bind_param("i", $bill_id);
 $stmt->execute();
@@ -623,7 +632,22 @@ while ($row = $results->fetch_assoc()) {
     $group_name = $row['group_name'] ?: 'Clinical Pathology';
     $test_key = $row['test_id'] . '|' . $row['test_name'];
     $section_key = $row['section_name'] ?: '';
-    $grouped_results[$group_name][$test_key][$section_key][] = $row;
+
+    // Strict deduplication by parameter identifier to ensure no parameter ever appears twice
+    $param_id = !empty($row['parameter_id']) ? (int)$row['parameter_id'] : 0;
+    $param_name = trim($row['param_name'] ?? '');
+    $param_uniq_key = $param_id > 0 ? ('p_' . $param_id) : ('n_' . strtolower($param_name));
+
+    if (!isset($grouped_results[$group_name][$test_key][$section_key][$param_uniq_key])) {
+        $grouped_results[$group_name][$test_key][$section_key][$param_uniq_key] = $row;
+    } else {
+        // Prioritize non-empty result if duplicate row had empty/untested value
+        $existing_val = trim($grouped_results[$group_name][$test_key][$section_key][$param_uniq_key]['result_value'] ?? '');
+        $new_val = trim($row['result_value'] ?? '');
+        if ($existing_val === '' && $new_val !== '') {
+            $grouped_results[$group_name][$test_key][$section_key][$param_uniq_key] = $row;
+        }
+    }
 }
 $stmt->close();
 

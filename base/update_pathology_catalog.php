@@ -104,7 +104,24 @@ if (isset($_POST['sync_notes_interpretations'])) {
     if ($stmt2) $stmt2->close();
     if ($stmt3) $stmt3->close();
 
-    $message = "Successfully synchronized standard NABL/ICMR Clinical Notes & Interpretations across your lab tests catalog!";
+    // Clean duplicate rows in test_results keeping the latest result_id
+    @$conn->query("
+        DELETE t1 FROM test_results t1
+        INNER JOIN test_results t2 
+        WHERE t1.bill_id = t2.bill_id 
+          AND t1.parameter_id = t2.parameter_id 
+          AND t1.result_id < t2.result_id
+    ");
+
+    // Clean duplicate rows in parameter_reference_ranges keeping the latest range_id
+    @$conn->query("
+        DELETE r1 FROM parameter_reference_ranges r1
+        INNER JOIN parameter_reference_ranges r2 
+        WHERE r1.parameter_id = r2.parameter_id 
+          AND r1.range_id < r2.range_id
+    ");
+
+    $message = "Successfully synchronized standard NABL/ICMR Clinical Notes & Interpretations across your lab tests catalog and purged any duplicate records!";
 }
 
 // Fetch current database counts

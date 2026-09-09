@@ -128,7 +128,15 @@ if ($patient && $patient_id > 0) {
             FROM test_results tr
             JOIN bills b ON tr.bill_id = b.bill_id
             JOIN test_parameters p ON tr.parameter_id = p.parameter_id
-            LEFT JOIN parameter_reference_ranges r ON p.parameter_id = r.parameter_id
+            LEFT JOIN (
+                SELECT parameter_id,
+                       MAX(male_min) as male_min, MAX(male_max) as male_max,
+                       MAX(female_min) as female_min, MAX(female_max) as female_max,
+                       MAX(reference_text) as reference_text,
+                       MAX(use_reference_text) as use_reference_text
+                FROM parameter_reference_ranges
+                GROUP BY parameter_id
+            ) r ON p.parameter_id = r.parameter_id
             LEFT JOIN lab_tests lt ON tr.test_id = lt.test_id
             WHERE b.patient_id = {$patient_id} AND tr.result_value IS NOT NULL AND TRIM(tr.result_value) != ''
             ORDER BY b.bill_date ASC, tr.result_id ASC

@@ -33,29 +33,36 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['bill_id'], $_POST['re
         die("No sample found for this bill.");
     }
 
-    // Insert / Update test_results
-    $stmt = $conn->prepare("
-        INSERT INTO test_results 
-            (bill_id, sample_id, parameter_id, test_id, result_value, result_date, status, tested_by)
-        VALUES (?, ?, ?, ?, ?, NOW(), 'Completed', ?)
-        ON DUPLICATE KEY UPDATE
-            result_value = VALUES(result_value),
-            result_date = NOW(),
-            status = 'Completed',
-            tested_by = VALUES(tested_by)
-    ");
+    // Clean Single-Entry Insert / Update test_results (prevents duplicate parameter rows)
+    $checkStmt = $conn->prepare("SELECT result_id FROM test_results WHERE bill_id = ? AND parameter_id = ? LIMIT 1");
+    $updateStmt = $conn->prepare("UPDATE test_results SET result_value = ?, sample_id = ?, test_id = ?, tested_by = ?, result_date = NOW(), status = 'Completed' WHERE result_id = ?");
+    $insertStmt = $conn->prepare("INSERT INTO test_results (bill_id, sample_id, parameter_id, test_id, result_value, result_date, status, tested_by) VALUES (?, ?, ?, ?, ?, NOW(), 'Completed', ?)");
 
     foreach ($results as $param_id => $value) {
         $test_id = isset($test_ids[$param_id]) ? (int)$test_ids[$param_id] : null;
         if (!$test_id) continue;
 
-        // Use first sample_id (or modify if multiple samples per test)
         $sample_id = $sample_ids[0];
 
-        $stmt->bind_param("iiiisi", $bill_id, $sample_id, $param_id, $test_id, $value, $tested_by);
-        $stmt->execute();
+        $checkStmt->bind_param("ii", $bill_id, $param_id);
+        $checkStmt->execute();
+        $checkRes = $checkStmt->get_result();
+
+        if ($existing = $checkRes->fetch_assoc()) {
+            $existing_id = (int)$existing['result_id'];
+            $updateStmt->bind_param("siiii", $value, $sample_id, $test_id, $tested_by, $existing_id);
+            $updateStmt->execute();
+
+            // Clean up any extra duplicate rows created historically for this bill and parameter
+            $conn->query("DELETE FROM test_results WHERE bill_id = {$bill_id} AND parameter_id = {$param_id} AND result_id != {$existing_id}");
+        } else {
+            $insertStmt->bind_param("iiiisi", $bill_id, $sample_id, $param_id, $test_id, $value, $tested_by);
+            $insertStmt->execute();
+        }
     }
-    $stmt->close();
+    $checkStmt->close();
+    $updateStmt->close();
+    $insertStmt->close();
 
     // Update all test_samples for this bill as Completed
     $updateSamples = $conn->prepare("UPDATE test_samples SET status = 'Completed' WHERE bill_id = ?");
