@@ -130,6 +130,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // Save letterhead top margin preference if provided
+        if (isset($_POST['letterhead_top_margin']) && is_numeric($_POST['letterhead_top_margin'])) {
+            $pref_file = __DIR__ . '/report_preferences.json';
+            $prefs = [];
+            if (file_exists($pref_file)) {
+                $prefs = json_decode(file_get_contents($pref_file), true) ?: [];
+            }
+            $prefs['top_margin'] = floatval($_POST['letterhead_top_margin']);
+            @file_put_contents($pref_file, json_encode($prefs, JSON_PRETTY_PRINT));
+        }
+
         if ($conn->query($sql)) {
             $messages[] = '<div class="alert alert-success">Settings updated successfully.</div>';
         } else {
@@ -163,6 +174,14 @@ if ($conn && !$conn->connect_error) {
         }
     }
 }
+
+// Read saved letterhead top margin preference (default 55.0 mm)
+$pref_file = __DIR__ . '/report_preferences.json';
+$lab_prefs = [];
+if (file_exists($pref_file)) {
+    $lab_prefs = json_decode(file_get_contents($pref_file), true) ?: [];
+}
+$letterhead_top_margin = isset($lab_prefs['top_margin']) ? (float)$lab_prefs['top_margin'] : 55.0;
 ?>
 <!DOCTYPE html>
 <html>
@@ -208,6 +227,19 @@ if ($conn && !$conn->connect_error) {
                         <button type="submit" name="delete_letter" value="1" class="btn btn-sm btn-outline-danger">Delete Letterhead</button>
                     </div>
                 <?php endif; ?>
+            </div>
+
+            <div class="mb-4 p-3 border rounded bg-light">
+                <label class="form-label fw-bold mb-1">
+                    <i class="bi bi-arrows-expand-vertical text-primary me-1"></i> Letterhead Top Spacing / Content Margin (mm)
+                </label>
+                <div class="input-group" style="max-width: 220px;">
+                    <input type="number" step="0.5" name="letterhead_top_margin" class="form-control" value="<?= htmlspecialchars($letterhead_top_margin) ?>" min="30" max="85" required>
+                    <span class="input-group-text">mm</span>
+                </div>
+                <div class="form-text text-muted mt-1" style="font-size: 0.85rem;">
+                    Distance from the top of the A4 page before patient info starts. Default: <strong>55 mm</strong>. If patient details touch or overlap your letterhead logo, hospital name, or horizontal line, increase this to <strong>58 - 62 mm</strong>. (You can also adjust this live per report in the Report Customization Studio).
+                </div>
             </div>
 
             <button type="submit" class="btn btn-primary mt-3">Save Settings</button>

@@ -483,6 +483,10 @@ if (!class_exists('LabReportTCPDF')) {
 // --- Initialize PDF ---
 $pdf = new LabReportTCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
 
+// Read custom margins from $opts if configured
+$configured_top_margin = isset($opts['top_margin']) && is_numeric($opts['top_margin']) ? floatval($opts['top_margin']) : null;
+$configured_bottom_margin = isset($opts['bottom_margin']) && is_numeric($opts['bottom_margin']) ? floatval($opts['bottom_margin']) : null;
+
 // Header & Margins setup based on header_mode:
 // 1. letterhead_image: Background letterhead image (letterhead.jpg / ammaletterhead.jpg)
 // 2. blank_1_5: Top margin is exactly 1.5 inches = 38.1 mm (for pre-printed stationery)
@@ -492,27 +496,27 @@ if ($header_mode === 'letterhead_image' && $letterhead_image_file) {
     $pdf->letterhead_image_path = $letterhead_image_file;
     $pdf->setPrintHeader(true);
     $pdf->setPrintFooter(false);
-    $top_margin = 42.0; // 42mm leaves clear space below letterhead banner
-    $bottom_margin = 28.0; // Leaves space above footer
+    $top_margin = ($configured_top_margin !== null && $configured_top_margin > 0) ? $configured_top_margin : 55.0; // 55mm leaves clear space below letterhead banner
+    $bottom_margin = ($configured_bottom_margin !== null && $configured_bottom_margin > 0) ? $configured_bottom_margin : 28.0; // Leaves space above footer
     $show_lab_header = false;
 } elseif ($header_mode === 'blank_1_5') {
     $pdf->setPrintHeader(false);
     $pdf->setPrintFooter(false);
-    $top_margin = 38.1; // 1.5 inches
-    $bottom_margin = 25.0;
+    $top_margin = ($configured_top_margin !== null && $configured_top_margin > 0) ? $configured_top_margin : 38.1; // 1.5 inches
+    $bottom_margin = ($configured_bottom_margin !== null && $configured_bottom_margin > 0) ? $configured_bottom_margin : 25.0;
     $show_lab_header = false;
 } elseif ($header_mode === 'printed') {
     $pdf->setPrintHeader(false);
     $pdf->setPrintFooter(false);
-    $top_margin = 12.0;
-    $bottom_margin = 25.0;
+    $top_margin = ($configured_top_margin !== null && $configured_top_margin > 0) ? $configured_top_margin : 12.0;
+    $bottom_margin = ($configured_bottom_margin !== null && $configured_bottom_margin > 0) ? $configured_bottom_margin : 25.0;
     $show_lab_header = true;
 } else {
     // plain
     $pdf->setPrintHeader(false);
     $pdf->setPrintFooter(false);
-    $top_margin = ($report_style === 'compact') ? 10.0 : 12.0;
-    $bottom_margin = 25.0;
+    $top_margin = ($configured_top_margin !== null && $configured_top_margin > 0) ? $configured_top_margin : (($report_style === 'compact') ? 10.0 : 12.0);
+    $bottom_margin = ($configured_bottom_margin !== null && $configured_bottom_margin > 0) ? $configured_bottom_margin : 25.0;
     $show_lab_header = false;
 }
 

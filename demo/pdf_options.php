@@ -47,7 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         'include_notes'          => isset($_POST['include_notes']) && $_POST['include_notes'] === '1',
         'include_interpretation' => isset($_POST['include_interpretation']) && $_POST['include_interpretation'] === '1',
         'pagebreak_per_test'     => isset($_POST['pagebreak_per_test']) && $_POST['pagebreak_per_test'] === '1',
-        'include_signature'      => isset($_POST['include_signature']) && $_POST['include_signature'] === '1'
+        'include_signature'      => isset($_POST['include_signature']) && $_POST['include_signature'] === '1',
+        'top_margin'             => isset($_POST['top_margin']) && is_numeric($_POST['top_margin']) ? floatval($_POST['top_margin']) : 55.0
     ];
 
     if ($_POST['action'] === 'save_default') {
@@ -80,6 +81,7 @@ $include_notes          = $prefs['include_notes'];
 $include_interpretation = $prefs['include_interpretation'];
 $pagebreak_per_test     = $prefs['pagebreak_per_test'];
 $include_signature      = $prefs['include_signature'];
+$selected_top_margin    = $prefs['top_margin'] ?? 55.0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -276,7 +278,7 @@ $include_signature      = $prefs['include_signature'];
                 <i class="bi bi-hospital"></i>
               </div>
               <h6 class="fw-bold text-dark mb-1 small">Digital Lab Header</h6>
-              <p class="text-muted mb-0" style="font-size: 0.72rem;">Prints Amma Lab Logo, Name, Address & divider header.</p>
+              <p class="text-muted mb-0" style="font-size: 0.72rem;">Prints Digital Lab Logo, Name, Address & divider header.</p>
             </div>
           </div>
 
@@ -291,6 +293,33 @@ $include_signature      = $prefs['include_signature'];
             </div>
           </div>
 
+        </div>
+
+        <!-- Header Margin / Spacing Adjustment Slider -->
+        <div id="marginAdjustmentBox" class="p-3 bg-light rounded-3 border mb-4">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+            <div>
+              <span class="fw-bold text-dark small"><i class="bi bi-arrows-expand-vertical text-primary me-1"></i> Letterhead Top Spacing / Content Margin:</span>
+              <span id="topMarginDisplay" class="badge bg-primary fs-7 ms-1"><?= (int)($selected_top_margin ?? 55) ?> mm</span>
+            </div>
+            <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTopMargin(45)">45mm</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTopMargin(50)">50mm</button>
+              <button type="button" class="btn btn-outline-primary btn-sm fw-bold active" onclick="setTopMargin(55)">55mm (Standard)</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTopMargin(60)">60mm</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTopMargin(65)">65mm</button>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-3">
+            <input type="range" class="form-range flex-grow-1" id="topMarginRange" min="30" max="85" step="1" value="<?= (int)($selected_top_margin ?? 55) ?>" oninput="onTopMarginChange(this.value)">
+            <div class="input-group input-group-sm" style="width: 105px;">
+              <input type="number" class="form-control text-center font-monospace fw-bold" id="topMarginInput" min="30" max="85" value="<?= (int)($selected_top_margin ?? 55) ?>" onchange="onTopMarginChange(this.value)">
+              <span class="input-group-text">mm</span>
+            </div>
+          </div>
+          <small class="text-muted d-block mt-1" style="font-size: 0.73rem;">
+            <i class="bi bi-info-circle-fill text-primary"></i> <strong>How to adjust:</strong> If patient details or test rows overlap your letterhead logo or green divider line, increase this slider (recommended <strong>55mm - 60mm</strong> for Vensaas Labtech letterhead).
+          </small>
         </div>
 
         <!-- Section 2: Table Format Styles -->
@@ -459,7 +488,21 @@ $include_signature      = $prefs['include_signature'];
 <script>
 let currentStyle = '<?= htmlspecialchars($selected_style) ?>';
 let currentHeaderMode = '<?= htmlspecialchars($selected_header_mode) ?>';
+let currentTopMargin = <?= (float)$selected_top_margin ?>;
 const billId = <?= $bill_id ?>;
+
+function onTopMarginChange(val) {
+  val = parseFloat(val) || 55;
+  currentTopMargin = val;
+  document.getElementById('topMarginRange').value = val;
+  document.getElementById('topMarginInput').value = val;
+  document.getElementById('topMarginDisplay').textContent = val + ' mm';
+  updateLivePreview();
+}
+
+function setTopMargin(val) {
+  onTopMarginChange(val);
+}
 
 function selectReportStyle(styleName) {
   currentStyle = styleName;
@@ -501,6 +544,7 @@ function buildPdfUrl(isPrint = false, isDownload = false) {
   let url = 'report_generate_pdf.php?bill_id=' + billId +
             '&style=' + encodeURIComponent(currentStyle) +
             '&header_mode=' + encodeURIComponent(currentHeaderMode) +
+            '&top_margin=' + encodeURIComponent(currentTopMargin) +
             '&include_method=' + method +
             '&include_notes=' + notes +
             '&include_interpretation=' + interp +
@@ -548,6 +592,7 @@ function getSelectedOptionsFormData(actionName) {
   formData.append('action', actionName);
   formData.append('style', currentStyle);
   formData.append('header_mode', currentHeaderMode);
+  formData.append('top_margin', currentTopMargin);
   formData.append('include_method', method);
   formData.append('include_notes', notes);
   formData.append('include_interpretation', interp);
