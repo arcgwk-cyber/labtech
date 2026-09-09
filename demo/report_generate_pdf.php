@@ -182,15 +182,16 @@ EOD;
 </table>
 EOD;
     } elseif ($style === 'smart') {
-        // Smart Barcode 3-Column Top Header format
+        // Smart Barcode 3-Column Top Header format (Flat non-nested grid for bulletproof TCPDF rendering)
         global $conn, $qr_link;
         $bill_id_val = (int)$bill['bill_id'];
         
         // Exact formatting matching image: "02:31 PM 02 Dec, 2X" (e.g. 11:30 AM 04 Sep, 26)
-        $registered_on = date('h:i A d M, y', strtotime($bill['bill_date']));
+        $reg_raw = !empty($bill['created_at']) ? $bill['created_at'] : $bill['bill_date'];
+        $registered_on = date('h:i A d M, y', strtotime($reg_raw));
         $reported_on   = date('h:i A d M, y', !empty($report_date) && strtotime($report_date) ? strtotime($report_date) : time());
 
-        // Fetch collection date from test_samples if recorded, fallback to bill_date + 15 mins or bill_date
+        // Fetch collection date from test_samples if recorded, fallback to registered_on
         $collected_on = $registered_on;
         if ($conn) {
             $s_res = @$conn->query("SELECT sample_date FROM test_samples WHERE bill_id = {$bill_id_val} AND sample_date IS NOT NULL LIMIT 1");
@@ -240,10 +241,9 @@ EOD;
             require_once __DIR__ . '/TCPDF/tcpdf_barcodes_1d.php';
             try {
                 $bc = new TCPDFBarcode((string)$bill_id_val, 'C128');
-                // Crisp, tall barcode matching reference: w=2, h=36
-                $png_data = $bc->getBarcodePngData(2, 36, array(0,0,0));
+                $png_data = $bc->getBarcodePngData(2, 30, array(0,0,0));
                 if ($png_data) {
-                    $barcode_img_html = '<img src="@' . base64_encode($png_data) . '" height="21" style="vertical-align:middle;">';
+                    $barcode_img_html = '<img src="@' . base64_encode($png_data) . '" height="18">';
                 }
             } catch (Exception $e) {
                 $barcode_img_html = '';
@@ -257,10 +257,9 @@ EOD;
             try {
                 $target_qr = !empty($qr_link) ? $qr_link : "https://labs.vensaas.com/demo/download_pdf.php?token=" . encodeID($bill_id_val);
                 $qc = new TCPDF2DBarcode($target_qr, 'QRCODE,L');
-                // Square crisp QR code: 38x38 user px
-                $qr_png = $qc->getBarcodePngData(4, 4, array(0,0,0));
+                $qr_png = $qc->getBarcodePngData(3, 3, array(0,0,0));
                 if ($qr_png) {
-                    $qr_img_html = '<img src="@' . base64_encode($qr_png) . '" width="38" height="38" style="vertical-align:middle;">';
+                    $qr_img_html = '<img src="@' . base64_encode($qr_png) . '" width="34" height="34">';
                 }
             } catch (Exception $e) {
                 $qr_img_html = '';
@@ -277,63 +276,63 @@ EOD;
 
         $patient_display_name = htmlspecialchars($bill['full_name']);
 
-        // Doctor label formatting: "Dr. Hiren Shah"
+        // Doctor label formatting: "Dr. Hiren Shah" or "Self / Direct"
         $raw_dr = trim($dr_ref ?? '');
-        $dr_name_only = !empty($raw_dr) ? preg_replace('/^(dr\.?|doctor)\s+/i', '', $raw_dr) : 'Self / Direct';
+        if (empty($raw_dr) || preg_match('/^(self|direct)/i', $raw_dr)) {
+            $ref_by_html = 'Ref. By: <strong>Self / Direct</strong>';
+        } else {
+            $dr_clean = preg_replace('/^(dr\.?|doctor)\s+/i', '', $raw_dr);
+            $ref_by_html = 'Ref. By: <strong>Dr. ' . htmlspecialchars($dr_clean) . '</strong>';
+        }
 
         return <<<EOD
-<table width="100%" cellpadding="0" cellspacing="0" style="font-family: Helvetica, Arial, sans-serif; border-top: 1.5px solid #0f172a; border-bottom: 1.5px solid #0f172a; padding-top: 6px; padding-bottom: 6px;">
+<div style="font-size: 3px; line-height: 3px;">&nbsp;</div>
+<table width="100%" cellpadding="4" cellspacing="0" style="font-family: Helvetica, Arial, sans-serif; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">
     <tr>
-        <!-- Col 1: Patient Information + QR Code on Right -->
-        <td width="35%" valign="middle" style="padding-right: 6px;">
-            <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td width="68%" valign="middle" style="line-height: 1.4;">
-                        <div style="font-size: 13px; font-weight: bold; color: #000000; letter-spacing: 0.1px;">{$patient_display_name}</div>
-                        <div style="font-size: 9.5px; color: #1e293b; margin-top: 3px; line-height: 1.45;">
-                            Age : {$age_str}<br>
-                            Sex : {$gender}<br>
-                            PID : {$bill_id_val}
-                        </div>
-                    </td>
-                    <td width="32%" align="right" valign="middle" style="padding-right: 6px;">
-                        {$qr_img_html}
-                    </td>
-                </tr>
-            </table>
+        <!-- Col 1A: Patient Info -->
+        <td width="25%" valign="top">
+            <div style="font-size: 12.5px; font-weight: bold; color: #000000; line-height: 1.25;">{$patient_display_name}</div>
+            <div style="font-size: 9px; color: #1e293b; line-height: 1.5; margin-top: 3px;">
+                Age : {$age_str}<br>
+                Sex : {$gender}<br>
+                PID : {$bill_id_val}
+            </div>
         </td>
 
-        <!-- Col 2: Sample Collected At & Ref By Doctor -->
-        <td width="34%" valign="middle" style="border-left: 1px solid #cbd5e1; padding-left: 12px; padding-right: 8px; line-height: 1.35;">
-            <div style="font-size: 10px; font-weight: bold; color: #000000; margin-bottom: 2px;">Sample Collected At:</div>
-            <div style="font-size: 8.5px; color: #475569; line-height: 1.35; margin-bottom: 5px;">
+        <!-- Col 1B: QR Code (Starts aligned beside Age line) -->
+        <td width="11%" valign="top" align="center">
+            <div style="font-size: 12.5px; line-height: 1.25;">&nbsp;</div>
+            <div style="margin-top: 3px;">
+                {$qr_img_html}
+            </div>
+        </td>
+
+        <!-- Col 2: Sample Collection & Doctor -->
+        <td width="33%" valign="top" style="border-left: 1px solid #cbd5e1; padding-left: 8px;">
+            <div style="font-size: 10px; font-weight: bold; color: #000000; line-height: 1.25;">Sample Collected At:</div>
+            <div style="font-size: 8.5px; color: #475569; line-height: 1.35; margin-top: 2px;">
                 {$lab_addr_line1}<br>
                 {$lab_addr_line2}
             </div>
-            <div style="font-size: 10px; color: #000000;">
-                Ref. By: <strong>Dr. {$dr_name_only}</strong>
+            <div style="margin-top: 6px; font-size: 9.5px; color: #000000;">
+                {$ref_by_html}
             </div>
         </td>
 
-        <!-- Col 3: Barcode & Timing Details -->
-        <td width="31%" valign="middle" align="right" style="border-left: 1px solid #cbd5e1; padding-left: 8px; line-height: 1.35;">
-            <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td align="right" style="padding-bottom: 3px;">
-                        {$barcode_img_html}
-                    </td>
-                </tr>
-                <tr>
-                    <td align="right" style="font-size: 8.5px; color: #000000; line-height: 1.45;">
-                        <strong>Registered on:</strong> {$registered_on}<br>
-                        <strong>Collected on:</strong> {$collected_on}<br>
-                        <strong>Reported on:</strong> {$reported_on}
-                    </td>
-                </tr>
-            </table>
+        <!-- Col 3: Barcode & Timestamps -->
+        <td width="31%" valign="top" align="right" style="border-left: 1px solid #cbd5e1; padding-left: 6px;">
+            <div style="text-align: right; margin-bottom: 2px;">
+                {$barcode_img_html}
+            </div>
+            <div style="font-size: 8px; color: #000000; line-height: 1.45; text-align: right;">
+                <strong>Registered on:</strong> {$registered_on}<br>
+                <strong>Collected on:</strong> {$collected_on}<br>
+                <strong>Reported on:</strong> {$reported_on}
+            </div>
         </td>
     </tr>
 </table>
+<div style="font-size: 4px; line-height: 4px;">&nbsp;</div>
 EOD;
     } else {
         // Clinical NABL standard (default) & letterhead
@@ -922,7 +921,7 @@ if ($pagebreak_per_test) {
     $pdf->AddPage();
     $html = $lab_header_block;
     $html .= generatePatientHTML($bill, $age, $gender, $dr_ref, $report_date, $report_style);
-    $html .= '<div style="margin-top:5px; margin-bottom:5px;"></div>';
+    $html .= '<div style="font-size: 4px; line-height: 4px;">&nbsp;</div>';
 
     foreach ($grouped_results as $group => $tests) {
         $html .= '<div style="background-color:#f1f5f9; border-left:3px solid #0284c7; padding:3px 8px; font-weight:bold; font-size:10px; color:#0f172a; margin-top:6px; margin-bottom:3px;">' . strtoupper(htmlspecialchars($group)) . '</div>';
