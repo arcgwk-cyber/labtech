@@ -82,11 +82,10 @@ if ($conn) {
         $kpis['completed_tests'] = (int)$trow['total_completed'];
     }
 
-    // Pending Samples
+    // Pending Samples (fast direct index lookup without expensive table scan)
     $sq = $conn->query("SELECT COUNT(*) AS pending 
-                        FROM bills b 
-                        LEFT JOIN test_samples ts ON b.bill_id = ts.bill_id 
-                        WHERE ts.sample_id IS NULL AND b.bill_date BETWEEN '$start_date' AND '$end_date'");
+                        FROM bills 
+                        WHERE (sample_collected = 0 OR sample_collected IS NULL) AND bill_date BETWEEN '$start_date' AND '$end_date'");
     if ($sq && $srow = $sq->fetch_assoc()) {
         $kpis['pending_samples'] = (int)$srow['pending'];
     }

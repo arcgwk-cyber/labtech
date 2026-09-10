@@ -280,10 +280,16 @@ if (!$client_id) {
 }
 
 $api_url = "https://www.vensaas.com/api/get_status.php?id=" . urlencode($client_id);
-$response = @file_get_contents($api_url);
+$ctx = stream_context_create([
+    'http' => [
+        'timeout' => 2.0,
+        'ignore_errors' => true
+    ]
+]);
+$response = @file_get_contents($api_url, false, $ctx);
 
 if ($response === false) {
-    die("Unable to fetch subscription data.");
+    die("Unable to fetch subscription data. (Connection timeout to Vensaas API)");
 }
 
 $data = json_decode($response, true);

@@ -48,34 +48,47 @@ $user   = getenv('DB_USER') ?: 'root';
 $pass   = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
 $dbname = getenv('DB_NAME') ?: 'diagnostic_lab_db';
 
-// 1. MySQLi Connection ($conn)
+// 1. MySQLi Connection ($conn) with fast connection timeout (prevents hanging on slow/overloaded host)
 mysqli_report(MYSQLI_REPORT_OFF);
-$conn = @new mysqli($host, $user, $pass, $dbname);
+$conn = mysqli_init();
+if ($conn) {
+    $conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 3);
+    @$conn->real_connect($host, $user, $pass, $dbname);
+}
 
 // Local fallback attempt if default credentials fail (common in local XAMPP/WAMP dev)
-if ($conn->connect_error && ($host === 'localhost' || $host === '127.0.0.1')) {
+if (($conn->connect_error || !$conn) && ($host === 'localhost' || $host === '127.0.0.1')) {
     $fallback_user = 'root';
     $fallback_pass = '';
-    $fallback_conn = @new mysqli($host, $fallback_user, $fallback_pass, $dbname);
-    if (!$fallback_conn->connect_error) {
-        $conn = $fallback_conn;
-        $user = $fallback_user;
-        $pass = $fallback_pass;
+    $fallback_conn = mysqli_init();
+    if ($fallback_conn) {
+        $fallback_conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 2);
+        @$fallback_conn->real_connect($host, $fallback_user, $fallback_pass, $dbname);
+        if (!$fallback_conn->connect_error) {
+            $conn = $fallback_conn;
+            $user = $fallback_user;
+            $pass = $fallback_pass;
+        }
     }
 }
 
-if ($conn->connect_error) {
-    $db_error = "Database Connection Failed: " . $conn->connect_error;
+if (!$conn || $conn->connect_error) {
+    $db_error = "Database Connection Failed: " . ($conn ? $conn->connect_error : 'Initialization error');
 } else {
     $conn->set_charset("utf8mb4");
 
-    // Auto-migration & standard medical formula seeder for Dynamic Formula Engine
+    // Auto-migration & standard medical formula seeder for Dynamic Formula Engine (cached in session)
     if (!function_exists('ensureFormulaEngineSchema')) {
         function ensureFormulaEngineSchema($conn) {
             if (!$conn || $conn->connect_error) return;
             static $checked = false;
             if ($checked) return;
             $checked = true;
+
+            // Avoid expensive SHOW COLUMNS metadata locks on every request
+            if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['formula_schema_checked'])) {
+                return;
+            }
 
             $checkCol = $conn->query("SHOW COLUMNS FROM test_parameters LIKE 'formula'");
             if ($checkCol && $checkCol->num_rows === 0) {
@@ -102,21 +115,31 @@ if ($conn->connect_error) {
                     @$conn->query("UPDATE test_parameters SET formula = '{$fdata['formula']}', formula_decimals = {$fdata['decimals']} WHERE parameter_id = {$pid} AND (formula IS NULL OR formula = '')");
                 }
             }
+
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                $_SESSION['formula_schema_checked'] = true;
+            }
         }
     }
     ensureFormulaEngineSchema($conn);
 }
 
-// 2. PDO Connection ($pdo)
+// 2. PDO Connection ($pdo) - Lazy loaded only when needed to cut DB connection overhead by 50%
 $pdo = null;
-try {
-    $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
-    $options = [
-        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES   => false,
-    ];
-    $pdo = new PDO($dsn, $user, $pass, $options);
-} catch (PDOException $e) {
-    $pdo_error = $e->getMessage();
+$currentScript = basename($_SERVER['PHP_SELF'] ?? '');
+$needsPdo = in_array($currentScript, ['renew.php', 'vendor_dashboard.php', 'vendor_login_action.php', 'vendor_auto_deactivate.php', 'provision_helper.php']);
+
+if ($needsPdo) {
+    try {
+        $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
+        $options = [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+            PDO::ATTR_TIMEOUT            => 3,
+        ];
+        $pdo = new PDO($dsn, $user, $pass, $options);
+    } catch (PDOException $e) {
+        $pdo_error = $e->getMessage();
+    }
 }

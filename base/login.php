@@ -20,11 +20,14 @@ $settings = [
 ];
 
 if ($conn && !$conn->connect_error) {
-    // 1. Ensure lab_slug column exists in admin_settings for strict multi-tenant isolation
-    $colCheck = $conn->query("SHOW COLUMNS FROM admin_settings LIKE 'lab_slug'");
-    if ($colCheck && $colCheck->num_rows === 0) {
-        @$conn->query("ALTER TABLE admin_settings ADD COLUMN lab_slug VARCHAR(100) DEFAULT NULL AFTER id");
-        @$conn->query("ALTER TABLE admin_settings ADD INDEX (lab_slug)");
+    // 1. Ensure lab_slug column exists in admin_settings for strict multi-tenant isolation (cached in session)
+    if (empty($_SESSION['lab_slug_checked'])) {
+        $colCheck = $conn->query("SHOW COLUMNS FROM admin_settings LIKE 'lab_slug'");
+        if ($colCheck && $colCheck->num_rows === 0) {
+            @$conn->query("ALTER TABLE admin_settings ADD COLUMN lab_slug VARCHAR(100) DEFAULT NULL AFTER id");
+            @$conn->query("ALTER TABLE admin_settings ADD INDEX (lab_slug)");
+        }
+        $_SESSION['lab_slug_checked'] = true;
     }
 
     $escapedCurrentDir = $conn->real_escape_string($currentDir);
@@ -131,8 +134,8 @@ if (!empty($settings['expiry_date'])) {
 
 $error = null;
 
-// Self-healing: if non-demo tenant lab, ensure admin user exists in users table on page load
-if ($conn && !$conn->connect_error && !$isDemo && $currentDir !== 'base') {
+// Self-healing: if non-demo tenant lab, ensure admin user exists in users table (cached in session to avoid redundant queries & CPU hashing)
+if ($conn && !$conn->connect_error && !$isDemo && $currentDir !== 'base' && empty($_SESSION['vendor_seeded_' . $currentDir])) {
     $vmCheck = $conn->query("SHOW TABLES LIKE 'vendor_master'");
     if ($vmCheck && $vmCheck->num_rows > 0) {
         $cleanDir = $conn->real_escape_string($currentDir);
@@ -158,6 +161,7 @@ if ($conn && !$conn->connect_error && !$isDemo && $currentDir !== 'base') {
                     $seedStmt->close();
                 }
             }
+            $_SESSION['vendor_seeded_' . $currentDir] = true;
         }
     }
 }
@@ -254,6 +258,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
                         $_SESSION['role_id']  = $user['role_id'];
                         $_SESSION['role']     = $user['role_name'] ?: ($user['role_id'] == 1 ? 'admin' : 'user');
 
+                        // Release session lock before redirect so dashboard loads instantly
+                        session_write_close();
                         header("Location: index.php");
                         exit;
                     } else {
@@ -301,6 +307,12 @@ foreach ([
   <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-512.png">
 
   <title><?= htmlspecialchars($settings['company_name']) ?> - Portal Login</title>
+  <!-- CDN Preconnect & DNS-Prefetch for instantaneous asset delivery -->
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+  <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>

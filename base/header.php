@@ -130,6 +130,12 @@ function isNavActive($page_or_pages, $active_page) {
 <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-512.png">
 
+<!-- CDN Preconnect & DNS-Prefetch for instantaneous asset delivery -->
+<link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+<link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
 <!-- Pro-Level Modern Medical ERP Navigation -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
