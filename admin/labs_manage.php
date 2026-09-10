@@ -57,6 +57,9 @@ if ($conn && !$conn->connect_error) {
       <p class="text-muted small mb-0">Control tenant lab status, view/reset administrator passwords, manage subscriptions, and access instances.</p>
     </div>
     <div class="d-flex align-items-center gap-2">
+      <a href="sync_labs.php" class="btn btn-primary rounded-3 px-3 py-2 fw-semibold shadow-sm">
+        <i class="fas fa-sync-alt me-1"></i> Fleet Sync &amp; Upgrades
+      </a>
       <a href="labs_pending.php" class="btn btn-outline-danger rounded-3 px-3 py-2 fw-semibold">
         <i class="fas fa-clock me-1"></i> Pending Queue
         <?php if ($pending_count > 0): ?>

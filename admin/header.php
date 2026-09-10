@@ -158,6 +158,9 @@ $super_user_name = $_SESSION['super_admin_name'] ?? 'Super Admin';
           <a href="labs_manage.php" class="sa-nav-link <?= in_array($active_nav, ['labs_manage.php', 'lab_edit.php']) ? 'active' : '' ?>">
             <i class="fas fa-vials"></i> All Labs
           </a>
+          <a href="sync_labs.php" class="sa-nav-link <?= $active_nav === 'sync_labs.php' ? 'active' : '' ?>">
+            <i class="fas fa-sync-alt"></i> Fleet Sync
+          </a>
           <a href="renewals.php" class="sa-nav-link <?= $active_nav === 'renewals.php' ? 'active' : '' ?>">
             <i class="fas fa-calendar-check"></i> Renewals & Trials
           </a>

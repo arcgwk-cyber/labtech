@@ -1304,7 +1304,9 @@ CREATE TABLE `test_parameters` (
   `unit` varchar(20) DEFAULT NULL,
   `method` varchar(100) DEFAULT NULL,
   `interpretation` text DEFAULT NULL,
-  `notes` text DEFAULT NULL
+  `notes` text DEFAULT NULL,
+  `formula` varchar(255) DEFAULT NULL,
+  `formula_decimals` tinyint(2) DEFAULT 2
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `test_parameters` (`parameter_id`, `param_name`, `category_id`, `group_id`, `unit`, `method`, `interpretation`, `notes`) VALUES

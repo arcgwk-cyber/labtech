@@ -452,12 +452,13 @@ function isNavActive($page_or_pages, $active_page) {
 
         <!-- Masters Dropdown -->
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle <?= isNavActive(['lab_test_list.php', 'lab_test_form_with_sections.php', 'test_parameters.php', 'test_categories.php', 'test_groups.php', 'test_packages.php', 'patient_types.php', 'patient_type_fields.php', 'sign_master.php', 'template_designer.php'], $active_page) ?>" href="javascript:void(0);" data-nav-dropdown="toggle" role="button" aria-expanded="false">
+          <a class="nav-link dropdown-toggle <?= isNavActive(['lab_test_list.php', 'lab_test_form_with_sections.php', 'test_parameters.php', 'formulas_guide.php', 'test_categories.php', 'test_groups.php', 'test_packages.php', 'patient_types.php', 'patient_type_fields.php', 'sign_master.php', 'template_designer.php'], $active_page) ?>" href="javascript:void(0);" data-nav-dropdown="toggle" role="button" aria-expanded="false">
             <i class="fas fa-sliders-h"></i> Masters
           </a>
           <ul class="dropdown-menu border-0 shadow">
             <li><a class="dropdown-item" href="lab_test_list.php"><i class="fas fa-flask text-primary me-2"></i> Lab Tests</a></li>
             <li><a class="dropdown-item" href="test_parameters.php"><i class="fas fa-ruler-combined text-primary me-2"></i> Parameters & Ranges</a></li>
+            <li><a class="dropdown-item" href="formulas_guide.php"><i class="fas fa-calculator text-primary me-2"></i> Clinical Formulas Guide</a></li>
             <li><a class="dropdown-item" href="test_categories.php"><i class="fas fa-folder text-primary me-2"></i> Categories</a></li>
             <li><a class="dropdown-item" href="test_groups.php"><i class="fas fa-layer-group text-primary me-2"></i> Test Groups</a></li>
             <li><a class="dropdown-item" href="test_packages.php"><i class="fas fa-box text-primary me-2"></i> Health Packages</a></li>

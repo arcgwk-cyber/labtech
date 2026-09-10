@@ -719,6 +719,7 @@ try {
             lt.test_name,
             lt.test_id,
             p.parameter_id, p.param_name, p.unit, p.method, p.interpretation,
+            p.formula, p.formula_decimals,
             rr.male_min, rr.male_max, rr.male_default,
             rr.female_min, rr.female_max, rr.female_default,
             rr.child_min, rr.child_max, rr.child_default,
@@ -961,6 +962,45 @@ body {
   background-color: #fef2f2;
 }
 
+.erp-input.is-calculated {
+  background-color: #f0f9ff !important;
+  border-color: #7dd3fc !important;
+  color: #0369a1 !important;
+  font-weight: 700 !important;
+}
+
+.erp-input.is-calculated[readonly] {
+  cursor: default;
+}
+
+.formula-lock-toggle {
+  height: 36px;
+  width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.formula-lock-toggle:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.calculated-highlight {
+  animation: flashCalculated 0.9s ease;
+}
+
+@keyframes flashCalculated {
+  0% { background-color: #38bdf8 !important; color: #ffffff !important; }
+  100% { background-color: #f0f9ff !important; color: #0369a1 !important; }
+}
+
 /* Buttons */
 .erp-btn {
   padding: 7px 16px;
@@ -1114,6 +1154,9 @@ body {
               <small class="text-muted">Recording clinical findings for <strong><?= htmlspecialchars($patient['full_name']) ?></strong></small>
             </div>
             <div class="erp-header-actions">
+                <a href="formulas_guide.php" target="_blank" class="erp-btn erp-btn-outline" title="Open Formulas & Clinical Derivations Guide">
+                    <i class="fas fa-calculator text-primary"></i> Formulas Guide
+                </a>
                 <a href="result_entry.php" class="erp-btn erp-btn-outline">
                     <i class="bi bi-arrow-left"></i> Back to Patient List
                 </a>
@@ -1226,7 +1269,14 @@ body {
                                     <tr>
                                         <td>
                                             <div class="d-flex justify-content-between align-items-center">
-                                                <div class="fw-bold text-dark fs-6"><?= htmlspecialchars($row['param_name']) ?></div>
+                                                <div class="fw-bold text-dark fs-6">
+                                                    <?= htmlspecialchars($row['param_name']) ?>
+                                                    <?php if (!empty($row['formula'])): ?>
+                                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace ms-1" style="font-size: 11px;" title="Formula: <?= htmlspecialchars($row['formula']) ?>">
+                                                            <i class="fas fa-calculator me-1"></i>Auto (fx)
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
                                                 <span class="d-md-none range-display"><?= htmlspecialchars($range_display) ?> <?= htmlspecialchars($row['unit'] ?: '') ?></span>
                                             </div>
                                             <?php if (!empty($row['method'])): ?>
@@ -1234,16 +1284,28 @@ body {
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <input type="text"
-                                                   name="results[<?= $param_id ?>]"
-                                                   list="commonResults"
-                                                   class="erp-input"
-                                                   value="<?= htmlspecialchars($currentVal) ?>"
-                                                   data-min="<?= $min ?>"
-                                                   data-max="<?= $max ?>"
-                                                   oninput="validateRange(this)"
-                                                   autocomplete="off"
-                                                   placeholder="Enter <?= htmlspecialchars($row['param_name']) ?>..." />
+                                            <div class="d-flex align-items-center gap-1">
+                                                <input type="text"
+                                                       name="results[<?= $param_id ?>]"
+                                                       id="param_input_<?= $param_id ?>"
+                                                       list="commonResults"
+                                                       class="erp-input param-result-input <?= !empty($row['formula']) ? 'is-calculated' : '' ?>"
+                                                       value="<?= htmlspecialchars($currentVal) ?>"
+                                                       data-param-id="<?= $param_id ?>"
+                                                       data-formula="<?= htmlspecialchars($row['formula'] ?? '') ?>"
+                                                       data-decimals="<?= $row['formula_decimals'] ?? 2 ?>"
+                                                       data-min="<?= $min ?>"
+                                                       data-max="<?= $max ?>"
+                                                       <?= !empty($row['formula']) ? 'data-auto-locked="1" readonly' : '' ?>
+                                                       oninput="handleParamChange(this)"
+                                                       autocomplete="off"
+                                                       placeholder="Enter <?= htmlspecialchars($row['param_name']) ?>..." />
+                                                <?php if (!empty($row['formula'])): ?>
+                                                    <button type="button" class="formula-lock-toggle" onclick="toggleFormulaLock(<?= $param_id ?>)" title="Auto-calculated from formula. Click to unlock and manually override.">
+                                                        <i class="fas fa-lock" id="lock_icon_<?= $param_id ?>"></i>
+                                                    </button>
+                                                <?php endif; ?>
+                                            </div>
                                             <input type="hidden" name="test_ids[<?= $param_id ?>]" value="<?= $test_id ?>">
                                         </td>
                                         <td class="d-none d-md-table-cell">
@@ -1304,8 +1366,104 @@ function validateRange(input) {
     }
 }
 
-// Initial range validation on load
+// Dynamic Clinical Formula Evaluator
+function evaluateFormula(formula) {
+    if (!formula || typeof formula !== 'string') return null;
+    
+    let hasNan = false;
+    let expr = formula.replace(/\[PARAM_(\d+)\]/g, function(match, pid) {
+        const field = document.getElementById('param_input_' + pid);
+        if (!field) {
+            hasNan = true;
+            return '0';
+        }
+        const val = field.value.trim();
+        if (val === '' || isNaN(val)) {
+            hasNan = true;
+            return '0';
+        }
+        return '(' + parseFloat(val) + ')';
+    });
+
+    if (hasNan) return null;
+
+    // Convert pow(a, b) or a^b
+    expr = expr.replace(/\^/g, '**');
+    expr = expr.replace(/\bpow\s*\(/g, 'Math.pow(');
+
+    // Whitelist check: only digits, parens, math operators, decimals, Math.pow
+    if (!/^[\d\s\+\-\*\/\(\)\.\,Math\.pow]+$/.test(expr)) {
+        return null;
+    }
+
+    try {
+        const result = Function('"use strict"; return (' + expr + ')')();
+        if (typeof result === 'number' && !isNaN(result) && isFinite(result)) {
+            return result;
+        }
+    } catch (e) {
+        return null;
+    }
+    return null;
+}
+
+// Reactive Calculation Trigger
+function recalculateAllFormulas() {
+    const calcInputs = document.querySelectorAll('input[data-formula]:not([data-formula=""])');
+    if (!calcInputs.length) return;
+
+    // Multi-pass resolution for chained formulas (e.g. Triglycerides -> VLDL -> LDL -> Ratios)
+    for (let pass = 0; pass < 3; pass++) {
+        calcInputs.forEach(input => {
+            if (input.dataset.autoLocked === '0') {
+                return; // User explicitly unlocked and manually edited
+            }
+
+            const formula = input.dataset.formula;
+            const decimals = parseInt(input.dataset.decimals) || 2;
+            const computed = evaluateFormula(formula);
+
+            if (computed !== null) {
+                const formatted = computed.toFixed(decimals);
+                if (input.value !== formatted) {
+                    input.value = formatted;
+                    input.classList.add('calculated-highlight');
+                    setTimeout(() => input.classList.remove('calculated-highlight'), 900);
+                    validateRange(input);
+                }
+            }
+        });
+    }
+}
+
+function handleParamChange(input) {
+    validateRange(input);
+    recalculateAllFormulas();
+}
+
+function toggleFormulaLock(pid) {
+    const input = document.getElementById('param_input_' + pid);
+    const icon = document.getElementById('lock_icon_' + pid);
+    if (!input || !icon) return;
+
+    if (input.dataset.autoLocked === '1') {
+        input.dataset.autoLocked = '0';
+        input.removeAttribute('readonly');
+        input.focus();
+        icon.className = 'fas fa-unlock text-warning';
+        icon.parentElement.title = 'Unlocked for manual override. Click to re-lock to formula.';
+    } else {
+        input.dataset.autoLocked = '1';
+        input.setAttribute('readonly', 'readonly');
+        icon.className = 'fas fa-lock';
+        icon.parentElement.title = 'Auto-calculated from formula. Click to unlock for manual override.';
+        recalculateAllFormulas();
+    }
+}
+
+// Initial range validation and reactive formula calculation on load
 document.addEventListener('DOMContentLoaded', () => {
+    recalculateAllFormulas();
     document.querySelectorAll('.erp-input').forEach(validateRange);
 });
 
@@ -1314,12 +1472,13 @@ document.addEventListener('keydown', function(e) {
     if (e.ctrlKey && e.code === 'Space') {
         if (document.activeElement && document.activeElement.classList.contains('erp-input')) {
             document.activeElement.value = '';
+            handleParamChange(document.activeElement);
         }
     }
 });
 
 // Confirmation if any abnormal values
-document.getElementById('resultForm').addEventListener('submit', function(e) {
+document.getElementById('resultForm')?.addEventListener('submit', function(e) {
     const invalidInputs = document.querySelectorAll('.erp-input.is-invalid');
     if (invalidInputs.length > 0) {
         if (!confirm(`Found ${invalidInputs.length} test parameter(s) outside expected reference range. Save results anyway?`)) {

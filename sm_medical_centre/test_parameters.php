@@ -36,8 +36,11 @@ if (isset($_POST['add'])) {
             throw new Exception("Parameter name is required.");
         }
 
-        $stmt = $conn->prepare("INSERT INTO test_parameters (param_name, category_id, group_id, unit, method, interpretation, notes) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("siissss", $param_name, $category_id, $group_id, $unit, $method, $interpretation, $notes);
+        $formula          = get_post('formula') ?: null;
+        $formula_decimals = isset($_POST['formula_decimals']) && is_numeric($_POST['formula_decimals']) ? intval($_POST['formula_decimals']) : 2;
+
+        $stmt = $conn->prepare("INSERT INTO test_parameters (param_name, category_id, group_id, unit, method, interpretation, notes, formula, formula_decimals) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("siisssssi", $param_name, $category_id, $group_id, $unit, $method, $interpretation, $notes, $formula, $formula_decimals);
         if (!$stmt->execute()) {
             throw new Exception("Error inserting test parameter: " . $stmt->error);
         }
@@ -119,8 +122,11 @@ if (isset($_POST['update'])) {
         $interpretation = get_post('interpretation');
         $notes          = get_post('notes');
 
-        $stmt = $conn->prepare("UPDATE test_parameters SET param_name = ?, category_id = ?, group_id = ?, unit = ?, method = ?, interpretation = ?, notes = ? WHERE parameter_id = ?");
-        $stmt->bind_param("siissssi", $param_name, $category_id, $group_id, $unit, $method, $interpretation, $notes, $id);
+        $formula          = get_post('formula') ?: null;
+        $formula_decimals = isset($_POST['formula_decimals']) && is_numeric($_POST['formula_decimals']) ? intval($_POST['formula_decimals']) : 2;
+
+        $stmt = $conn->prepare("UPDATE test_parameters SET param_name = ?, category_id = ?, group_id = ?, unit = ?, method = ?, interpretation = ?, notes = ?, formula = ?, formula_decimals = ? WHERE parameter_id = ?");
+        $stmt->bind_param("siisssssii", $param_name, $category_id, $group_id, $unit, $method, $interpretation, $notes, $formula, $formula_decimals, $id);
         if (!$stmt->execute()) {
             throw new Exception("Error updating test parameter: " . $stmt->error);
         }
@@ -215,6 +221,7 @@ if (isset($_GET['delete'])) {
 // Dropdowns
 $categories = $conn->query("SELECT * FROM test_categories ORDER BY category_name");
 $groups = $conn->query("SELECT * FROM test_groups ORDER BY group_name");
+$all_params_for_builder = $conn->query("SELECT parameter_id, param_name, unit FROM test_parameters ORDER BY param_name ASC");
 
 // Search & Filter
 $search       = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -469,6 +476,9 @@ $params_res = $stmt->get_result();
       </div>
     </div>
     <div class="d-flex align-items-center gap-2">
+      <a href="formulas_guide.php" class="btn btn-outline-info btn-sm fw-semibold">
+        <i class="fas fa-calculator me-1"></i> Formulas Guide
+      </a>
       <a href="lab_test_list.php" class="btn btn-outline-secondary btn-sm fw-semibold">
         <i class="bi bi-clipboard2-pulse me-1"></i> Tests Master
       </a>
@@ -620,6 +630,110 @@ $params_res = $stmt->get_result();
         </div>
       </div>
 
+      <!-- Formulas & Clinical Derivations Sub-Card -->
+      <div class="ref-range-box" style="border-left: 4px solid #0284c7; background: #f0f9ff;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <span class="small fw-bold text-uppercase text-primary">
+              <i class="fas fa-calculator me-1"></i> Mathematical Formula / Derived Parameter
+            </span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2">Auto-Calculation</span>
+          </div>
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="toggleFormulaBox" <?= (!empty($parameter['formula'])) ? 'checked' : '' ?> onchange="toggleFormulaSection()">
+            <label class="form-check-label small fw-semibold" for="toggleFormulaBox">Enable Formula Derivation</label>
+          </div>
+        </div>
+        <p class="text-muted small mb-3">
+          Automatically calculates this parameter's result in the Results Entry screen based on raw inputs (e.g. Indirect Bilirubin, Globulin, A/G Ratio, VLDL, LDL, MCH, BUN).
+        </p>
+
+        <div id="formulaSectionContent" style="<?= (empty($parameter['formula'])) ? 'display:none;' : '' ?>">
+          <!-- 1-Click Medical Presets -->
+          <div class="mb-3 p-2 bg-white border rounded">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <span class="small fw-bold text-dark"><i class="fas fa-bolt text-warning me-1"></i> Quick Medical Presets:</span>
+              <select id="formulaPresetSelect" class="form-select form-select-sm" style="max-width: 460px;" onchange="applyFormulaPreset(this.value)">
+                <option value="">-- Choose Standard Pathology Preset --</option>
+                <option value="INDIRECT_BILIRUBIN">LFT: Indirect Bilirubin = Total Bilirubin - Direct Bilirubin</option>
+                <option value="GLOBULIN">LFT: Globulin = Total Protein - Albumin</option>
+                <option value="AG_RATIO">LFT: A/G Ratio = Albumin / Globulin</option>
+                <option value="VLDL">Lipid: VLDL = Triglycerides / 5</option>
+                <option value="LDL">Lipid: LDL = Total Cholesterol - HDL - VLDL</option>
+                <option value="CHOL_HDL_RATIO">Lipid: Total Chol / HDL Ratio = Total Chol / HDL</option>
+                <option value="LDL_HDL_RATIO">Lipid: LDL / HDL Ratio = LDL / HDL</option>
+                <option value="MCH">CBC: MCH = (Hemoglobin * 10) / Total RBC</option>
+                <option value="MCHC">CBC: MCHC = (Hemoglobin * 100) / PCV</option>
+                <option value="BUN">Renal: BUN = Blood Urea / 2.14</option>
+                <option value="EAG">Diabetes: eAG = (28.7 * HbA1c) - 46.7</option>
+                <option value="AEC">CBC: Absolute Eosinophils (AEC) = (Eosinophils% * TLC) / 100</option>
+                <option value="TIBC_SAT">Iron: Transferrin Saturation% = (Serum Iron / TIBC) * 100</option>
+                <option value="INR">Coagulation: INR = (PT Patient / PT Control)^1.0</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Formula Input & Decimals -->
+          <div class="row g-2 mb-2">
+            <div class="col-md-9 col-12">
+              <label class="form-label">Formula Expression</label>
+              <div class="input-group">
+                <span class="input-group-text font-monospace bg-white text-primary fw-bold">fx</span>
+                <input type="text" name="formula" id="formulaInput" class="form-control font-monospace" placeholder="e.g. [PARAM_11] - [PARAM_12]" value="<?= htmlspecialchars($parameter['formula'] ?? '') ?>" oninput="updateFormulaPreview()">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearFormula()" title="Clear formula"><i class="bi bi-x-lg"></i></button>
+              </div>
+            </div>
+            <div class="col-md-3 col-12">
+              <label class="form-label">Decimal Places</label>
+              <select name="formula_decimals" id="formulaDecimals" class="form-select">
+                <option value="0" <?= (isset($parameter['formula_decimals']) && $parameter['formula_decimals'] == 0) ? 'selected' : '' ?>>0 (Integer, e.g. 350)</option>
+                <option value="1" <?= (isset($parameter['formula_decimals']) && $parameter['formula_decimals'] == 1) ? 'selected' : '' ?>>1 Decimal (e.g. 14.5)</option>
+                <option value="2" <?= (!isset($parameter['formula_decimals']) || $parameter['formula_decimals'] == 2) ? 'selected' : '' ?>>2 Decimals (e.g. 2.45)</option>
+                <option value="3" <?= (isset($parameter['formula_decimals']) && $parameter['formula_decimals'] == 3) ? 'selected' : '' ?>>3 Decimals (e.g. 0.125)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Formula Helper Toolbar -->
+          <div class="p-2 bg-white border rounded mb-2">
+            <div class="row g-2 align-items-center">
+              <div class="col-md-7 col-12">
+                <div class="input-group input-group-sm">
+                  <select id="paramToInsert" class="form-select">
+                    <option value="">-- Choose Parameter to Insert in Formula --</option>
+                    <?php if (!empty($all_params_for_builder)): ?>
+                      <?php 
+                      mysqli_data_seek($all_params_for_builder, 0);
+                      while ($pRow = $all_params_for_builder->fetch_assoc()): ?>
+                        <option value="[PARAM_<?= $pRow['parameter_id'] ?>]" data-name="<?= htmlspecialchars($pRow['param_name']) ?>">
+                          <?= htmlspecialchars($pRow['param_name']) ?> (ID: <?= $pRow['parameter_id'] ?><?= $pRow['unit'] ? ', ' . $pRow['unit'] : '' ?>)
+                        </option>
+                      <?php endwhile; ?>
+                    <?php endif; ?>
+                  </select>
+                  <button type="button" class="btn btn-primary" onclick="insertParamToken()"><i class="bi bi-plus-lg me-1"></i> Insert Token</button>
+                </div>
+              </div>
+              <div class="col-md-5 col-12 d-flex gap-1 flex-wrap justify-content-md-end">
+                <button type="button" class="btn btn-outline-secondary btn-sm font-monospace" onclick="insertOperator('+')">+</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm font-monospace" onclick="insertOperator('-')">-</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm font-monospace" onclick="insertOperator('*')">&times;</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm font-monospace" onclick="insertOperator('/')">&divide;</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm font-monospace" onclick="insertOperator('(')">(</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm font-monospace" onclick="insertOperator(')')">)</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm font-monospace" onclick="insertOperator(' / 5')">/ 5</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm font-monospace" onclick="insertOperator(' / 2.14')">/ 2.14</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="small text-muted d-flex align-items-center gap-2">
+            <i class="fas fa-info-circle text-info"></i>
+            <span>Parameters are formatted as <code>[PARAM_ID]</code>. Math operators <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, and parentheses <code>( )</code> are supported.</span>
+          </div>
+        </div>
+      </div>
+
       <div class="d-flex align-items-center gap-2">
         <button type="submit" name="<?= $parameter ? 'update' : 'add' ?>" class="btn btn-primary px-4 fw-bold shadow-sm">
           <i class="bi bi-check2-circle me-1"></i> <?= $parameter ? 'Update Parameter' : 'Save Parameter' ?>
@@ -682,7 +796,14 @@ $params_res = $stmt->get_result();
             <?php while ($row = $params_res->fetch_assoc()): ?>
               <tr>
                 <td>
-                  <div class="fw-bold text-dark"><?= htmlspecialchars($row['param_name']) ?></div>
+                  <div class="fw-bold text-dark">
+                    <?= htmlspecialchars($row['param_name']) ?>
+                    <?php if (!empty($row['formula'])): ?>
+                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace ms-1" style="font-size: 0.68rem;" title="Formula: <?= htmlspecialchars($row['formula']) ?>">
+                        <i class="fas fa-calculator me-1"></i>fx Auto
+                      </span>
+                    <?php endif; ?>
+                  </div>
                 </td>
                 <td>
                   <div class="small fw-semibold text-dark"><?= htmlspecialchars($row['category_name'] ?: 'Pathology') ?></div>
@@ -767,6 +888,78 @@ function toggleRefRangeMode() {
     document.getElementById('numericRangesRow').style.display = 'flex';
     document.getElementById('textRangeRow').style.display = 'none';
   }
+}
+
+function toggleFormulaSection() {
+  const isEnabled = document.getElementById('toggleFormulaBox').checked;
+  const content = document.getElementById('formulaSectionContent');
+  const input = document.getElementById('formulaInput');
+  if (isEnabled) {
+    content.style.display = 'block';
+    input.focus();
+  } else {
+    content.style.display = 'none';
+    input.value = '';
+  }
+}
+
+const formulaPresets = {
+  'INDIRECT_BILIRUBIN': { formula: '[PARAM_11] - [PARAM_12]', decimals: 2 },
+  'GLOBULIN': { formula: '[PARAM_148] - [PARAM_149]', decimals: 2 },
+  'AG_RATIO': { formula: '[PARAM_149] / [PARAM_150]', decimals: 2 },
+  'VLDL': { formula: '[PARAM_104] / 5', decimals: 2 },
+  'LDL': { formula: '[PARAM_101] - [PARAM_102] - [PARAM_123]', decimals: 2 },
+  'CHOL_HDL_RATIO': { formula: '[PARAM_101] / [PARAM_102]', decimals: 2 },
+  'LDL_HDL_RATIO': { formula: '[PARAM_103] / [PARAM_102]', decimals: 2 },
+  'MCH': { formula: '([PARAM_154] * 10) / [PARAM_177]', decimals: 1 },
+  'MCHC': { formula: '([PARAM_154] * 100) / [PARAM_178]', decimals: 1 },
+  'BUN': { formula: '[PARAM_161] / 2.14', decimals: 2 },
+  'EAG': { formula: '(28.7 * [PARAM_108]) - 46.7', decimals: 1 },
+  'AEC': { formula: '([PARAM_3] * [PARAM_17]) / 100', decimals: 0 },
+  'TIBC_SAT': { formula: '([PARAM_41] / [PARAM_42]) * 100', decimals: 1 },
+  'INR': { formula: 'pow(([PARAM_114] / [PARAM_115]), 1.0)', decimals: 2 }
+};
+
+function applyFormulaPreset(key) {
+  if (!key || !formulaPresets[key]) return;
+  const preset = formulaPresets[key];
+  document.getElementById('toggleFormulaBox').checked = true;
+  document.getElementById('formulaSectionContent').style.display = 'block';
+  document.getElementById('formulaInput').value = preset.formula;
+  document.getElementById('formulaDecimals').value = preset.decimals;
+}
+
+function insertParamToken() {
+  const select = document.getElementById('paramToInsert');
+  const val = select.value;
+  if (!val) return;
+  const input = document.getElementById('formulaInput');
+  const start = input.selectionStart || input.value.length;
+  const end = input.selectionEnd || input.value.length;
+  const current = input.value;
+  const needSpaceBefore = (start > 0 && current[start - 1] !== ' ' && current[start - 1] !== '(');
+  const needSpaceAfter = (end < current.length && current[end] !== ' ' && current[end] !== ')');
+  const insertText = (needSpaceBefore ? ' ' : '') + val + (needSpaceAfter ? ' ' : ' ');
+  input.value = current.substring(0, start) + insertText + current.substring(end);
+  input.focus();
+}
+
+function insertOperator(op) {
+  const input = document.getElementById('formulaInput');
+  const start = input.selectionStart || input.value.length;
+  const end = input.selectionEnd || input.value.length;
+  const current = input.value;
+  let text = op;
+  if (op === '+' || op === '-' || op === '*' || op === '/') {
+    text = ' ' + op + ' ';
+  }
+  input.value = current.substring(0, start) + text + current.substring(end);
+  input.focus();
+}
+
+function clearFormula() {
+  document.getElementById('formulaInput').value = '';
+  document.getElementById('formulaPresetSelect').value = '';
 }
 </script>
 

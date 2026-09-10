@@ -20,11 +20,14 @@ A comprehensive, production-ready SaaS & On-Premise Diagnostic Laboratory Inform
 ### 3. Medical Report Studio & Dynamic PDF Generator
 - **Multi-Department Reporting**: Hematology, Biochemistry, Clinical Pathology, Serology, Microbiology, and Histopathology.
 - **Age- & Gender-Specific Reference Ranges**: Automated validation for Male, Female, and Pediatric ranges with real-time abnormal value highlighting.
+- **Dynamic Clinical Derivations & Formulas**: Automated instant calculations for LFT (*Indirect Bilirubin, Globulin, A/G Ratio*), Lipid (*VLDL, LDL, Ratios*), CBC (*MCH, MCHC, AEC*), Renal (*BUN, BUN/Creatinine*), Diabetes (*eAG from HbA1c*), and Coagulation (*INR*) with soft-lock and doctor manual override.
 - **Digital Signatures & Verification QR Code**: Doctor digital signature stamps with tamper-proof QR code report verification.
 - **1-Click Dispatch**: Direct WhatsApp PDF report sharing and thermal receipt printing.
 
 ### 4. Interactive Master Data & Dynamic Rate Cards
 - **Bulk Updatable Rate Cards**: Update test prices directly in table view with instant background autosave.
+- **Visual Formula Composer**: Configure custom test derivation formulas with parameter tokens and mathematical operators directly from the browser.
+- **Clinical Formulas Guide**: Client-facing interactive clinical reference guide (`formulas_guide.php`) with real-time derivation playground.
 - **Health Packages Master**: Group multiple tests into affordable checkup packages.
 - **Indian Pathology Master Catalog**: Pre-configured NABL standard test parameters and reference ranges.
 
@@ -50,6 +53,8 @@ LABTECH/
 │   ├── bill_list.php      # Invoices register with mobile card view
 │   ├── sample_collection.php # Phlebotomy station & barcode tube printer
 │   ├── result_entry.php   # Test parameters result entry & range validation
+│   ├── test_parameters.php# Parameter master with visual formula builder
+│   ├── formulas_guide.php # Interactive clinical formulas & derivations guide
 │   └── rate_card.php      # Live inline rate editing studio
 ├── demo/                  # Interactive live demo instance
 ├── dump/                  # Database SQL schemas and migrations
