@@ -1,14 +1,23 @@
 <?php
-require_once("db.php");
+require_once __DIR__ . '/auth_check.php';
+require_once __DIR__ . '/db.php';
 
-$id=$_GET['id'];
+$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+if ($id <= 0) {
+    die("Invalid template ID");
+}
 
-$template=$conn->query("
-SELECT * FROM report_templates 
-WHERE template_id=$id
-")->fetch_assoc();
+$stmtSel = $conn->prepare("SELECT * FROM report_templates WHERE template_id = ?");
+$stmtSel->bind_param("i", $id);
+$stmtSel->execute();
+$template = $stmtSel->get_result()->fetch_assoc();
+$stmtSel->close();
 
-$stmt=$conn->prepare("
+if (!$template) {
+    die("Template not found");
+}
+
+$stmt = $conn->prepare("
 INSERT INTO report_templates
 (lab_id,template_name,patient_type,layout_json)
 VALUES(?,?,?,?)

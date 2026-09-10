@@ -1,6 +1,6 @@
 <?php
-require_once 'db.php';
-session_start();
+require_once __DIR__ . '/auth_check.php';
+require_once __DIR__ . '/db.php';
 
 $bill_id = isset($_POST['bill_id']) ? intval($_POST['bill_id']) : 0;
 $status = isset($_POST['status']) ? $_POST['status'] : '';

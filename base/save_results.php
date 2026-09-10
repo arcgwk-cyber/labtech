@@ -30,7 +30,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['bill_id'], $_POST['re
     $sample_stmt->close();
 
     if (empty($sample_ids)) {
-        die("No sample found for this bill.");
+        // Auto-create sample record so technician results are seamlessly preserved
+        $insSample = $conn->prepare("INSERT INTO test_samples (bill_id, sample_type, sample_status, collected_at, status) VALUES (?, 'Routine Specimen', 'Collected', NOW(), 'Collected')");
+        if ($insSample) {
+            $insSample->bind_param("i", $bill_id);
+            $insSample->execute();
+            $sample_ids[] = $conn->insert_id;
+            $insSample->close();
+            @$conn->query("UPDATE bills SET sample_collected = 1 WHERE bill_id = " . (int)$bill_id);
+        }
     }
 
     // Clean Single-Entry Insert / Update test_results (prevents duplicate parameter rows)

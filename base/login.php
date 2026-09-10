@@ -75,6 +75,7 @@ if ($conn && !$conn->connect_error) {
                     $settings['phone']           = $vRow['phone'] ?? '';
                     $settings['email']           = $vRow['email'] ?? '';
                     if (!empty($vRow['due_date'])) $settings['expiry_date'] = $vRow['due_date'];
+                    if (!empty($vRow['status']))   $settings['status']      = $vRow['status'];
                     $foundCustomSettings = true;
 
                     // Automatically save/seed into admin_settings
@@ -112,12 +113,18 @@ if ($conn && !$conn->connect_error) {
     }
 }
 
-// Check local trial / license validity
+// Check local trial / license validity and account suspension
 $licenseExpired = false;
+$accountSuspended = false;
+
+if (isset($settings['status']) && in_array(strtolower($settings['status']), ['inactive', 'suspended', 'blocked'])) {
+    $accountSuspended = true;
+}
+
 if (!empty($settings['expiry_date'])) {
     $graceDays = (int)($settings['grace_days'] ?? 7);
     $graceLimit = date('Y-m-d', strtotime($settings['expiry_date'] . " +{$graceDays} days"));
-    if (date('Y-m-d') > $graceLimit && $settings['status'] !== 'active') {
+    if (date('Y-m-d') > $graceLimit) {
         $licenseExpired = true;
     }
 }
@@ -156,7 +163,9 @@ if ($conn && !$conn->connect_error && !$isDemo && $currentDir !== 'base') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['password'])) {
-    if ($licenseExpired) {
+    if ($accountSuspended) {
+        $error = "This laboratory account has been suspended by the administrator. Please contact support.";
+    } elseif ($licenseExpired) {
         $error = "Software license or trial period has expired. Please renew your subscription to log in.";
     } else {
         $username = trim($_POST['username']);
@@ -391,7 +400,14 @@ foreach ([
     </div>
 
     <div class="p-4 p-md-5">
-      <?php if ($licenseExpired): ?>
+      <?php if ($accountSuspended): ?>
+        <div class="alert alert-danger text-center">
+          <i class="fas fa-ban fa-2x mb-2 text-danger"></i><br>
+          <strong>Account Suspended</strong><br>
+          This laboratory portal is currently inactive or suspended.<br>
+          <small class="text-muted">Please contact your administrator or VenSaas support.</small>
+        </div>
+      <?php elseif ($licenseExpired): ?>
         <div class="alert alert-danger text-center">
           <i class="fas fa-exclamation-triangle fa-2x mb-2"></i><br>
           <strong>Subscription Expired</strong><br>

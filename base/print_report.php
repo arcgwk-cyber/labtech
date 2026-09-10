@@ -1,14 +1,13 @@
 <?php
-require_once __DIR__ . '/vendor/autoload.php'; // mpdf
-include 'db.php';
-
-$bill_id = $_GET['bill_id'];
-$mpdf = new \Mpdf\Mpdf();
-
-$html = "<h1>Lab Report - Bill #$bill_id</h1><hr>";
-// Fetch patient, tests, and results...
-
-$html .= "<p>Generated report preview</p>";
-$mpdf->WriteHTML($html);
-$mpdf->Output("report_bill_$bill_id.pdf", "I");
-?>
+/**
+ * Print Report Redirect Handler
+ * Safely redirects legacy print requests to the official PDF options / report viewer
+ */
+$bill_id = (int)($_GET['bill_id'] ?? $_GET['id'] ?? 0);
+if ($bill_id > 0) {
+    header("Location: pdf_options.php?bill_id=" . $bill_id);
+    exit;
+} else {
+    header("Location: dashboard.php");
+    exit;
+}

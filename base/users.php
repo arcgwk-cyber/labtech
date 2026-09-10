@@ -1,6 +1,6 @@
 <?php
-session_start();
-require_once 'db.php';
+require_once __DIR__ . '/auth_check.php';
+require_once __DIR__ . '/db.php';
 
 // Fetch roles for the dropdown
 $roles = mysqli_query($conn, "SELECT * FROM roles ORDER BY role_name");
@@ -25,10 +25,13 @@ if (isset($_POST['submit'])) {
 // Handle delete
 if (isset($_GET['delete'])) {
     $id = intval($_GET['delete']);
-    $stmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-    $stmt->close();
+    // Prevent user from deleting their currently logged-in account
+    if ($id > 0 && $id !== (int)($_SESSION['user_id'] ?? 0)) {
+        $stmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $stmt->close();
+    }
 
     header("Location: users.php");
     exit;

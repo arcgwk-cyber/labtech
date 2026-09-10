@@ -10,7 +10,10 @@ use Dompdf\Options;
 
 // Include necessary files to retrieve data (for example, bill data and test results)
 include '../auth_check.php'; // If necessary
-$bill_id = $_GET['id']; // Assuming you pass the bill_id via URL
+$bill_id = (int)($_GET['id'] ?? $_GET['bill_id'] ?? 0);
+if ($bill_id <= 0) {
+    die("Invalid or missing Bill ID.");
+}
 
 // Example for getting the report data, adjust based on your database
 $patient_stmt = $conn->prepare("

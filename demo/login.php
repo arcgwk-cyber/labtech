@@ -3,9 +3,12 @@ session_start();
 require_once 'db.php';
 
 // Dynamic Lab Name resolution & Multi-tenant isolation
-$currentDir = basename(__DIR__);
+$parentDir = strtolower(basename(dirname(__DIR__)));
+$currentDir = strtolower(basename(__DIR__));
+$isStateFolder = in_array($parentDir, ['ap', 'ts', 'os', 'od', 'ka', 'tn', 'mh', 'dl', 'wb', 'kl', 'labs']);
+$fullSlug = $isStateFolder ? ($parentDir . '/' . $currentDir) : $currentDir;
 $isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
-$labSlug = $isDemo ? 'demo' : (($currentDir === 'base') ? 'base' : ($conn ? $conn->real_escape_string($currentDir) : $currentDir));
+$labSlug = $isDemo ? 'demo' : (($currentDir === 'base') ? 'base' : $fullSlug);
 
 // Default settings
 $settings = [
@@ -24,51 +27,145 @@ if ($conn && !$conn->connect_error) {
         @$conn->query("ALTER TABLE admin_settings ADD INDEX (lab_slug)");
     }
 
-    // 2. Query admin_settings for current lab
-    $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+    $escapedCurrentDir = $conn->real_escape_string($currentDir);
+    $escapedFullSlug   = $conn->real_escape_string($fullSlug);
+
+    $foundCustomSettings = false;
+
+    // 2. Query admin_settings for current lab specifically
+    $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$escapedFullSlug}' OR lab_slug = '{$escapedCurrentDir}' OR lab_slug LIKE '%/{$escapedCurrentDir}' LIMIT 1");
     if ($res && $row = $res->fetch_assoc()) {
-        $settings = array_merge($settings, $row);
+        if (!empty($row['company_name']) && $row['company_name'] !== 'Diagnostic Centre ERP' && ($isDemo || $row['company_name'] !== 'Vensaas LabTech')) {
+            $settings = array_merge($settings, $row);
+            $foundCustomSettings = true;
+        }
+    }
+
+    // Demo handling
+    if ($isDemo) {
+        if (!$foundCustomSettings) {
+            $r1 = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = 'demo' OR id = 1 LIMIT 1");
+            if ($r1 && $row1 = $r1->fetch_assoc()) {
+                $settings = array_merge($settings, $row1);
+            }
+        }
+        if ($settings['company_name'] === 'Amma Diagnostic Centre' || empty($settings['company_name'])) {
+            $settings['company_name'] = 'Vensaas LabTech';
+            if (empty($settings['company_address']) || strpos($settings['company_address'], 'ICHAPURAM') !== false || $settings['company_address'] === 'Srikakulam') {
+                $settings['company_address'] = 'Visakhapatnam-530016 (A.P)';
+            }
+            @$conn->query("UPDATE admin_settings SET company_name = 'Vensaas LabTech', company_address = '" . $conn->real_escape_string($settings['company_address']) . "', lab_slug = 'demo' WHERE lab_slug = 'demo' OR (id = 1 AND (lab_slug IS NULL OR lab_slug = ''))");
+        }
     } else {
-        // Fallback: try row 1 if no specific lab_slug record exists
-        $r1 = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
-        if ($r1 && $row1 = $r1->fetch_assoc()) {
-            $settings = array_merge($settings, $row1);
-        }
-    }
+        // NON-DEMO TENANT LAB:
+        // Query vendor_master if settings not found or if stale demo branding
+        if (!$foundCustomSettings || empty($settings['company_name']) || $settings['company_name'] === 'Diagnostic Centre ERP' || $settings['company_name'] === 'Vensaas LabTech' || $settings['company_name'] === 'Amma Diagnostic Centre') {
+            $vmCheck = $conn->query("SHOW TABLES LIKE 'vendor_master'");
+            if ($vmCheck && $vmCheck->num_rows > 0) {
+                $cleanFolderText = str_replace('_', ' ', $currentDir);
+                $vRes = $conn->query("SELECT * FROM vendor_master 
+                                      WHERE remarks LIKE '%/{$escapedCurrentDir}%' 
+                                         OR remarks LIKE '%/{$escapedFullSlug}%' 
+                                         OR vendor_userid = '{$escapedCurrentDir}' 
+                                         OR name LIKE '%" . $conn->real_escape_string($cleanFolderText) . "%' 
+                                      LIMIT 1");
+                if ($vRes && $vRow = $vRes->fetch_assoc()) {
+                    $settings['company_name']    = $vRow['name'];
+                    $settings['company_address'] = $vRow['address'] ?? '';
+                    $settings['phone']           = $vRow['phone'] ?? '';
+                    $settings['email']           = $vRow['email'] ?? '';
+                    if (!empty($vRow['due_date'])) $settings['expiry_date'] = $vRow['due_date'];
+                    if (!empty($vRow['status']))   $settings['status']      = $vRow['status'];
+                    $foundCustomSettings = true;
 
-    // If demo still has old hardcoded 'Amma Diagnostic Centre' in DB, migrate it to 'Vensaas LabTech'
-    if ($isDemo && ($settings['company_name'] === 'Amma Diagnostic Centre' || empty($settings['company_name']))) {
-        $settings['company_name'] = 'Vensaas LabTech';
-        if (empty($settings['company_address']) || strpos($settings['company_address'], 'ICHAPURAM') !== false || $settings['company_address'] === 'Srikakulam') {
-            $settings['company_address'] = 'Visakhapatnam-530016 (A.P)';
-        }
-        @$conn->query("UPDATE admin_settings SET company_name = 'Vensaas LabTech', company_address = '" . $conn->real_escape_string($settings['company_address']) . "', lab_slug = 'demo' WHERE lab_slug = 'demo' OR (id = 1 AND (lab_slug IS NULL OR lab_slug = ''))");
-    }
+                    // Automatically save/seed into admin_settings
+                    $escN = $conn->real_escape_string($vRow['name']);
+                    $escA = $conn->real_escape_string($vRow['address'] ?? '');
+                    $escP = $conn->real_escape_string($vRow['phone'] ?? '');
+                    $escE = $conn->real_escape_string($vRow['email'] ?? '');
+                    $escExp = !empty($vRow['due_date']) ? "'" . $conn->real_escape_string($vRow['due_date']) . "'" : "NULL";
 
-    // If tenant lab and company_name is still default, derive from folder name
-    if (!$isDemo && ($settings['company_name'] === 'Diagnostic Centre ERP' || empty($settings['company_name']))) {
-        $words = explode('_', str_replace('-', '_', $currentDir));
-        $formatted = array_map(function($w) {
-            return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
-        }, $words);
-        $settings['company_name'] = implode(' ', $formatted);
+                    $existAS = $conn->query("SELECT id FROM admin_settings WHERE lab_slug = '{$escapedFullSlug}' OR lab_slug = '{$escapedCurrentDir}' LIMIT 1");
+                    if ($existAS && $existRow = $existAS->fetch_assoc()) {
+                        @$conn->query("UPDATE admin_settings SET company_name = '{$escN}', company_address = '{$escA}', phone = '{$escP}', email = '{$escE}', lab_slug = '{$escapedFullSlug}' WHERE id = " . (int)$existRow['id']);
+                    } else {
+                        @$conn->query("INSERT INTO admin_settings (company_name, company_address, phone, email, lab_slug, status, expiry_date, grace_days) 
+                                       VALUES ('{$escN}', '{$escA}', '{$escP}', '{$escE}', '{$escapedFullSlug}', 'active', {$escExp}, 7)");
+                    }
+                }
+            }
+        }
+
+        // If still default or matches platform name, format nicely from directory name
+        if (!$foundCustomSettings || empty($settings['company_name']) || $settings['company_name'] === 'Diagnostic Centre ERP' || $settings['company_name'] === 'Vensaas LabTech' || $settings['company_name'] === 'Amma Diagnostic Centre') {
+            if ($currentDir === 'medione') {
+                $settings['company_name'] = 'MEDIONE Diagnostic Centre';
+            } elseif ($currentDir === 'sm_medical_centre') {
+                $settings['company_name'] = 'SM Medical Centre';
+            } else {
+                $words = explode('_', str_replace('-', '_', $currentDir));
+                $formatted = array_map(function($w) {
+                    return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
+                }, $words);
+                $settings['company_name'] = implode(' ', $formatted);
+            }
+        }
     }
 }
 
-// Check local trial / license validity
+// Check local trial / license validity and account suspension
 $licenseExpired = false;
+$accountSuspended = false;
+
+if (isset($settings['status']) && in_array(strtolower($settings['status']), ['inactive', 'suspended', 'blocked'])) {
+    $accountSuspended = true;
+}
+
 if (!empty($settings['expiry_date'])) {
     $graceDays = (int)($settings['grace_days'] ?? 7);
     $graceLimit = date('Y-m-d', strtotime($settings['expiry_date'] . " +{$graceDays} days"));
-    if (date('Y-m-d') > $graceLimit && $settings['status'] !== 'active') {
+    if (date('Y-m-d') > $graceLimit) {
         $licenseExpired = true;
     }
 }
 
 $error = null;
 
+// Self-healing: if non-demo tenant lab, ensure admin user exists in users table on page load
+if ($conn && !$conn->connect_error && !$isDemo && $currentDir !== 'base') {
+    $vmCheck = $conn->query("SHOW TABLES LIKE 'vendor_master'");
+    if ($vmCheck && $vmCheck->num_rows > 0) {
+        $cleanDir = $conn->real_escape_string($currentDir);
+        $cleanFull = $conn->real_escape_string($fullSlug);
+        $vAuto = $conn->query("SELECT * FROM vendor_master 
+                               WHERE remarks LIKE '%/{$cleanDir}%' 
+                                  OR remarks LIKE '%/{$cleanFull}%' 
+                                  OR vendor_userid = '{$cleanDir}' 
+                                  OR name LIKE '%" . $conn->real_escape_string(str_replace('_', ' ', $currentDir)) . "%' 
+                               LIMIT 1");
+        if ($vAuto && $vVendor = $vAuto->fetch_assoc()) {
+            $vUser = $vVendor['vendor_userid'];
+            $chkU = $conn->query("SELECT user_id FROM users WHERE username = '" . $conn->real_escape_string($vUser) . "' LIMIT 1");
+            if (!$chkU || $chkU->num_rows === 0) {
+                // Ensure role 1 exists
+                $roleChk = $conn->query("SELECT role_id FROM roles WHERE role_id = 1 LIMIT 1");
+                $roleId = ($roleChk && $roleChk->num_rows > 0) ? 1 : 1;
+                $vHash = password_hash($vVendor['password'], PASSWORD_BCRYPT);
+                $seedStmt = $conn->prepare("INSERT INTO users (username, password_hash, full_name, role_id, status) VALUES (?, ?, ?, ?, 'active')");
+                if ($seedStmt) {
+                    $seedStmt->bind_param("sssi", $vUser, $vHash, $vVendor['name'], $roleId);
+                    $seedStmt->execute();
+                    $seedStmt->close();
+                }
+            }
+        }
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['password'])) {
-    if ($licenseExpired) {
+    if ($accountSuspended) {
+        $error = "This laboratory account has been suspended by the administrator. Please contact support.";
+    } elseif ($licenseExpired) {
         $error = "Software license or trial period has expired. Please renew your subscription to log in.";
     } else {
         $username = trim($_POST['username']);
@@ -85,6 +182,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
                 $stmt->execute();
                 $result = $stmt->get_result();
 
+                // Self-healing login fallback: If user not found in users table, check vendor_master
+                if ((!$result || $result->num_rows === 0) && !$isDemo) {
+                    $vmCheck = $conn->query("SHOW TABLES LIKE 'vendor_master'");
+                    if ($vmCheck && $vmCheck->num_rows > 0) {
+                        $vCheckStmt = $conn->prepare("SELECT * FROM vendor_master WHERE vendor_userid = ? LIMIT 1");
+                        if ($vCheckStmt) {
+                            $vCheckStmt->bind_param("s", $username);
+                            $vCheckStmt->execute();
+                            $vRes = $vCheckStmt->get_result();
+                            if ($vRes && $vVendor = $vRes->fetch_assoc()) {
+                                $vPassOk = ($password === $vVendor['password']) ||
+                                           (password_verify($password, $vVendor['password'])) ||
+                                           (md5($password) === $vVendor['password']);
+                                if ($vPassOk) {
+                                    $roleChk = $conn->query("SELECT role_id FROM roles WHERE role_id = 1 LIMIT 1");
+                                    $roleId = ($roleChk && $roleChk->num_rows > 0) ? 1 : 1;
+                                    $newHash = password_hash($password, PASSWORD_BCRYPT);
+                                    
+                                    $seedStmt = $conn->prepare("INSERT INTO users (username, password_hash, full_name, role_id, status) VALUES (?, ?, ?, ?, 'active') ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), status = 'active'");
+                                    if ($seedStmt) {
+                                        $seedStmt->bind_param("sssi", $vVendor['vendor_userid'], $newHash, $vVendor['name'], $roleId);
+                                        $seedStmt->execute();
+                                        $seedStmt->close();
+                                    }
+                                    
+                                    // Re-run user query
+                                    $stmt->execute();
+                                    $result = $stmt->get_result();
+                                }
+                            }
+                            $vCheckStmt->close();
+                        }
+                    }
+                }
+
                 if ($result && $result->num_rows === 1) {
                     $user = $result->fetch_assoc();
 
@@ -93,6 +225,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
                                      (md5($password) === $user['password_hash']) ||
                                      ($password === $user['password_hash']) ||
                                      ($password === 'admin123' && $username === 'admin'); // Fallback dev convenience
+
+                    // If password failed, check against vendor_master record for automatic sync/recovery
+                    if (!$validPassword && !$isDemo) {
+                        $vmCheck = $conn->query("SHOW TABLES LIKE 'vendor_master'");
+                        if ($vmCheck && $vmCheck->num_rows > 0) {
+                            $vPassStmt = $conn->prepare("SELECT password FROM vendor_master WHERE vendor_userid = ? LIMIT 1");
+                            if ($vPassStmt) {
+                                $vPassStmt->bind_param("s", $username);
+                                $vPassStmt->execute();
+                                $vpRes = $vPassStmt->get_result();
+                                if ($vpRes && $vpRow = $vpRes->fetch_assoc()) {
+                                    if ($password === $vpRow['password'] || password_verify($password, $vpRow['password']) || md5($password) === $vpRow['password']) {
+                                        $validPassword = true;
+                                        $newH = password_hash($password, PASSWORD_BCRYPT);
+                                        @$conn->query("UPDATE users SET password_hash = '{$newH}', status = 'active' WHERE user_id = " . (int)$user['user_id']);
+                                    }
+                                }
+                                $vPassStmt->close();
+                            }
+                        }
+                    }
 
                     if ($validPassword) {
                         $_SESSION['user_id']  = $user['user_id'];
@@ -247,7 +400,14 @@ foreach ([
     </div>
 
     <div class="p-4 p-md-5">
-      <?php if ($licenseExpired): ?>
+      <?php if ($accountSuspended): ?>
+        <div class="alert alert-danger text-center">
+          <i class="fas fa-ban fa-2x mb-2 text-danger"></i><br>
+          <strong>Account Suspended</strong><br>
+          This laboratory portal is currently inactive or suspended.<br>
+          <small class="text-muted">Please contact your administrator or VenSaas support.</small>
+        </div>
+      <?php elseif ($licenseExpired): ?>
         <div class="alert alert-danger text-center">
           <i class="fas fa-exclamation-triangle fa-2x mb-2"></i><br>
           <strong>Subscription Expired</strong><br>

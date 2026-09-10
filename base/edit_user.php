@@ -1,5 +1,6 @@
 <?php
-require_once 'db.php';
+require_once __DIR__ . '/auth_check.php';
+require_once __DIR__ . '/db.php';
 
 // Get user ID
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {

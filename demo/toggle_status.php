@@ -1,6 +1,7 @@
 <?php
 // toggle_status.php
-require_once 'db.php';
+require_once __DIR__ . '/auth_check.php';
+require_once __DIR__ . '/db.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $bill_id = intval($_POST['bill_id'] ?? 0);
@@ -26,6 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Redirect back
-header("Location: " . $_SERVER['HTTP_REFERER']);
+// Safe Redirect back
+$ref = !empty($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'bill_list.php';
+header("Location: " . $ref);
 exit;

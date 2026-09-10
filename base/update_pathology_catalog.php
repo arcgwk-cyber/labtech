@@ -17,13 +17,22 @@ $error = '';
 $executed_count = 0;
 
 if (isset($_POST['execute_migration'])) {
-    $sql_file = __DIR__ . '/../dump/update_pathology_catalog.sql';
-    if (!file_exists($sql_file)) {
-        $sql_file = __DIR__ . '/update_pathology_catalog.sql';
+    $candidate_paths = [
+        __DIR__ . '/../dump/update_pathology_catalog.sql',
+        dirname(__DIR__, 2) . '/dump/update_pathology_catalog.sql',
+        __DIR__ . '/dump/update_pathology_catalog.sql',
+        __DIR__ . '/update_pathology_catalog.sql'
+    ];
+    $sql_file = '';
+    foreach ($candidate_paths as $p) {
+        if (file_exists($p)) {
+            $sql_file = $p;
+            break;
+        }
     }
 
-    if (!file_exists($sql_file)) {
-        $error = "Migration file 'update_pathology_catalog.sql' not found at: " . htmlspecialchars($sql_file);
+    if (empty($sql_file)) {
+        $error = "Migration file 'update_pathology_catalog.sql' not found in any standard directory.";
     } else {
         $sql_content = file_get_contents($sql_file);
         

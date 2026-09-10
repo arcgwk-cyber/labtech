@@ -1,7 +1,10 @@
 <?php
 require_once __DIR__ . '/../db.php';
 
-$bill_id = $_GET['id'] ?? 1;
+$bill_id = (int)($_GET['id'] ?? $_GET['bill_id'] ?? 0);
+if ($bill_id <= 0) {
+    die("Invalid Bill ID.");
+}
 
 // Fetch bill and patient info
 $bill_sql = "
@@ -10,8 +13,12 @@ $bill_sql = "
     JOIN patients p ON p.patient_id = b.patient_id 
     WHERE b.bill_id = $bill_id
 ";
-$bill = $conn->query($bill_sql)->fetch_assoc();
-$bill['age'] = date_diff(date_create($bill['date_of_birth']), date_create('today'))->y;
+$bill_res = $conn->query($bill_sql);
+$bill = $bill_res ? $bill_res->fetch_assoc() : null;
+if (!$bill) {
+    die("Bill not found.");
+}
+$bill['age'] = !empty($bill['date_of_birth']) ? date_diff(date_create($bill['date_of_birth']), date_create('today'))->y : ($bill['age'] ?? 0);
 
 // Gender and age for reference logic
 $gender = strtolower($bill['gender']);
