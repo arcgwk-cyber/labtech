@@ -66,13 +66,29 @@ function discoverAllLabs($workspaceRoot, $conn) {
                 $existsOnDisk = is_dir($path);
                 
                 // If not found at root, check inside state directories (e.g. /ap/{slug})
-                if (!$existsOnDisk && strpos($folder, '/') === false) {
+                if (strpos($folder, '/') === false) {
+                    $foundState = null;
                     foreach ($stateCodes as $sc) {
                         if (is_dir($workspaceRoot . '/' . $sc . '/' . $folder)) {
-                            $folder = $sc . '/' . $folder;
-                            $path = $workspaceRoot . '/' . $folder;
-                            $existsOnDisk = true;
+                            $foundState = $sc;
                             break;
+                        }
+                    }
+                    if (!$foundState && ($folder === 'medione' || $folder === 'sm_medical_centre')) {
+                        $foundState = 'ap';
+                    }
+                    if ($foundState) {
+                        $folder = $foundState . '/' . $folder;
+                        $path = $workspaceRoot . '/' . $folder;
+                        $existsOnDisk = is_dir($path);
+                        if ($conn && !$conn->connect_error) {
+                            $curRem = $row['remarks'] ?? '';
+                            if (preg_match('/Provisioned at \/[a-zA-Z0-9_\-]+/', $curRem)) {
+                                $newRem = preg_replace('/Provisioned at \/[a-zA-Z0-9_\-]+/', 'Provisioned at /' . $folder, $curRem);
+                            } else {
+                                $newRem = trim("Provisioned at /{$folder} | " . $curRem, ' |');
+                            }
+                            @$conn->query("UPDATE vendor_master SET remarks = '" . $conn->real_escape_string($newRem) . "' WHERE vendor_id = " . (int)$row['vendor_id']);
                         }
                     }
                 }

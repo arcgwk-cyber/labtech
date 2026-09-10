@@ -16,10 +16,13 @@ $current_username  = $_SESSION['username'] ?? 'User';
 $current_role      = $_SESSION['role'] ?? 'user';
 $current_full_name = $_SESSION['full_name'] ?? $current_username;
 
-// Fetch settings from admin_settings
-$currentDir = basename(__DIR__);
+// Fetch settings from admin_settings & Multi-tenant isolation
+$parentDir = strtolower(basename(dirname(__DIR__)));
+$currentDir = strtolower(basename(__DIR__));
+$isStateFolder = in_array($parentDir, ['ap', 'ts', 'os', 'od', 'ka', 'tn', 'mh', 'dl', 'wb', 'kl', 'labs']);
+$fullSlug = $isStateFolder ? ($parentDir . '/' . $currentDir) : $currentDir;
 $isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
-$labSlug = $isDemo ? 'demo' : (($currentDir === 'base') ? 'base' : ($conn ? $conn->real_escape_string($currentDir) : $currentDir));
+$labSlug = $isDemo ? 'demo' : (($currentDir === 'base') ? 'base' : $fullSlug);
 
 // Fetch settings from admin_settings
 $app_settings = [
@@ -30,27 +33,65 @@ $app_settings = [
 ];
 
 if ($conn && !$conn->connect_error) {
-    $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' OR lab_slug LIKE '%/{$labSlug}' LIMIT 1");
+    $escapedCurrentDir = $conn->real_escape_string($currentDir);
+    $escapedFullSlug   = $conn->real_escape_string($fullSlug);
+
+    $foundCustomSettings = false;
+
+    $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$escapedFullSlug}' OR lab_slug = '{$escapedCurrentDir}' OR lab_slug LIKE '%/{$escapedCurrentDir}' LIMIT 1");
     if ($res && $row = $res->fetch_assoc()) {
-        $app_settings = array_merge($app_settings, $row);
-    } else {
-        $r1 = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
-        if ($r1 && $row1 = $r1->fetch_assoc()) {
-            $app_settings = array_merge($app_settings, $row1);
+        if (!empty($row['company_name']) && $row['company_name'] !== 'Diagnostic Centre ERP' && ($isDemo || $row['company_name'] !== 'Vensaas LabTech')) {
+            $app_settings = array_merge($app_settings, $row);
+            $foundCustomSettings = true;
         }
     }
-    // If demo still has old Amma name from old code revert, default to Vensaas LabTech
-    if ($isDemo && ($app_settings['company_name'] === 'Amma Diagnostic Centre' || empty($app_settings['company_name']))) {
-        $app_settings['company_name'] = 'Vensaas LabTech';
-    }
-    // If tenant lab and company_name is still default, derive from folder name
-    if (!$isDemo && ($app_settings['company_name'] === 'Diagnostic Centre ERP' || empty($app_settings['company_name']))) {
-        if ($currentDir !== 'base') {
-            $words = explode('_', str_replace('-', '_', $currentDir));
-            $formatted = array_map(function($w) {
-                return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
-            }, $words);
-            $app_settings['company_name'] = implode(' ', $formatted);
+
+    if ($isDemo) {
+        if (!$foundCustomSettings) {
+            $r1 = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = 'demo' OR id = 1 LIMIT 1");
+            if ($r1 && $row1 = $r1->fetch_assoc()) {
+                $app_settings = array_merge($app_settings, $row1);
+            }
+        }
+        if ($app_settings['company_name'] === 'Amma Diagnostic Centre' || empty($app_settings['company_name'])) {
+            $app_settings['company_name'] = 'Vensaas LabTech';
+        }
+    } else {
+        // NON-DEMO TENANT LAB:
+        if (!$foundCustomSettings || empty($app_settings['company_name']) || $app_settings['company_name'] === 'Diagnostic Centre ERP' || $app_settings['company_name'] === 'Vensaas LabTech' || $app_settings['company_name'] === 'Amma Diagnostic Centre') {
+            $vmCheck = $conn->query("SHOW TABLES LIKE 'vendor_master'");
+            if ($vmCheck && $vmCheck->num_rows > 0) {
+                $cleanFolderText = str_replace('_', ' ', $currentDir);
+                $vRes = $conn->query("SELECT * FROM vendor_master 
+                                      WHERE remarks LIKE '%/{$escapedCurrentDir}%' 
+                                         OR remarks LIKE '%/{$escapedFullSlug}%' 
+                                         OR vendor_userid = '{$escapedCurrentDir}' 
+                                         OR name LIKE '%" . $conn->real_escape_string($cleanFolderText) . "%' 
+                                      LIMIT 1");
+                if ($vRes && $vRow = $vRes->fetch_assoc()) {
+                    $app_settings['company_name']    = $vRow['name'];
+                    $app_settings['company_address'] = $vRow['address'] ?? '';
+                    $app_settings['phone']           = $vRow['phone'] ?? '';
+                    $app_settings['email']           = $vRow['email'] ?? '';
+                    if (!empty($vRow['due_date'])) $app_settings['expiry_date'] = $vRow['due_date'];
+                    $foundCustomSettings = true;
+                }
+            }
+        }
+
+        // If still default or matches platform name, format nicely from directory name
+        if (!$foundCustomSettings || empty($app_settings['company_name']) || $app_settings['company_name'] === 'Diagnostic Centre ERP' || $app_settings['company_name'] === 'Vensaas LabTech' || $app_settings['company_name'] === 'Amma Diagnostic Centre') {
+            if ($currentDir === 'medione') {
+                $app_settings['company_name'] = 'MEDIONE Diagnostic Centre';
+            } elseif ($currentDir === 'sm_medical_centre') {
+                $app_settings['company_name'] = 'SM Medical Centre';
+            } else {
+                $words = explode('_', str_replace('-', '_', $currentDir));
+                $formatted = array_map(function($w) {
+                    return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
+                }, $words);
+                $app_settings['company_name'] = implode(' ', $formatted);
+            }
         }
     }
 }

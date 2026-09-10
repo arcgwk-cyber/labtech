@@ -339,7 +339,6 @@ try {
             return ['success' => false, 'error' => "Master dump SQL not found at: {$dumpSqlPath}"];
         }
 
-        $rawSlug = !empty($customSlug) ? self::slugify($customSlug) : self::slugify($vendor['name'] ?? 'lab');
         $state = strtolower(trim($stateCode));
         if (empty($state) && !empty($vendor['remarks']) && preg_match('/(?:State|Region):\s*([a-zA-Z]{2})/i', $vendor['remarks'], $sm)) {
             $state = strtolower($sm[1]);
@@ -349,11 +348,13 @@ try {
             $state = 'ap';
         }
 
-        // If customSlug already starts with a known state prefix (e.g. ap/medione), normalize it
-        if (preg_match('~^([a-zA-Z]{2})[\\/](.+)$~', $rawSlug, $nm)) {
+        // If customSlug already starts with a known state prefix (e.g. ap/medione or ap_medione), normalize it
+        $inputSlug = trim($customSlug ?: ($vendor['name'] ?? 'lab'));
+        if (preg_match('~^([a-zA-Z]{2})[\\/_\-](.+)$~', $inputSlug, $nm)) {
             $state = strtolower($nm[1]);
-            $rawSlug = self::slugify($nm[2]);
+            $inputSlug = $nm[2];
         }
+        $rawSlug = self::slugify($inputSlug);
 
         $fullSlug = $state . '/' . $rawSlug;
         $targetLabDir = $workspaceRoot . '/' . $state . '/' . $rawSlug;

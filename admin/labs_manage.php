@@ -133,13 +133,37 @@ if ($conn && !$conn->connect_error) {
               $folder_slug = LabProvisioner::slugify($lab['name']);
               if (!empty($lab['remarks']) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-\/]+)/', $lab['remarks'], $m)) {
                   $folder_slug = trim($m[1], '/');
-              } else {
-                  // If not in remarks, check if it exists in a state directory (e.g. ap/{slug})
-                  $workspaceRoot = dirname(__DIR__);
-                  foreach (['ap', 'ts', 'os', 'od', 'ka', 'tn'] as $sc) {
+              }
+
+              // Check if folder slug is missing state prefix (e.g. 'medione' or 'sm_medical_centre')
+              $workspaceRoot = dirname(__DIR__);
+              if (strpos($folder_slug, '/') === false) {
+                  $stateCodes = ['ap', 'ts', 'os', 'od', 'ka', 'tn', 'mh', 'dl', 'wb', 'kl', 'labs'];
+                  $matchedState = null;
+                  foreach ($stateCodes as $sc) {
                       if (is_dir($workspaceRoot . '/' . $sc . '/' . $folder_slug)) {
-                          $folder_slug = $sc . '/' . $folder_slug;
+                          $matchedState = $sc;
                           break;
+                      }
+                  }
+
+                  // Default known Andhra Pradesh labs to 'ap'
+                  if (!$matchedState && ($folder_slug === 'medione' || $folder_slug === 'sm_medical_centre')) {
+                      $matchedState = 'ap';
+                  }
+
+                  if ($matchedState) {
+                      $folder_slug = $matchedState . '/' . $folder_slug;
+                      // Auto-update remarks in vendor_master in database
+                      if ($conn && !$conn->connect_error) {
+                          $currentRemarks = $lab['remarks'] ?? '';
+                          if (preg_match('/Provisioned at \/[a-zA-Z0-9_\-]+/', $currentRemarks)) {
+                              $newRemarks = preg_replace('/Provisioned at \/[a-zA-Z0-9_\-]+/', 'Provisioned at /' . $folder_slug, $currentRemarks);
+                          } else {
+                              $newRemarks = trim("Provisioned at /{$folder_slug} | " . $currentRemarks, ' |');
+                          }
+                          @$conn->query("UPDATE vendor_master SET remarks = '" . $conn->real_escape_string($newRemarks) . "' WHERE vendor_id = {$vid}");
+                          $lab['remarks'] = $newRemarks;
                       }
                   }
               }

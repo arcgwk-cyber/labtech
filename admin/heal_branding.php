@@ -37,60 +37,97 @@ if (!in_array('status', $cols))      { $conn->query("ALTER TABLE admin_settings 
 if (!in_array('expiry_date', $cols)) { $conn->query("ALTER TABLE admin_settings ADD COLUMN expiry_date DATE DEFAULT NULL"); }
 if (!in_array('grace_days', $cols))  { $conn->query("ALTER TABLE admin_settings ADD COLUMN grace_days INT DEFAULT 7"); }
 
-// 2. Check if SM Medical Centre is currently in row 1
-$r1 = $conn->query("SELECT * FROM admin_settings WHERE id = 1 LIMIT 1");
-$row1 = ($r1 && $r1->num_rows > 0) ? $r1->fetch_assoc() : null;
+// 2. Normalize remarks in vendor_master to include state code (e.g. /ap/medione)
+$vRes = $conn->query("SELECT vendor_id, name, vendor_userid, password, remarks FROM vendor_master");
+if ($vRes) {
+    while ($vRow = $vRes->fetch_assoc()) {
+        $vid = (int)$vRow['vendor_id'];
+        $rem = $vRow['remarks'] ?? '';
+        $folderSlug = null;
+        if (preg_match('/Provisioned at \/([a-zA-Z0-9_\-\/]+)/', $rem, $m)) {
+            $folderSlug = trim($m[1], '/');
+        } else {
+            $folderSlug = strtolower(preg_replace('/[^a-zA-Z0-9_]+/', '_', trim($vRow['name'])));
+        }
 
-if ($row1 && (stripos($row1['company_name'] ?? '', 'SM') !== false)) {
-    // Preserve SM Medical Centre in its own row under lab_slug = 'sm_medical_centre'
-    $chkSM = $conn->query("SELECT id FROM admin_settings WHERE lab_slug = 'sm_medical_centre' LIMIT 1");
-    if (!$chkSM || $chkSM->num_rows === 0) {
-        $smName = $conn->real_escape_string($row1['company_name']);
-        $smAddr = $conn->real_escape_string($row1['company_address'] ?? 'Canara Bank Road, Opp. Vallabha Dharma Kata, B-Block, Autonagar, Gajuwaka, Visakhapatnam - 530 012');
-        $smPhone = $conn->real_escape_string($row1['phone'] ?? '9490262751, 9291347464');
-        $smEmail = $conn->real_escape_string($row1['email'] ?? 'sm.medicalcentre@gmail.com');
-        $conn->query("INSERT INTO admin_settings (company_name, company_address, phone, email, lab_slug, status) 
-                      VALUES ('{$smName}', '{$smAddr}', '{$smPhone}', '{$smEmail}', 'sm_medical_centre', 'active')");
-        $log[] = "Preserved SM Medical Centre under lab_slug = 'sm_medical_centre'.";
-    }
+        if (strpos($folderSlug, '/') === false) {
+            $stateCodes = ['ap', 'ts', 'os', 'od', 'ka', 'tn', 'mh', 'dl', 'wb', 'kl', 'labs'];
+            $matchedState = null;
+            $wsRoot = dirname(__DIR__);
+            foreach ($stateCodes as $sc) {
+                if (is_dir($wsRoot . '/' . $sc . '/' . $folderSlug)) {
+                    $matchedState = $sc;
+                    break;
+                }
+            }
+            if (!$matchedState && ($folderSlug === 'medione' || $folderSlug === 'sm_medical_centre')) {
+                $matchedState = 'ap';
+            }
+            if ($matchedState) {
+                $newSlug = $matchedState . '/' . $folderSlug;
+                if (preg_match('/Provisioned at \/[a-zA-Z0-9_\-]+/', $rem)) {
+                    $newRem = preg_replace('/Provisioned at \/[a-zA-Z0-9_\-]+/', 'Provisioned at /' . $newSlug, $rem);
+                } else {
+                    $newRem = trim("Provisioned at /{$newSlug} | " . $rem, ' |');
+                }
+                $conn->query("UPDATE vendor_master SET remarks = '" . $conn->real_escape_string($newRem) . "' WHERE vendor_id = {$vid}");
+                $log[] = "Updated vendor #{$vid} ({$vRow['name']}) remarks to /{$newSlug}.";
+            }
+        }
 
-    // Set row 1 to demo (Vensaas LabTech) if it was Amma
-    $conn->query("UPDATE admin_settings SET 
-                  company_name = 'Vensaas LabTech',
-                  company_address = 'Visakhapatnam-530016 (A.P)',
-                  phone = '+91 9515680080',
-                  email = 'info@vensaas.com',
-                  lab_slug = 'demo',
-                  status = 'active'
-                  WHERE id = 1 AND (company_name = 'Amma Diagnostic Centre' OR company_name = '')");
-    $log[] = "Updated row 1 to demo (lab_slug = 'demo').";
-} else {
-    // Ensure demo row exists with lab_slug = 'demo'
-    $chkDemo = $conn->query("SELECT id, company_name FROM admin_settings WHERE lab_slug = 'demo' LIMIT 1");
-    if (!$chkDemo || $chkDemo->num_rows === 0) {
-        $conn->query("INSERT INTO admin_settings (company_name, company_address, phone, email, lab_slug, status) 
-                      VALUES ('Vensaas LabTech', 'Visakhapatnam-530016 (A.P)', '+91 9515680080', 'info@vensaas.com', 'demo', 'active')");
-        $log[] = "Created separate demo row for Vensaas LabTech.";
-    } else {
-        $demoRow = $chkDemo->fetch_assoc();
-        if ($demoRow['company_name'] === 'Amma Diagnostic Centre') {
-            $conn->query("UPDATE admin_settings SET 
-                          company_name = 'Vensaas LabTech',
-                          company_address = 'Visakhapatnam-530016 (A.P)',
-                          phone = '+91 9515680080',
-                          email = 'info@vensaas.com'
-                          WHERE lab_slug = 'demo'");
-            $log[] = "Migrated demo from Amma Diagnostic Centre to Vensaas LabTech.";
+        // Ensure this vendor's admin user exists in users table with active status!
+        if (!empty($vRow['vendor_userid']) && !empty($vRow['password'])) {
+            $uName = $vRow['vendor_userid'];
+            $uPass = $vRow['password'];
+            $chkU = $conn->query("SELECT user_id FROM users WHERE username = '" . $conn->real_escape_string($uName) . "' LIMIT 1");
+            $uHash = password_hash($uPass, PASSWORD_BCRYPT);
+            if (!$chkU || $chkU->num_rows === 0) {
+                $roleChk = $conn->query("SELECT role_id FROM roles WHERE role_id = 1 LIMIT 1");
+                $roleId = ($roleChk && $roleChk->num_rows > 0) ? 1 : 1;
+                $conn->query("INSERT INTO users (username, password_hash, full_name, role_id, status) 
+                              VALUES ('" . $conn->real_escape_string($uName) . "', '{$uHash}', '" . $conn->real_escape_string($vRow['name']) . "', {$roleId}, 'active')");
+                $log[] = "Seeded active user '{$uName}' for {$vRow['name']} into users table.";
+            } else {
+                $conn->query("UPDATE users SET password_hash = '{$uHash}', status = 'active' WHERE username = '" . $conn->real_escape_string($uName) . "'");
+                $log[] = "Synchronized password and activated user '{$uName}'.";
+            }
         }
     }
+}
 
-    // Ensure SM Medical Centre row exists if SM Medical Centre folder exists
-    $chkSM = $conn->query("SELECT id FROM admin_settings WHERE lab_slug = 'sm_medical_centre' LIMIT 1");
-    if (!$chkSM || $chkSM->num_rows === 0) {
-        $conn->query("INSERT INTO admin_settings (company_name, company_address, phone, email, lab_slug, status) 
-                      VALUES ('SM Medical Centre', 'Canara Bank Road, Opp. Vallabha Dharma Kata, B-Block, Autonagar, Gajuwaka, Visakhapatnam - 530 012', '9490262751, 9291347464', 'sm.medicalcentre@gmail.com', 'sm_medical_centre', 'active')");
-        $log[] = "Initialized SM Medical Centre under lab_slug = 'sm_medical_centre'.";
-    }
+// 3. Ensure distinct admin_settings rows for demo, MEDIONE, and SM Medical Centre
+// Demo row (Vensaas LabTech)
+$chkDemo = $conn->query("SELECT id FROM admin_settings WHERE lab_slug = 'demo' LIMIT 1");
+if (!$chkDemo || $chkDemo->num_rows === 0) {
+    $conn->query("INSERT INTO admin_settings (company_name, company_address, phone, email, lab_slug, status) 
+                  VALUES ('Vensaas LabTech', 'Visakhapatnam-530016 (A.P)', '+91 9515680080', 'info@vensaas.com', 'demo', 'active')");
+    $log[] = "Created demo row under lab_slug = 'demo'.";
+} else {
+    $conn->query("UPDATE admin_settings SET company_name = 'Vensaas LabTech', status = 'active' WHERE lab_slug = 'demo'");
+}
+
+// MEDIONE Diagnostic Centre row
+$chkMed = $conn->query("SELECT id FROM admin_settings WHERE lab_slug = 'ap/medione' OR lab_slug = 'medione' LIMIT 1");
+if (!$chkMed || $chkMed->num_rows === 0) {
+    $conn->query("INSERT INTO admin_settings (company_name, company_address, phone, email, lab_slug, status) 
+                  VALUES ('MEDIONE Diagnostic Centre', 'Andhra Pradesh', '9876543210', 'medione@diagnostic.com', 'ap/medione', 'active')");
+    $log[] = "Created admin_settings row for MEDIONE Diagnostic Centre (ap/medione).";
+} else {
+    $rowM = $chkMed->fetch_assoc();
+    $conn->query("UPDATE admin_settings SET company_name = 'MEDIONE Diagnostic Centre', lab_slug = 'ap/medione', status = 'active' WHERE id = " . (int)$rowM['id']);
+    $log[] = "Updated admin_settings for MEDIONE Diagnostic Centre.";
+}
+
+// SM Medical Centre row
+$chkSM = $conn->query("SELECT id FROM admin_settings WHERE lab_slug = 'ap/sm_medical_centre' OR lab_slug = 'sm_medical_centre' LIMIT 1");
+if (!$chkSM || $chkSM->num_rows === 0) {
+    $conn->query("INSERT INTO admin_settings (company_name, company_address, phone, email, lab_slug, status) 
+                  VALUES ('SM Medical Centre', 'Canara Bank Road, Opp. Vallabha Dharma Kata, B-Block, Autonagar, Gajuwaka, Visakhapatnam - 530 012', '9490262751, 9291347464', 'sm.medicalcentre@gmail.com', 'ap/sm_medical_centre', 'active')");
+    $log[] = "Created admin_settings row for SM Medical Centre (ap/sm_medical_centre).";
+} else {
+    $rowS = $chkSM->fetch_assoc();
+    $conn->query("UPDATE admin_settings SET company_name = 'SM Medical Centre', lab_slug = 'ap/sm_medical_centre', status = 'active' WHERE id = " . (int)$rowS['id']);
+    $log[] = "Updated admin_settings for SM Medical Centre.";
 }
 
 // 3. Output results
