@@ -316,14 +316,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     foreach ($targetsToSync as $slug => $lab) {
+        $wasMissing = false;
         if (!$lab['exists_on_disk']) {
-            $syncOutput[] = [
-                'slug'     => $slug,
-                'name'     => $lab['name'],
-                'status'   => 'error',
-                'msg'      => "Directory does not exist on disk at {$lab['full_path']}"
-            ];
-            continue;
+            if ($dryRun) {
+                $syncOutput[] = [
+                    'slug'     => $slug,
+                    'name'     => $lab['name'],
+                    'status'   => 'warning',
+                    'msg'      => "Dry Run: Folder does not exist yet. Running real sync will auto-deploy from /base."
+                ];
+                continue;
+            } else {
+                // Auto-deploy folder from base/
+                $wasMissing = true;
+                LabProvisioner::copyDirectory($baseTemplateDir, $lab['full_path']);
+                if (!file_exists($lab['full_path'] . '/db.php')) {
+                    @copy($baseTemplateDir . '/db.php', $lab['full_path'] . '/db.php');
+                }
+                $lab['exists_on_disk'] = true;
+            }
         }
 
         // 1. File Synchronization
@@ -331,6 +342,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         // 2. Database Migration
         $dbStats = migrateTenantDatabase($lab['full_path'], $slug, $conn);
+
+        if ($wasMissing) {
+            $dbStats['alters_run'][] = "Auto-created missing tenant folder /{$slug} from /base template";
+        }
 
         $syncOutput[] = [
             'slug'     => $slug,
@@ -538,9 +553,15 @@ $labsList = discoverAllLabs($workspaceRoot, $conn);
                     <form method="POST" action="sync_labs.php" class="d-inline" onsubmit="return confirm('Synchronize lab \'<?= htmlspecialchars(addslashes($lab['name'])) ?>\'?');">
                       <input type="hidden" name="action" value="sync_single">
                       <input type="hidden" name="target_slug" value="<?= htmlspecialchars($lab['folder_slug']) ?>">
-                      <button type="submit" class="btn btn-sm btn-outline-primary fw-semibold" <?= !$lab['exists_on_disk'] ? 'disabled' : '' ?>>
-                        <i class="fas fa-sync-alt me-1"></i> Sync This Lab
-                      </button>
+                      <?php if ($lab['exists_on_disk']): ?>
+                        <button type="submit" class="btn btn-sm btn-outline-primary fw-semibold">
+                          <i class="fas fa-sync-alt me-1"></i> Sync This Lab
+                        </button>
+                      <?php else: ?>
+                        <button type="submit" class="btn btn-sm btn-success fw-semibold shadow-sm" title="Directory not found. Click to deploy template from /base!">
+                          <i class="fas fa-rocket me-1"></i> Deploy &amp; Sync Folder
+                        </button>
+                      <?php endif; ?>
                     </form>
                   </div>
                 </td>
