@@ -30,10 +30,11 @@ if (!function_exists('loadEnvFile')) {
     }
 }
 
-// Check for .env in current directory or parent directory
+// Check for .env in current directory, parent directory, or grandparent directory (for state folders e.g. /ap/medione/)
 $possible_env_paths = [
     __DIR__ . '/.env',
-    dirname(__DIR__) . '/.env'
+    dirname(__DIR__) . '/.env',
+    dirname(dirname(__DIR__)) . '/.env'
 ];
 foreach ($possible_env_paths as $ep) {
     if (file_exists($ep)) {

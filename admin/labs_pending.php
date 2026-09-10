@@ -139,18 +139,29 @@ $highlight_id = (int)($_GET['approve_id'] ?? 0);
                 <h6 class="fw-bold text-dark mb-3"><i class="fas fa-cogs text-primary me-2"></i> Auto-Provisioning Setup</h6>
                 
                 <div class="row g-2 mb-3">
-                  <div class="col-sm-6">
-                    <label class="form-label small fw-semibold text-muted mb-1">Folder Slug (URL)</label>
+                  <div class="col-sm-3">
+                    <label class="form-label small fw-semibold text-muted mb-1">State / Region</label>
+                    <select name="state_code" class="form-select form-select-sm" required>
+                      <option value="ap" selected>AP - Andhra Pradesh</option>
+                      <option value="ts">TS - Telangana</option>
+                      <option value="os">OS - Odisha</option>
+                      <option value="ka">KA - Karnataka</option>
+                      <option value="tn">TN - Tamil Nadu</option>
+                      <option value="mh">MH - Maharashtra</option>
+                    </select>
+                  </div>
+                  <div class="col-sm-4">
+                    <label class="form-label small fw-semibold text-muted mb-1">Folder Slug</label>
                     <div class="input-group input-group-sm">
-                      <span class="input-group-text bg-white">/</span>
+                      <span class="input-group-text bg-white font-monospace text-muted">/</span>
                       <input type="text" name="folder_slug" class="form-control" value="<?= htmlspecialchars($suggested_slug) ?>" required pattern="[a-zA-Z0-9_\-]+" title="Alphanumeric and underscores only">
                     </div>
                   </div>
-                  <div class="col-sm-6">
+                  <div class="col-sm-5">
                     <label class="form-label small fw-semibold text-muted mb-1">Database Name</label>
                     <input type="text" name="db_name" class="form-control form-control-sm" value="<?= htmlspecialchars($suggested_db) ?>" required>
                     <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">
-                      <i class="fas fa-plug text-success"></i> Connects directly to existing DB in Hostinger (will not create DB).
+                      <i class="fas fa-plug text-success"></i> Connects directly to existing DB in Hostinger.
                     </small>
                   </div>
                 </div>

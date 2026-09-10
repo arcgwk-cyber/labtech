@@ -137,11 +137,23 @@
                   <label class="form-label fw-semibold">Laboratory Address</label>
                   <textarea name="address" class="form-control" rows="2" placeholder="Full laboratory address, building, road, area..."></textarea>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold">Pincode / Postal Code</label>
-                  <input type="text" name="pincode" class="form-control" placeholder="e.g. 600001">
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">State / Region <span class="text-danger">*</span></label>
+                  <select name="state_code" id="stateCode" class="form-select" required>
+                    <option value="ap" selected>Andhra Pradesh (AP)</option>
+                    <option value="ts">Telangana (TS)</option>
+                    <option value="os">Odisha (OS)</option>
+                    <option value="ka">Karnataka (KA)</option>
+                    <option value="tn">Tamil Nadu (TN)</option>
+                    <option value="mh">Maharashtra (MH)</option>
+                    <option value="other">Other State</option>
+                  </select>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Pincode / Postal Code</label>
+                  <input type="text" name="pincode" class="form-control" placeholder="e.g. 530016">
+                </div>
+                <div class="col-md-4">
                   <label class="form-label fw-semibold">Contact Phone / Mobile <span class="text-danger">*</span></label>
                   <input type="tel" name="phone" class="form-control" placeholder="e.g. +91 9876543210" required>
                 </div>

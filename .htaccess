@@ -1,0 +1,16 @@
+﻿# VenSaas LabTech - Central Multi-Tenant Routing & Security
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # 1. Backwards Compatibility: If a lab is accessed at /lab_name/ and exists in /ap/lab_name/, transparently rewrite
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{DOCUMENT_ROOT}/ap/$1 -d
+    RewriteRule ^([^/]+)/(.*)$ ap/$1/$2 [L,QSA]
+
+    # 2. Prevent direct browsing of sensitive backup dumps or git folders
+    <FilesMatch "(^\.env|\.sql$|\.log$)">
+        Require all denied
+    </FilesMatch>
+</IfModule>

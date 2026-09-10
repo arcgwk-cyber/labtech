@@ -58,8 +58,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Ensure tenant directory exists and write db.php with submitted DB settings
             $folder_slug_temp = LabProvisioner::slugify($name);
-            if (preg_match('/Provisioned at \/([a-zA-Z0-9_\-]+)/', $remarks, $m)) {
-                $folder_slug_temp = $m[1];
+            if (preg_match('/Provisioned at \/([a-zA-Z0-9_\-\/]+)/', $remarks, $m)) {
+                $folder_slug_temp = trim($m[1], '/');
+            } else {
+                $workspaceRoot = dirname(__DIR__);
+                foreach (['ap', 'ts', 'os', 'od', 'ka', 'tn'] as $sc) {
+                    if (is_dir($workspaceRoot . '/' . $sc . '/' . $folder_slug_temp)) {
+                        $folder_slug_temp = $sc . '/' . $folder_slug_temp;
+                        break;
+                    }
+                }
             }
             $tDir = dirname(__DIR__) . '/' . $folder_slug_temp;
             if (!empty($db_name_post)) {
@@ -143,8 +151,16 @@ if (!$lab) {
 }
 
 $folder_slug = LabProvisioner::slugify($lab['name']);
-if (!empty($lab['remarks']) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-]+)/', $lab['remarks'], $m)) {
-    $folder_slug = $m[1];
+if (!empty($lab['remarks']) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-\/]+)/', $lab['remarks'], $m)) {
+    $folder_slug = trim($m[1], '/');
+} else {
+    $workspaceRootInit = dirname(__DIR__);
+    foreach (['ap', 'ts', 'os', 'od', 'ka', 'tn'] as $sc) {
+        if (is_dir($workspaceRootInit . '/' . $sc . '/' . $folder_slug)) {
+            $folder_slug = $sc . '/' . $folder_slug;
+            break;
+        }
+    }
 }
 $tenant_dir = dirname(__DIR__) . '/' . $folder_slug;
 
@@ -157,8 +173,15 @@ function syncOrPurgeTenantLab($lab, $action = 'sync') {
     
     // 1. Resolve folder slug
     $folder_slug = LabProvisioner::slugify($lab['name']);
-    if (!empty($lab['remarks']) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-]+)/', $lab['remarks'], $m)) {
-        $folder_slug = $m[1];
+    if (!empty($lab['remarks']) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-\/]+)/', $lab['remarks'], $m)) {
+        $folder_slug = trim($m[1], '/');
+    } else {
+        foreach (['ap', 'ts', 'os', 'od', 'ka', 'tn'] as $sc) {
+            if (is_dir($workspaceRoot . '/' . $sc . '/' . $folder_slug)) {
+                $folder_slug = $sc . '/' . $folder_slug;
+                break;
+            }
+        }
     }
     $tenant_dir = $workspaceRoot . '/' . $folder_slug;
 

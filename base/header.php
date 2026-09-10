@@ -30,7 +30,7 @@ $app_settings = [
 ];
 
 if ($conn && !$conn->connect_error) {
-    $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+    $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' OR lab_slug LIKE '%/{$labSlug}' LIMIT 1");
     if ($res && $row = $res->fetch_assoc()) {
         $app_settings = array_merge($app_settings, $row);
     } else {

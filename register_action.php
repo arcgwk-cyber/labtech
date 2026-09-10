@@ -67,7 +67,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($checkStmt->get_result()->fetch_assoc()) {
                 $error = "The User ID '{$vendor_userid}' is already registered. Please choose a different User ID.";
             } else {
-                $remarks_val = "Suggested Folder: /" . $folder_slug;
+                $state_code = strtolower(trim($_POST['state_code'] ?? 'ap'));
+                if (empty($state_code) || $state_code === 'other') $state_code = 'ap';
+                $remarks_val = "Region: " . strtoupper($state_code) . " | Suggested Folder: /" . $state_code . "/" . $folder_slug;
                 $stmt = $conn->prepare("INSERT INTO vendor_master 
                     (vendor_userid, password, name, address, pincode, phone, email, logo_image, letterhead_image, status, payment, remarks) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'unpaid', ?)");

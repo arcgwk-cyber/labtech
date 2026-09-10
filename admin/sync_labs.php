@@ -47,17 +47,35 @@ function discoverAllLabs($workspaceRoot, $conn) {
     $labs = [];
     $seenFolders = [];
 
+    // Known state code directories
+    $stateCodes = ['ap', 'ts', 'os', 'od', 'ka', 'tn', 'mh', 'dl', 'wb', 'kl', 'labs'];
+
     // 1. Fetch from database vendor_master
     if ($conn && !$conn->connect_error) {
         $res = $conn->query("SELECT * FROM vendor_master ORDER BY vendor_id DESC");
         if ($res) {
             while ($row = $res->fetch_assoc()) {
                 $folder = LabProvisioner::slugify($row['name']);
-                if (!empty($row['remarks']) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-]+)/', $row['remarks'], $m)) {
-                    $folder = $m[1];
+                
+                // Check if remarks specifies full path or state/slug path
+                if (!empty($row['remarks']) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-\/]+)/', $row['remarks'], $m)) {
+                    $folder = trim($m[1], '/');
                 }
+
                 $path = $workspaceRoot . '/' . $folder;
                 $existsOnDisk = is_dir($path);
+                
+                // If not found at root, check inside state directories (e.g. /ap/{slug})
+                if (!$existsOnDisk && strpos($folder, '/') === false) {
+                    foreach ($stateCodes as $sc) {
+                        if (is_dir($workspaceRoot . '/' . $sc . '/' . $folder)) {
+                            $folder = $sc . '/' . $folder;
+                            $path = $workspaceRoot . '/' . $folder;
+                            $existsOnDisk = true;
+                            break;
+                        }
+                    }
+                }
                 
                 $labs[$folder] = [
                     'name'           => $row['name'],
@@ -89,8 +107,39 @@ function discoverAllLabs($workspaceRoot, $conn) {
         $seenFolders['demo'] = true;
     }
 
-    // 3. Scan physical folders in root to detect orphan or direct tenant folders (e.g. medione, sm_medical_centre)
-    $ignoreDirs = ['.git', 'admin', 'base', 'assets', 'uploads', 'dump', 'scratch'];
+    // 3. Scan physical state subdirectories (e.g. /ap/medione, /ts/care_lab, /os/konark)
+    foreach ($stateCodes as $sc) {
+        $stateDirPath = $workspaceRoot . '/' . $sc;
+        if (is_dir($stateDirPath)) {
+            if ($sHandle = opendir($stateDirPath)) {
+                while (false !== ($sEntry = readdir($sHandle))) {
+                    if ($sEntry === '.' || $sEntry === '..' || $sEntry === '.gitkeep') continue;
+                    $labSubPath = $stateDirPath . '/' . $sEntry;
+                    $relSlug = $sc . '/' . $sEntry;
+                    if (is_dir($labSubPath) && !isset($seenFolders[$relSlug])) {
+                        if (file_exists($labSubPath . '/db.php') || file_exists($labSubPath . '/header.php')) {
+                            $cleanName = ucwords(str_replace(['_', '-'], ' ', $sEntry)) . " (" . strtoupper($sc) . ")";
+                            $labs[$relSlug] = [
+                                'name'           => $cleanName,
+                                'folder_slug'    => $relSlug,
+                                'vendor_id'      => 0,
+                                'vendor_userid'  => 'tenant_admin',
+                                'status'         => 'active',
+                                'exists_on_disk' => true,
+                                'full_path'      => $labSubPath,
+                                'source'         => 'state_disk_scan'
+                            ];
+                            $seenFolders[$relSlug] = true;
+                        }
+                    }
+                }
+                closedir($sHandle);
+            }
+        }
+    }
+
+    // 4. Scan physical root folders for legacy tenant folders (e.g. sm_medical_centre)
+    $ignoreDirs = array_merge(['.git', 'admin', 'base', 'assets', 'uploads', 'dump', 'scratch', 'demo'], $stateCodes);
     if ($handle = opendir($workspaceRoot)) {
         while (false !== ($entry = readdir($handle))) {
             if ($entry === '.' || $entry === '..' || in_array($entry, $ignoreDirs)) continue;

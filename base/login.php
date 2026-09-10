@@ -24,8 +24,8 @@ if ($conn && !$conn->connect_error) {
         @$conn->query("ALTER TABLE admin_settings ADD INDEX (lab_slug)");
     }
 
-    // 2. Query admin_settings for current lab
-    $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' LIMIT 1");
+    // 2. Query admin_settings for current lab (matches either slug 'medione' or state-prefixed 'ap/medione')
+    $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$labSlug}' OR lab_slug LIKE '%/{$labSlug}' LIMIT 1");
     if ($res && $row = $res->fetch_assoc()) {
         $settings = array_merge($settings, $row);
     } else {

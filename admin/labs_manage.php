@@ -131,8 +131,17 @@ if ($conn && !$conn->connect_error) {
               $is_active = ($lab['status'] === 'active');
               $is_pending = ($lab['status'] === 'pending');
               $folder_slug = LabProvisioner::slugify($lab['name']);
-              if (!empty($lab['remarks']) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-]+)/', $lab['remarks'], $m)) {
-                  $folder_slug = $m[1];
+              if (!empty($lab['remarks']) && preg_match('/Provisioned at \/([a-zA-Z0-9_\-\/]+)/', $lab['remarks'], $m)) {
+                  $folder_slug = trim($m[1], '/');
+              } else {
+                  // If not in remarks, check if it exists in a state directory (e.g. ap/{slug})
+                  $workspaceRoot = dirname(__DIR__);
+                  foreach (['ap', 'ts', 'os', 'od', 'ka', 'tn'] as $sc) {
+                      if (is_dir($workspaceRoot . '/' . $sc . '/' . $folder_slug)) {
+                          $folder_slug = $sc . '/' . $folder_slug;
+                          break;
+                      }
+                  }
               }
               
               $days_left = null;

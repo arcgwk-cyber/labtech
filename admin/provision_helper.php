@@ -327,7 +327,7 @@ try {
         }
     }
 
-    public static function provisionLab($vendor, $customSlug = '', $customDbName = '', $customUser = '', $customPass = '', $trialDays = 14, $customDbUser = '', $customDbPass = '') {
+    public static function provisionLab($vendor, $customSlug = '', $customDbName = '', $customUser = '', $customPass = '', $trialDays = 14, $customDbUser = '', $customDbPass = '', $stateCode = '') {
         $workspaceRoot = dirname(__DIR__); // g:/LABTECH
         $baseTemplateDir = $workspaceRoot . '/base';
         $dumpSqlPath = $workspaceRoot . '/dump/diagnostic_lab_db.sql';
@@ -339,8 +339,31 @@ try {
             return ['success' => false, 'error' => "Master dump SQL not found at: {$dumpSqlPath}"];
         }
 
-        $slug = !empty($customSlug) ? self::slugify($customSlug) : self::slugify($vendor['name'] ?? 'lab');
-        $targetLabDir = $workspaceRoot . '/' . $slug;
+        $rawSlug = !empty($customSlug) ? self::slugify($customSlug) : self::slugify($vendor['name'] ?? 'lab');
+        $state = strtolower(trim($stateCode));
+        if (empty($state) && !empty($vendor['remarks']) && preg_match('/(?:State|Region):\s*([a-zA-Z]{2})/i', $vendor['remarks'], $sm)) {
+            $state = strtolower($sm[1]);
+        }
+        // Default state fallback if not specified: 'ap'
+        if (empty($state)) {
+            $state = 'ap';
+        }
+
+        // If customSlug already starts with a known state prefix (e.g. ap/medione), normalize it
+        if (preg_match('~^([a-zA-Z]{2})[\\/](.+)$~', $rawSlug, $nm)) {
+            $state = strtolower($nm[1]);
+            $rawSlug = self::slugify($nm[2]);
+        }
+
+        $fullSlug = $state . '/' . $rawSlug;
+        $targetLabDir = $workspaceRoot . '/' . $state . '/' . $rawSlug;
+
+        // Ensure state folder exists
+        $stateDir = $workspaceRoot . '/' . $state;
+        if (!is_dir($stateDir)) {
+            @mkdir($stateDir, 0755, true);
+            @file_put_contents($stateDir . '/.gitkeep', ' ');
+        }
 
         // 1. Clone base/ directory
         $copyResult = self::copyDirectory($baseTemplateDir, $targetLabDir);
@@ -350,7 +373,7 @@ try {
 
         // 2. Database credentials & connection
         $dbHost = getenv('DB_HOST') ?: 'localhost';
-        $dbName = !empty($customDbName) ? $customDbName : 'lab_' . $slug;
+        $dbName = !empty($customDbName) ? $customDbName : 'lab_' . $rawSlug;
 
         // 3. Connect to pre-created tenant database directly
         $dbConnRes = self::connectDatabase($dbHost, $customDbUser, $customDbPass, $dbName);
@@ -424,7 +447,7 @@ try {
         }
 
         // 6. Seed tenant admin credentials
-        $adminUsername = !empty($customUser) ? $customUser : ($vendor['vendor_userid'] ?? 'admin_' . $slug);
+        $adminUsername = !empty($customUser) ? $customUser : ($vendor['vendor_userid'] ?? 'admin_' . $rawSlug);
         $adminPassword = !empty($customPass) ? $customPass : ($vendor['password'] ?? 'Lab@' . rand(1000, 9999));
         $adminFullName = $vendor['name'] ?? 'Lab Administrator';
 
@@ -468,14 +491,14 @@ try {
             // Refresh available columns
             $cols = $pdoTenant->query("DESCRIBE admin_settings")->fetchAll(PDO::FETCH_COLUMN);
 
-            // Check if existing record with this lab_slug exists
-            $stmtSlug = $pdoTenant->prepare("SELECT id FROM admin_settings WHERE lab_slug = ? LIMIT 1");
-            $stmtSlug->execute([$slug]);
+            // Check if existing record with this lab_slug exists (check both fullSlug and rawSlug)
+            $stmtSlug = $pdoTenant->prepare("SELECT id FROM admin_settings WHERE lab_slug = ? OR lab_slug = ? LIMIT 1");
+            $stmtSlug->execute([$fullSlug, $rawSlug]);
             $existingSlug = $stmtSlug->fetch();
 
             if ($existingSlug) {
-                $fields = ["company_name = ?", "company_address = ?"];
-                $params = [$labName, $labAddr];
+                $fields = ["company_name = ?", "company_address = ?", "lab_slug = ?"];
+                $params = [$labName, $labAddr, $fullSlug];
                 if (in_array('phone', $cols)) { $fields[] = "phone = ?"; $params[] = $labPhone; }
                 if (in_array('email', $cols)) { $fields[] = "email = ?"; $params[] = $labEmail; }
                 if (in_array('status', $cols)) { $fields[] = "status = 'active'"; }
@@ -489,12 +512,12 @@ try {
                 if ($totalRows === 0) {
                     $pdoTenant->prepare("INSERT INTO admin_settings (id, company_name, company_address, phone, email, lab_slug, status, expiry_date, grace_days) 
                                         VALUES (1, ?, ?, ?, ?, ?, 'active', ?, 7)")
-                              ->execute([$labName, $labAddr, $labPhone, $labEmail, $slug, $dueDate]);
+                              ->execute([$labName, $labAddr, $labPhone, $labEmail, $fullSlug, $dueDate]);
                 } else {
                     // Shared DB: insert separate tenant row so other labs (e.g. Amma Diagnostic Centre demo) are untouched!
                     $pdoTenant->prepare("INSERT INTO admin_settings (company_name, company_address, phone, email, lab_slug, status, expiry_date, grace_days) 
                                         VALUES (?, ?, ?, ?, ?, 'active', ?, 7)")
-                              ->execute([$labName, $labAddr, $labPhone, $labEmail, $slug, $dueDate]);
+                              ->execute([$labName, $labAddr, $labPhone, $labEmail, $fullSlug, $dueDate]);
                 }
             }
         } catch (Exception $e) {
@@ -503,13 +526,15 @@ try {
 
         return [
             'success'        => true,
-            'folder_slug'    => $slug,
+            'folder_slug'    => $fullSlug,
+            'raw_slug'       => $rawSlug,
+            'state'          => $state,
             'folder_path'    => $targetLabDir,
             'db_name'        => $dbName,
             'admin_username' => $adminUsername,
             'admin_password' => $adminPassword,
             'due_date'       => $dueDate,
-            'login_url'      => "../{$slug}/login.php"
+            'login_url'      => "../{$fullSlug}/login.php"
         ];
     }
 }

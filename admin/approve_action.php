@@ -14,6 +14,7 @@ $custom_db_pass = trim($_POST['db_pass'] ?? '');
 $admin_user     = trim($_POST['admin_username'] ?? '');
 $admin_pass     = trim($_POST['admin_password'] ?? '');
 $trial_days     = (int)($_POST['trial_days'] ?? 14);
+$state_code     = trim($_POST['state_code'] ?? 'ap');
 
 $error = '';
 $result = null;
@@ -40,7 +41,8 @@ if ($vendor_id <= 0) {
             $admin_pass, 
             $trial_days, 
             $custom_db_user, 
-            $custom_db_pass
+            $custom_db_pass,
+            $state_code
         );
 
         if (!$result['success']) {

@@ -29,3 +29,43 @@ demo/qrtemp/*.png
 .env
 .env.local
 .env.*.local
+
+# -------------------------------------------------------------------
+# Multi-Tenant Lab State Directories (NEVER commit or wipe tenant labs)
+# State directory structure is tracked via .gitkeep, but all individual
+# lab tenant folders inside are completely protected from Git deployments
+# (e.g. Hostinger/cPanel git clean / git pull will NEVER touch them)
+# -------------------------------------------------------------------
+/ap/*
+!/ap/.gitkeep
+
+/ts/*
+!/ts/.gitkeep
+
+/os/*
+!/os/.gitkeep
+
+/od/*
+!/od/.gitkeep
+
+/ka/*
+!/ka/.gitkeep
+
+/tn/*
+!/tn/.gitkeep
+
+/mh/*
+!/mh/.gitkeep
+
+/dl/*
+!/dl/.gitkeep
+
+/wb/*
+!/wb/.gitkeep
+
+/kl/*
+!/kl/.gitkeep
+
+/labs/*
+!/labs/.gitkeep
+
