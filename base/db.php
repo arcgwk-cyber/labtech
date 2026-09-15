@@ -122,6 +122,68 @@ if (!$conn || $conn->connect_error) {
         }
     }
     ensureFormulaEngineSchema($conn);
+
+    // Auto-migration for Bill Cancellation & Modification-Locking Workflow
+    if (!function_exists('ensureBillCancellationSchema')) {
+        function ensureBillCancellationSchema($conn) {
+            if (!$conn || $conn->connect_error) return;
+            static $checked = false;
+            if ($checked) return;
+            $checked = true;
+
+            if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['bill_cancel_schema_checked'])) {
+                return;
+            }
+
+            $colsRes = $conn->query("SHOW COLUMNS FROM bills");
+            if ($colsRes) {
+                $existing = [];
+                while ($c = $colsRes->fetch_assoc()) {
+                    $existing[strtolower($c['Field'])] = true;
+                }
+                if (empty($existing['status'])) {
+                    @$conn->query("ALTER TABLE bills ADD COLUMN status ENUM('active', 'cancelled') NOT NULL DEFAULT 'active' AFTER payment_status");
+                    @$conn->query("ALTER TABLE bills ADD INDEX idx_bills_status (status)");
+                }
+                if (empty($existing['cancellation_status'])) {
+                    @$conn->query("ALTER TABLE bills ADD COLUMN cancellation_status ENUM('none', 'requested', 'approved', 'rejected') NOT NULL DEFAULT 'none' AFTER status");
+                    @$conn->query("ALTER TABLE bills ADD INDEX idx_bills_cancellation (cancellation_status)");
+                }
+                if (empty($existing['cancellation_reason'])) {
+                    @$conn->query("ALTER TABLE bills ADD COLUMN cancellation_reason TEXT NULL AFTER cancellation_status");
+                }
+                if (empty($existing['cancellation_requested_by'])) {
+                    @$conn->query("ALTER TABLE bills ADD COLUMN cancellation_requested_by INT(11) NULL AFTER cancellation_reason");
+                }
+                if (empty($existing['cancellation_requested_at'])) {
+                    @$conn->query("ALTER TABLE bills ADD COLUMN cancellation_requested_at DATETIME NULL AFTER cancellation_requested_by");
+                }
+                if (empty($existing['cancelled_by'])) {
+                    @$conn->query("ALTER TABLE bills ADD COLUMN cancelled_by INT(11) NULL AFTER cancellation_requested_at");
+                }
+                if (empty($existing['cancelled_at'])) {
+                    @$conn->query("ALTER TABLE bills ADD COLUMN cancelled_at DATETIME NULL AFTER cancelled_by");
+                }
+                if (empty($existing['cancellation_admin_remarks'])) {
+                    @$conn->query("ALTER TABLE bills ADD COLUMN cancellation_admin_remarks TEXT NULL AFTER cancelled_at");
+                }
+                if (empty($existing['report_printed'])) {
+                    @$conn->query("ALTER TABLE bills ADD COLUMN report_printed TINYINT(1) NOT NULL DEFAULT 0 AFTER result_entered");
+                }
+                if (empty($existing['report_printed_at'])) {
+                    @$conn->query("ALTER TABLE bills ADD COLUMN report_printed_at DATETIME NULL AFTER report_printed");
+                }
+                if (empty($existing['report_printed_by'])) {
+                    @$conn->query("ALTER TABLE bills ADD COLUMN report_printed_by INT(11) NULL AFTER report_printed_at");
+                }
+            }
+
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                $_SESSION['bill_cancel_schema_checked'] = true;
+            }
+        }
+    }
+    ensureBillCancellationSchema($conn);
 }
 
 // 2. PDO Connection ($pdo) - Lazy loaded only when needed to cut DB connection overhead by 50%

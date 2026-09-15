@@ -62,12 +62,12 @@ $kpis = [
 ];
 
 if ($conn) {
-    // Bills & Revenue
+    // Bills & Revenue (exclude cancelled bills)
     $bq = $conn->query("SELECT COUNT(*) AS total_bills, 
                                COALESCE(SUM(total_amount), 0) AS total_revenue, 
                                COALESCE(SUM(balance), 0) AS total_due 
                         FROM bills 
-                        WHERE bill_date BETWEEN '$start_date' AND '$end_date'");
+                        WHERE (status != 'cancelled' OR status IS NULL) AND bill_date BETWEEN '$start_date' AND '$end_date'");
     if ($bq && $brow = $bq->fetch_assoc()) {
         $kpis['total_bills']   = (int)$brow['total_bills'];
         $kpis['total_revenue'] = (float)$brow['total_revenue'];
@@ -82,10 +82,10 @@ if ($conn) {
         $kpis['completed_tests'] = (int)$trow['total_completed'];
     }
 
-    // Pending Samples (fast direct index lookup without expensive table scan)
+    // Pending Samples (fast direct index lookup, exclude cancelled bills)
     $sq = $conn->query("SELECT COUNT(*) AS pending 
                         FROM bills 
-                        WHERE (sample_collected = 0 OR sample_collected IS NULL) AND bill_date BETWEEN '$start_date' AND '$end_date'");
+                        WHERE (status != 'cancelled' OR status IS NULL) AND (sample_collected = 0 OR sample_collected IS NULL) AND bill_date BETWEEN '$start_date' AND '$end_date'");
     if ($sq && $srow = $sq->fetch_assoc()) {
         $kpis['pending_samples'] = (int)$srow['pending'];
     }
@@ -381,35 +381,52 @@ if ($conn) {
             </thead>
             <tbody>
               <?php foreach ($recentBills as $b): ?>
-                <tr>
-                  <td><strong>#<?= $b['bill_id'] ?></strong></td>
+                <?php 
+                  $isBCancelled = ($b['status'] ?? '') === 'cancelled';
+                  $isBPending = ($b['cancellation_status'] ?? '') === 'requested';
+                ?>
+                <tr class="<?= $isBCancelled ? 'table-light opacity-75' : '' ?>">
                   <td>
-                    <div class="fw-semibold"><?= htmlspecialchars($b['patient_name'] ?? 'Walk-in Patient') ?></div>
+                    <strong class="<?= $isBCancelled ? 'text-danger text-decoration-line-through' : '' ?>">#<?= $b['bill_id'] ?></strong>
+                    <?php if ($isBCancelled): ?>
+                      <div><span class="badge bg-danger" style="font-size: 0.65rem;">VOID</span></div>
+                    <?php elseif ($isBPending): ?>
+                      <div><span class="badge bg-warning text-dark" style="font-size: 0.65rem;">CANCEL REQ</span></div>
+                    <?php endif; ?>
+                  </td>
+                  <td>
+                    <div class="fw-semibold <?= $isBCancelled ? 'text-muted' : '' ?>"><?= htmlspecialchars($b['patient_name'] ?? 'Walk-in Patient') ?></div>
                     <small class="text-muted"><?= htmlspecialchars($b['patient_phone'] ?? '') ?></small>
                   </td>
                   <td><?= date('d M Y', strtotime($b['bill_date'])) ?></td>
-                  <td class="fw-semibold">₹<?= number_format($b['total_amount'], 2) ?></td>
+                  <td class="fw-semibold <?= $isBCancelled ? 'text-muted text-decoration-line-through' : '' ?>">₹<?= number_format($b['total_amount'], 2) ?></td>
                   <td class="text-success">₹<?= number_format($b['paid_amount'], 2) ?></td>
                   <td class="text-danger">₹<?= number_format($b['balance'], 2) ?></td>
                   <td>
-                    <?php
-                      $badgeClass = match($b['payment_status']) {
-                        'paid'    => 'bg-success',
-                        'partial' => 'bg-warning text-dark',
-                        default   => 'bg-danger'
-                      };
-                    ?>
-                    <span class="badge <?= $badgeClass ?>"><?= ucfirst($b['payment_status']) ?></span>
+                    <?php if ($isBCancelled): ?>
+                      <span class="badge bg-danger">Cancelled</span>
+                    <?php else: ?>
+                      <?php
+                        $badgeClass = match($b['payment_status']) {
+                          'paid'    => 'bg-success',
+                          'partial' => 'bg-warning text-dark',
+                          default   => 'bg-danger'
+                        };
+                      ?>
+                      <span class="badge <?= $badgeClass ?>"><?= ucfirst($b['payment_status']) ?></span>
+                    <?php endif; ?>
                   </td>
                   <td class="text-end">
                     <a href="print_bill.php?id=<?= $b['bill_id'] ?>" target="_blank" class="btn btn-outline-secondary btn-sm" title="Print Invoice">
                       <i class="fas fa-print"></i>
                     </a>
-                    <a href="result_entry.php?bill_id=<?= $b['bill_id'] ?>" class="btn btn-outline-success btn-sm" title="Enter Results">
-                      <i class="fas fa-notes-medical"></i>
-                    </a>
-                    <a href="bill_edit.php?id=<?= $b['bill_id'] ?>" class="btn btn-outline-primary btn-sm" title="Edit Bill">
-                      <i class="fas fa-edit"></i>
+                    <?php if (!$isBCancelled): ?>
+                      <a href="result_entry.php?bill_id=<?= $b['bill_id'] ?>" class="btn btn-outline-success btn-sm" title="Enter Results">
+                        <i class="fas fa-notes-medical"></i>
+                      </a>
+                    <?php endif; ?>
+                    <a href="bill_edit.php?id=<?= $b['bill_id'] ?>" class="btn btn-outline-primary btn-sm" title="<?= $isBCancelled ? 'View Cancelled Bill' : 'Edit Bill' ?>">
+                      <i class="fas <?= $isBCancelled ? 'fa-eye' : 'fa-edit' ?>"></i>
                     </a>
                   </td>
                 </tr>

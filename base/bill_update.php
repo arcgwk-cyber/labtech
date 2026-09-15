@@ -16,6 +16,55 @@ $patient_type_id = !empty($_POST['patient_type_id']) ? (int)$_POST['patient_type
 $item_types  = $_POST['item_type'] ?? [];
 $item_ids    = $_POST['item_id'] ?? [];
 
+$current_role = strtolower($_SESSION['role'] ?? 'user');
+$role_id      = (int)($_SESSION['role_id'] ?? 0);
+$is_admin     = ($current_role === 'admin' || $role_id === 1);
+
+// Clinical Audit Protection: Check if bill modification is locked
+if ($bill_id > 0) {
+    $lockStmt = $conn->prepare("SELECT status, report_printed, result_entered FROM bills WHERE bill_id = ? LIMIT 1");
+    if ($lockStmt) {
+        $lockStmt->bind_param("i", $bill_id);
+        $lockStmt->execute();
+        $billRow = $lockStmt->get_result()->fetch_assoc();
+        $lockStmt->close();
+
+        if ($billRow) {
+            if ($billRow['status'] === 'cancelled') {
+                $_SESSION['alert'] = [
+                    'type' => 'danger',
+                    'msg'  => "Cannot modify Bill #{$bill_id}: This invoice is cancelled and voided."
+                ];
+                header("Location: bill_list.php");
+                exit;
+            }
+
+            $is_report_done = ((int)$billRow['result_entered'] === 1) || ((int)($billRow['report_printed'] ?? 0) === 1);
+            if (!$is_report_done) {
+                $rChk = $conn->prepare("SELECT COUNT(*) as cnt FROM test_results WHERE bill_id = ? AND result_value IS NOT NULL AND TRIM(result_value) != ''");
+                if ($rChk) {
+                    $rChk->bind_param("i", $bill_id);
+                    $rChk->execute();
+                    $cRow = $rChk->get_result()->fetch_assoc();
+                    if ($cRow && (int)$cRow['cnt'] > 0) {
+                        $is_report_done = true;
+                    }
+                    $rChk->close();
+                }
+            }
+
+            if ($is_report_done && !$is_admin) {
+                $_SESSION['alert'] = [
+                    'type' => 'danger',
+                    'msg'  => "Modification locked: Diagnostic report has already been generated or printed for Bill #{$bill_id}. Non-admin users cannot alter completed clinical bills. Please request bill cancellation from Administrator."
+                ];
+                header("Location: bill_list.php");
+                exit;
+            }
+        }
+    }
+}
+
 $conn->begin_transaction();
 
 try {

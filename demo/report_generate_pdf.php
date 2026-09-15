@@ -712,6 +712,7 @@ function renderReportFooterSignature($pdf, $qr_link, $include_signature, $bottom
 if (!class_exists('LabReportTCPDF')) {
     class LabReportTCPDF extends TCPDF {
         public $letterhead_image_path = null;
+        public $is_cancelled = false;
 
         public function Header() {
             if (!empty($this->letterhead_image_path) && file_exists($this->letterhead_image_path)) {
@@ -722,12 +723,30 @@ if (!class_exists('LabReportTCPDF')) {
                 $this->SetAutoPageBreak($auto_page_break, $bMargin);
                 $this->setPageMark();
             }
+
+            // Render prominent diagonal CANCELLED / VOID watermark across all pages
+            if ($this->is_cancelled) {
+                $auto_page_break = $this->AutoPageBreak;
+                $bMargin = $this->getBreakMargin();
+                $this->SetAutoPageBreak(false, 0);
+                $this->SetFont('helvetica', 'B', 48);
+                $this->SetTextColor(220, 38, 38);
+                $this->SetAlpha(0.22);
+                $this->StartTransform();
+                $this->Rotate(45, 105, 148);
+                $this->Text(40, 140, 'CANCELLED / VOID');
+                $this->StopTransform();
+                $this->SetAlpha(1);
+                $this->SetAutoPageBreak($auto_page_break, $bMargin);
+                $this->setPageMark();
+            }
         }
     }
 }
 
 // --- Initialize PDF ---
 $pdf = new LabReportTCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+$pdf->is_cancelled = (($bill['status'] ?? 'active') === 'cancelled');
 
 // Read custom margins from $opts if configured
 $configured_top_margin = isset($opts['top_margin']) && is_numeric($opts['top_margin']) ? floatval($opts['top_margin']) : null;
@@ -854,6 +873,15 @@ $border_color = ($report_style === 'modern') ? '#e2e8f0' : '#cbd5e1';
 // Lab Letterhead HTML (if printed mode)
 $lab_header_block = $show_lab_header ? getLabHeaderHTML($conn) : '';
 
+$is_cancelled = (($bill['status'] ?? 'active') === 'cancelled');
+$cancelled_banner = '';
+if ($is_cancelled) {
+    $cancelled_banner = '<div style="background-color:#fee2e2; border:2px solid #ef4444; color:#991b1b; padding:6px; text-align:center; font-weight:bold; font-size:11px; margin-bottom:8px;">
+        *** ATTENTION: THIS REPORT HAS BEEN CANCELLED & VOIDED ***<br>
+        <span style="font-size:8.5px; font-weight:normal;">Reason: ' . htmlspecialchars($bill['cancellation_reason'] ?? 'Cancelled by Lab') . ' &bull; Voided on: ' . (!empty($bill['cancelled_at']) ? date('d-M-Y h:i A', strtotime($bill['cancelled_at'])) : 'N/A') . '</span>
+    </div>';
+}
+
 if ($pagebreak_per_test) {
     // Mode A: Test-wise Page Break (Each major test on fresh page)
     foreach ($grouped_results as $group => $tests) {
@@ -861,7 +889,7 @@ if ($pagebreak_per_test) {
             [$curr_test_id, $test_name] = explode('|', $test_key);
             $pdf->AddPage();
 
-            $html = $lab_header_block;
+            $html = $lab_header_block . $cancelled_banner;
             $html .= generatePatientHTML($bill, $age, $gender, $dr_ref, $report_date, $report_style);
             $html .= '<div style="margin-top:6px; margin-bottom:4px; font-size:11px; font-weight:bold; color:#0f172a; text-align:center; border-bottom:1px solid #cbd5e1; padding-bottom:3px;">' . strtoupper(htmlspecialchars($test_name)) . '</div>';
             $html .= getTestHeader($report_style);
@@ -916,7 +944,7 @@ if ($pagebreak_per_test) {
 } else {
     // Mode B: Standard Continuous Flow (No page breaks between tests)
     $pdf->AddPage();
-    $html = $lab_header_block;
+    $html = $lab_header_block . $cancelled_banner;
     $html .= generatePatientHTML($bill, $age, $gender, $dr_ref, $report_date, $report_style);
     $html .= '<div style="font-size: 4px; line-height: 4px;">&nbsp;</div>';
 
@@ -981,6 +1009,17 @@ if ($pagebreak_per_test) {
 // Auto-trigger browser print dialog if requested
 if ($print_mode) {
     $pdf->IncludeJS("print();");
+}
+
+// Mark report as printed / generated in database if not in preview mode
+if (!$preview_mode) {
+    $curr_user_id = $_SESSION['user_id'] ?? null;
+    $upPrintStmt = $conn->prepare("UPDATE bills SET report_printed = 1, report_printed_at = NOW(), report_printed_by = ? WHERE bill_id = ? AND (report_printed = 0 OR report_printed IS NULL)");
+    if ($upPrintStmt) {
+        $upPrintStmt->bind_param("ii", $curr_user_id, $bill_id);
+        $upPrintStmt->execute();
+        $upPrintStmt->close();
+    }
 }
 
 ob_end_clean();

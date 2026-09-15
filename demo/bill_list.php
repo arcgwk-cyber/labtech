@@ -4,11 +4,25 @@ include 'auth_check.php';
 require_once 'db.php';
 
 // 1. Collect Filter & Sort Inputs (All Bills by default, no date restriction)
-$search        = trim($_GET['search'] ?? '');
-$sample_filter = trim($_GET['sample'] ?? '');
-$start_date    = trim($_GET['start_date'] ?? '');
-$end_date      = trim($_GET['end_date'] ?? '');
-$sort          = trim($_GET['sort'] ?? 'bill_desc');
+$search         = trim($_GET['search'] ?? '');
+$sample_filter  = trim($_GET['sample'] ?? '');
+$status_filter  = trim($_GET['status'] ?? 'all');
+$start_date     = trim($_GET['start_date'] ?? '');
+$end_date       = trim($_GET['end_date'] ?? '');
+$sort           = trim($_GET['sort'] ?? 'bill_desc');
+
+$current_role   = strtolower($_SESSION['role'] ?? 'user');
+$role_id        = (int)($_SESSION['role_id'] ?? 0);
+$is_admin       = ($current_role === 'admin' || $role_id === 1);
+
+// Count pending cancellation requests for admin notification
+$pendingCancelCount = 0;
+if ($is_admin) {
+    $pRes = $conn->query("SELECT COUNT(*) as cnt FROM bills WHERE cancellation_status = 'requested'");
+    if ($pRes && $pRow = $pRes->fetch_assoc()) {
+        $pendingCancelCount = (int)$pRow['cnt'];
+    }
+}
 
 $page   = (isset($_GET['page']) && is_numeric($_GET['page']) && (int)$_GET['page'] > 0) ? (int)$_GET['page'] : 1;
 $limit  = 30;
@@ -42,6 +56,14 @@ if ($sample_filter !== '' && $sample_filter !== 'all') {
     $types .= "s";
 }
 
+if ($status_filter === 'active') {
+    $whereClause .= " AND (b.status = 'active' OR b.status IS NULL)";
+} elseif ($status_filter === 'pending_approval') {
+    $whereClause .= " AND b.cancellation_status = 'requested'";
+} elseif ($status_filter === 'cancelled') {
+    $whereClause .= " AND b.status = 'cancelled'";
+}
+
 if ($start_date !== '' && $end_date !== '') {
     $whereClause .= " AND b.bill_date BETWEEN ? AND ?";
     $params[] = $start_date;
@@ -66,13 +88,14 @@ $totalRows  = (int)($countStmt->get_result()->fetch_assoc()['total'] ?? 0);
 $totalPages = ceil($totalRows / $limit) ?: 1;
 $countStmt->close();
 
-// 5. Query KPI Statistics for Filtered/All Rows
+// 5. Query KPI Statistics for Filtered/All Rows (Excluding cancelled bills from active revenue)
 $statsSql = "
     SELECT 
-        COUNT(DISTINCT b.bill_id) as total_bills,
-        COALESCE(SUM(b.total_amount), 0) as total_amount,
-        COUNT(DISTINCT CASE WHEN s.status = 'completed' THEN b.bill_id END) as completed,
-        COUNT(DISTINCT CASE WHEN LOWER(b.payment_status) = 'paid' THEN b.bill_id END) as paid
+        COUNT(DISTINCT CASE WHEN (b.status != 'cancelled' OR b.status IS NULL) THEN b.bill_id END) as total_bills,
+        COALESCE(SUM(CASE WHEN (b.status != 'cancelled' OR b.status IS NULL) THEN b.total_amount ELSE 0 END), 0) as total_amount,
+        COUNT(DISTINCT CASE WHEN s.status = 'completed' AND (b.status != 'cancelled' OR b.status IS NULL) THEN b.bill_id END) as completed,
+        COUNT(DISTINCT CASE WHEN LOWER(b.payment_status) = 'paid' AND (b.status != 'cancelled' OR b.status IS NULL) THEN b.bill_id END) as paid,
+        COUNT(DISTINCT CASE WHEN b.status = 'cancelled' THEN b.bill_id END) as cancelled_count
     FROM bills b
     JOIN patients p ON b.patient_id = p.patient_id
     LEFT JOIN test_samples s ON b.bill_id = s.bill_id
@@ -116,6 +139,7 @@ function buildUrl($overrides = []) {
     $current = [
         'search'     => $_GET['search'] ?? '',
         'sample'     => $_GET['sample'] ?? '',
+        'status'     => $_GET['status'] ?? 'all',
         'start_date' => $_GET['start_date'] ?? '',
         'end_date'   => $_GET['end_date'] ?? '',
         'sort'       => $_GET['sort'] ?? 'bill_desc',
@@ -525,15 +549,39 @@ function buildUrl($overrides = []) {
         
         <div class="erp-card-body">
             
+            <?php if (!empty($_SESSION['alert'])): ?>
+                <div class="alert alert-<?= htmlspecialchars($_SESSION['alert']['type']) ?> alert-dismissible fade show mb-3 shadow-sm" role="alert">
+                    <i class="bi <?= $_SESSION['alert']['type'] === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill' ?> me-2"></i>
+                    <?= htmlspecialchars($_SESSION['alert']['msg']) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <?php unset($_SESSION['alert']); ?>
+            <?php endif; ?>
+
+            <?php if ($is_admin && $pendingCancelCount > 0): ?>
+                <div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between mb-3 shadow-sm border-warning">
+                    <div class="d-flex align-items-center gap-2 mb-2 mb-md-0">
+                        <i class="bi bi-shield-exclamation text-warning fs-4"></i>
+                        <div>
+                            <strong class="d-block">Administrator Review Required:</strong>
+                            <span class="small text-muted">There <?= $pendingCancelCount === 1 ? 'is 1 bill cancellation request' : "are {$pendingCancelCount} bill cancellation requests" ?> awaiting your administrative approval.</span>
+                        </div>
+                    </div>
+                    <a href="bill_list.php?status=pending_approval" class="btn btn-sm btn-warning text-dark fw-bold px-3">
+                        <i class="bi bi-eye-fill me-1"></i> Review Requests (<?= $pendingCancelCount ?>)
+                    </a>
+                </div>
+            <?php endif; ?>
+
             <!-- Quick Statistics Grid -->
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-value"><?= number_format($stats['total_bills'] ?? 0) ?></div>
-                    <div class="stat-label">Total Invoices</div>
+                    <div class="stat-label">Active Invoices</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" style="color: var(--erp-primary);">₹<?= number_format($stats['total_amount'] ?? 0, 2) ?></div>
-                    <div class="stat-label">Billed Amount</div>
+                    <div class="stat-label">Active Billed (₹)</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" style="color: var(--erp-success);"><?= number_format($stats['completed'] ?? 0) ?></div>
@@ -543,6 +591,12 @@ function buildUrl($overrides = []) {
                     <div class="stat-value text-success"><?= number_format($stats['paid'] ?? 0) ?></div>
                     <div class="stat-label">Paid Bills</div>
                 </div>
+                <?php if (($stats['cancelled_count'] ?? 0) > 0): ?>
+                <div class="stat-card" style="border-left: 3px solid var(--erp-danger);">
+                    <div class="stat-value text-danger"><?= number_format($stats['cancelled_count']) ?></div>
+                    <div class="stat-label">Cancelled Bills</div>
+                </div>
+                <?php endif; ?>
             </div>
 
             <!-- Responsive Filter & Search Toolbar -->
@@ -563,6 +617,19 @@ function buildUrl($overrides = []) {
                         <option value="bill_asc" <?= $sort === 'bill_asc' ? 'selected' : '' ?>>Bill # (Oldest to Newest)</option>
                         <option value="date_desc" <?= $sort === 'date_desc' ? 'selected' : '' ?>>Date (Newest First)</option>
                         <option value="date_asc" <?= $sort === 'date_asc' ? 'selected' : '' ?>>Date (Oldest First)</option>
+                    </select>
+                </div>
+
+                <!-- Bill Status -->
+                <div style="flex: 1.2; min-width: 150px;">
+                    <label class="form-label-compact"><i class="bi bi-shield-check me-1"></i> Bill Status</label>
+                    <select name="status" class="form-control-compact">
+                        <option value="all" <?= $status_filter === 'all' ? 'selected' : '' ?>>All Invoices</option>
+                        <option value="active" <?= $status_filter === 'active' ? 'selected' : '' ?>>Active Only</option>
+                        <option value="pending_approval" <?= $status_filter === 'pending_approval' ? 'selected' : '' ?>>
+                            Cancellation Pending <?= ($pendingCancelCount > 0) ? "({$pendingCancelCount})" : '' ?>
+                        </option>
+                        <option value="cancelled" <?= $status_filter === 'cancelled' ? 'selected' : '' ?>>Cancelled / Void</option>
                     </select>
                 </div>
 
@@ -642,16 +709,26 @@ function buildUrl($overrides = []) {
                                 $testsPreview .= ' +' . ($row['total_items'] - count($testList)) . ' more';
                             }
                             ?>
-                            <tr>
+                            <?php
+                            $isCancelled = (($row['status'] ?? '') === 'cancelled');
+                            $isPendingCancel = (($row['cancellation_status'] ?? '') === 'requested');
+                            $isReportDone = ((int)($row['result_entered'] ?? 0) === 1) || ((int)($row['report_printed'] ?? 0) === 1);
+                            ?>
+                            <tr class="<?= $isCancelled ? 'table-light opacity-75' : '' ?>">
                                 <td data-label="Bill #">
-                                    <strong class="text-primary font-monospace fs-6">#<?= $row['bill_id'] ?></strong>
+                                    <strong class="<?= $isCancelled ? 'text-danger text-decoration-line-through' : 'text-primary' ?> font-monospace fs-6">#<?= $row['bill_id'] ?></strong>
+                                    <?php if ($isCancelled): ?>
+                                        <div><span class="badge bg-danger font-monospace" style="font-size:0.65rem;"><i class="bi bi-slash-circle me-1"></i>CANCELLED</span></div>
+                                    <?php elseif ($isPendingCancel): ?>
+                                        <div><span class="badge bg-warning text-dark font-monospace" style="font-size:0.65rem;" title="<?= htmlspecialchars($row['cancellation_reason'] ?? '') ?>"><i class="bi bi-hourglass-split me-1"></i>CANCEL REQ</span></div>
+                                    <?php endif; ?>
                                 </td>
                                 <td data-label="Date">
                                     <div class="text-end text-md-start"><?= date('d M Y', strtotime($row['bill_date'])) ?> <small class="text-muted">(<?= date('D', strtotime($row['bill_date'])) ?>)</small></div>
                                 </td>
                                 <td data-label="Patient">
                                     <div class="text-end text-md-start">
-                                        <a href="patient_history.php?patient_id=<?= $row['patient_id'] ?>" class="fw-bold text-primary text-decoration-none" title="View Patient 360° History">
+                                        <a href="patient_history.php?patient_id=<?= $row['patient_id'] ?>" class="fw-bold <?= $isCancelled ? 'text-muted' : 'text-primary' ?> text-decoration-none" title="View Patient 360° History">
                                             <?= htmlspecialchars($row['full_name']) ?> <i class="fas fa-history text-muted ms-1" style="font-size: 0.72rem;"></i>
                                         </a>
                                         <div class="small text-muted mt-1">
@@ -667,8 +744,13 @@ function buildUrl($overrides = []) {
                                 </td>
                                 <td data-label="Amount">
                                     <div class="text-end text-md-start">
-                                        <div class="fw-bold text-primary">₹<?= number_format($row['total_amount'], 2) ?></div>
-                                        <small class="text-muted">Paid: ₹<?= number_format($row['paid_amount'] ?? 0, 2) ?></small>
+                                        <?php if ($isCancelled): ?>
+                                            <div class="text-muted text-decoration-line-through small">₹<?= number_format($row['total_amount'], 2) ?></div>
+                                            <span class="badge bg-danger-subtle text-danger border border-danger small">VOID</span>
+                                        <?php else: ?>
+                                            <div class="fw-bold text-primary">₹<?= number_format($row['total_amount'], 2) ?></div>
+                                            <small class="text-muted">Paid: ₹<?= number_format($row['paid_amount'] ?? 0, 2) ?></small>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                                 <td data-label="Tests">
@@ -712,18 +794,38 @@ function buildUrl($overrides = []) {
                                            class="btn btn-outline-secondary btn-sm" title="Print Invoice Receipt">
                                             <i class="bi bi-receipt"></i> Bill
                                         </a>
-                                        <a href="result_entry.php?bill_id=<?= $row['bill_id'] ?>" 
-                                           class="btn btn-outline-success btn-sm" title="Enter / View Test Results">
-                                            <i class="bi bi-clipboard-pulse"></i> Results
-                                        </a>
-                                        <a href="pdf_options.php?bill_id=<?= $row['bill_id'] ?>" 
-                                           class="btn btn-outline-danger btn-sm" title="Customize, Preview & Print Diagnostic Report">
-                                            <i class="bi bi-file-earmark-pdf"></i> Report
-                                        </a>
+                                        <?php if (!$isCancelled): ?>
+                                            <a href="result_entry.php?bill_id=<?= $row['bill_id'] ?>" 
+                                               class="btn btn-outline-success btn-sm" title="Enter / View Test Results">
+                                                <i class="bi bi-clipboard-pulse"></i> Results
+                                            </a>
+                                            <a href="pdf_options.php?bill_id=<?= $row['bill_id'] ?>" 
+                                               class="btn btn-outline-danger btn-sm" title="Customize, Preview & Print Diagnostic Report">
+                                                <i class="bi bi-file-earmark-pdf"></i> Report
+                                            </a>
+                                        <?php endif; ?>
                                         <a href="bill_edit.php?id=<?= $row['bill_id'] ?>" 
-                                           class="btn btn-outline-primary btn-sm" title="Edit Bill">
-                                            <i class="bi bi-pencil"></i>
+                                           class="btn btn-outline-primary btn-sm" title="<?= $isCancelled ? 'View Cancelled Bill (Read-Only)' : 'Edit Bill' ?>">
+                                            <i class="bi <?= $isCancelled ? 'bi-eye' : 'bi-pencil' ?>"></i>
                                         </a>
+
+                                        <?php if ($isCancelled): ?>
+                                            <!-- Voided -->
+                                        <?php elseif ($isPendingCancel && $is_admin): ?>
+                                            <button type="button" class="btn btn-warning btn-sm text-dark px-2 shadow-sm" title="Review Cancellation Request"
+                                                    onclick="openApprovalModal(<?= $row['bill_id'] ?>, '<?= htmlspecialchars(addslashes($row['full_name']), ENT_QUOTES) ?>', '<?= htmlspecialchars(addslashes($row['cancellation_reason'] ?? ''), ENT_QUOTES) ?>', '<?= htmlspecialchars($row['cancellation_requested_at'] ?? '', ENT_QUOTES) ?>')">
+                                                <i class="bi bi-shield-check"></i> Review
+                                            </button>
+                                        <?php elseif ($isPendingCancel && !$is_admin): ?>
+                                            <span class="btn btn-outline-warning btn-sm disabled px-2" title="Cancellation request pending admin approval">
+                                                <i class="bi bi-hourglass-split"></i> Pending
+                                            </span>
+                                        <?php else: ?>
+                                            <button type="button" class="btn btn-outline-danger btn-sm px-2" title="<?= ($isReportDone && !$is_admin) ? 'Request Cancellation (Admin Approval)' : 'Cancel Bill' ?>"
+                                                    onclick="openCancelModal(<?= $row['bill_id'] ?>, '<?= htmlspecialchars(addslashes($row['full_name']), ENT_QUOTES) ?>', <?= $isReportDone ? 'true' : 'false' ?>, <?= $is_admin ? 'true' : 'false' ?>)">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
@@ -786,6 +888,149 @@ function buildUrl($overrides = []) {
     </div>
 </div>
 
+<!-- Bill Cancellation Modal -->
+<div class="modal fade" id="billListCancelModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0">
+      <form action="bill_cancel.php" method="POST">
+        <input type="hidden" name="bill_id" id="cancel_modal_bill_id" value="">
+        <input type="hidden" name="action" id="cancel_modal_action" value="">
+
+        <div class="modal-header" id="cancel_modal_header">
+          <h5 class="modal-title fw-bold" id="cancel_modal_title">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> Bill Cancellation
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body p-4">
+          <div class="text-center mb-3">
+            <div class="badge bg-light text-dark border px-3 py-2 font-monospace fs-6" id="cancel_modal_patient_badge">
+              Bill # - Patient
+            </div>
+          </div>
+
+          <div id="cancel_modal_notice" class="alert small mb-3"></div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Reason for Cancellation <span class="text-danger">*</span></label>
+            <textarea name="reason" class="form-control" rows="3" required placeholder="Please describe clinical or billing reason for cancellation..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn" id="cancel_modal_submit_btn">Confirm</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<?php if ($is_admin): ?>
+<!-- Admin Cancellation Approval Modal -->
+<div class="modal fade" id="adminApprovalModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0">
+      <form action="bill_cancel.php" method="POST" id="approvalForm">
+        <input type="hidden" name="bill_id" id="approval_bill_id" value="">
+        <input type="hidden" name="action" id="approval_action" value="approve_cancel">
+
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-shield-check me-2"></i> Review Cancellation Request
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body p-4">
+          <div class="text-center mb-3">
+            <div class="badge bg-light text-dark border px-3 py-2 font-monospace fs-6" id="approval_patient_badge">
+              Bill # - Patient
+            </div>
+          </div>
+
+          <div class="card bg-light border mb-3">
+            <div class="card-body p-3">
+              <div class="small text-muted fw-bold mb-1"><i class="bi bi-chat-left-quote me-1"></i> Staff Cancellation Reason:</div>
+              <div id="approval_reason_text" class="text-dark fst-italic"></div>
+              <div id="approval_time_text" class="text-muted small mt-2"></div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Administrator Remarks / Notes (Optional)</label>
+            <textarea name="admin_remarks" class="form-control" rows="2" placeholder="Optional notes regarding approval or rejection..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light d-flex justify-content-between">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-danger" onclick="submitApprovalAction('reject_cancel')">
+              <i class="bi bi-x-circle me-1"></i> Reject Request
+            </button>
+            <button type="button" class="btn btn-danger" onclick="submitApprovalAction('approve_cancel')">
+              <i class="bi bi-check2-circle me-1"></i> Approve & Void Bill
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function openCancelModal(billId, patientName, isReportDone, isAdmin) {
+    document.getElementById('cancel_modal_bill_id').value = billId;
+    document.getElementById('cancel_modal_patient_badge').textContent = 'Bill #' + billId + ' • ' + patientName;
+    
+    const header = document.getElementById('cancel_modal_header');
+    const title = document.getElementById('cancel_modal_title');
+    const notice = document.getElementById('cancel_modal_notice');
+    const submitBtn = document.getElementById('cancel_modal_submit_btn');
+    const actionInput = document.getElementById('cancel_modal_action');
+
+    if (isReportDone && !isAdmin) {
+        actionInput.value = 'request_cancel';
+        header.className = 'modal-header bg-warning text-dark';
+        title.innerHTML = '<i class="bi bi-shield-exclamation me-2"></i> Submit Cancellation Request';
+        notice.className = 'alert alert-warning border-warning small mb-3';
+        notice.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i> <strong>Diagnostic Report Generated:</strong> This bill has already been tested, printed, or downloaded. Non-admin staff cannot cancel this bill directly. Submitting this request will forward it to the <strong>Administrator</strong> for approval.';
+        submitBtn.className = 'btn btn-warning text-dark fw-bold';
+        submitBtn.innerHTML = '<i class="bi bi-send-check me-1"></i> Submit for Admin Approval';
+    } else {
+        actionInput.value = 'direct_cancel';
+        header.className = 'modal-header bg-danger text-white';
+        title.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i> Confirm Bill Cancellation';
+        notice.className = 'alert alert-danger border-danger small mb-3';
+        notice.innerHTML = '<i class="bi bi-exclamation-octagon-fill me-1"></i> <strong>Warning:</strong> Cancelling this bill will mark it as <strong>VOID / CANCELLED</strong>, deduct its amount from active revenue summaries, and watermark all printed invoices & reports. This action is permanently logged in the audit log.';
+        submitBtn.className = 'btn btn-danger';
+        submitBtn.innerHTML = '<i class="bi bi-x-circle me-1"></i> Yes, Cancel Bill Now';
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('billListCancelModal'));
+    modal.show();
+}
+
+<?php if ($is_admin): ?>
+function openApprovalModal(billId, patientName, reason, requestedAt) {
+    document.getElementById('approval_bill_id').value = billId;
+    document.getElementById('approval_patient_badge').textContent = 'Bill #' + billId + ' • ' + patientName;
+    document.getElementById('approval_reason_text').textContent = reason || 'No reason provided';
+    document.getElementById('approval_time_text').textContent = requestedAt ? ('Requested at: ' + requestedAt) : '';
+    
+    const modal = new bootstrap.Modal(document.getElementById('adminApprovalModal'));
+    modal.show();
+}
+
+function submitApprovalAction(action) {
+    document.getElementById('approval_action').value = action;
+    document.getElementById('approvalForm').submit();
+}
+<?php endif; ?>
+</script>
 </body>
 </html>

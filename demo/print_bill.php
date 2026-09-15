@@ -242,6 +242,31 @@ $billed_by = !empty($bill['billed_by_name']) ? $bill['billed_by_name'] : (!empty
       position: relative;
     }
 
+    .watermark-cancelled {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      font-size: 3.5rem;
+      font-weight: 900;
+      color: rgba(220, 38, 38, 0.15);
+      letter-spacing: 6px;
+      pointer-events: none;
+      border: 5px dashed rgba(220, 38, 38, 0.25);
+      padding: 12px 36px;
+      border-radius: 14px;
+      text-transform: uppercase;
+      z-index: 10;
+      white-space: nowrap;
+    }
+    @media print {
+      .watermark-cancelled {
+        color: rgba(220, 38, 38, 0.22) !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+
     /* Dynamic Digital Letterhead */
     .digital-header {
       display: flex;
@@ -554,6 +579,15 @@ $billed_by = !empty($bill['billed_by_name']) ? $bill['billed_by_name'] : (!empty
 
   <!-- Printable Invoice Box -->
   <div class="bill-box">
+    <?php if (($bill['status'] ?? 'active') === 'cancelled'): ?>
+      <div class="watermark-cancelled">CANCELLED / VOID</div>
+      <div class="alert alert-danger text-center py-2 px-3 mb-3 fw-bold border-danger shadow-sm">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i> THIS INVOICE HAS BEEN CANCELLED &amp; VOIDED
+        <div class="small fw-normal text-muted mt-1">
+          Reason: <?= htmlspecialchars($bill['cancellation_reason'] ?? 'Not specified') ?> &bull; Voided on: <?= !empty($bill['cancelled_at']) ? date('d-M-Y h:i A', strtotime($bill['cancelled_at'])) : 'N/A' ?>
+        </div>
+      </div>
+    <?php endif; ?>
 
     <!-- Pre-printed Stationery Spacer (Active when 1.5" blank mode toggled) -->
     <div class="preprinted-spacer"></div>

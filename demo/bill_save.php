@@ -40,6 +40,38 @@ try {
 
     // --- Save or update bill ---
     if ($bill_id > 0) {
+        $current_role = strtolower($_SESSION['role'] ?? 'user');
+        $role_id      = (int)($_SESSION['role_id'] ?? 0);
+        $is_admin     = ($current_role === 'admin' || $role_id === 1);
+
+        $lockStmt = $conn->prepare("SELECT status, report_printed, result_entered FROM bills WHERE bill_id = ? LIMIT 1");
+        if ($lockStmt) {
+            $lockStmt->bind_param("i", $bill_id);
+            $lockStmt->execute();
+            $bRow = $lockStmt->get_result()->fetch_assoc();
+            $lockStmt->close();
+
+            if ($bRow) {
+                if ($bRow['status'] === 'cancelled') {
+                    throw new Exception("Bill #{$bill_id} is cancelled and cannot be modified.");
+                }
+                $is_rep_done = ((int)$bRow['result_entered'] === 1) || ((int)($bRow['report_printed'] ?? 0) === 1);
+                if (!$is_rep_done) {
+                    $rC = $conn->prepare("SELECT COUNT(*) as c FROM test_results WHERE bill_id = ? AND result_value IS NOT NULL AND TRIM(result_value) != ''");
+                    if ($rC) {
+                        $rC->bind_param("i", $bill_id);
+                        $rC->execute();
+                        $cnt = (int)($rC->get_result()->fetch_assoc()['c'] ?? 0);
+                        if ($cnt > 0) $is_rep_done = true;
+                        $rC->close();
+                    }
+                }
+                if ($is_rep_done && !$is_admin) {
+                    throw new Exception("Modification locked: Diagnostic report has already been completed for Bill #{$bill_id}. Non-admin staff cannot alter completed bills.");
+                }
+            }
+        }
+
         $stmt = $conn->prepare("UPDATE bills 
             SET patient_id=?, bill_date=?, total_amount=?, paid_amount=?, balance=?, payment_status=?, patient_type_id=? 
             WHERE bill_id=?");

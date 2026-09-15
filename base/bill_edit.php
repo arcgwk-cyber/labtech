@@ -34,6 +34,26 @@ if (!$bill) {
     exit;
 }
 
+$current_role = strtolower($_SESSION['role'] ?? 'user');
+$role_id      = (int)($_SESSION['role_id'] ?? 0);
+$is_admin     = ($current_role === 'admin' || $role_id === 1);
+
+$is_cancelled   = (($bill['status'] ?? 'active') === 'cancelled');
+$is_report_done = ((int)$bill['result_entered'] === 1) || ((int)($bill['report_printed'] ?? 0) === 1);
+if (!$is_report_done) {
+    $rChk = $conn->prepare("SELECT COUNT(*) as cnt FROM test_results WHERE bill_id = ? AND result_value IS NOT NULL AND TRIM(result_value) != ''");
+    if ($rChk) {
+        $rChk->bind_param("i", $bill_id);
+        $rChk->execute();
+        $rcRow = $rChk->get_result()->fetch_assoc();
+        if ($rcRow && (int)$rcRow['cnt'] > 0) {
+            $is_report_done = true;
+        }
+        $rChk->close();
+    }
+}
+$is_locked_for_user = $is_cancelled || ($is_report_done && !$is_admin);
+
 $patient_id = (int)$bill['patient_id'];
 $p_stmt = $conn->prepare("SELECT * FROM patients WHERE patient_id = ?");
 $p_stmt->bind_param("i", $patient_id);
@@ -651,7 +671,49 @@ if ($doc_query) {
         <i class="bi bi-flask me-1"></i> Results Entry
       </a>
     </div>
-  </div>
+  <!-- Status & Lock Banners -->
+  <?php if ($is_cancelled): ?>
+    <div class="alert alert-danger d-flex align-items-center gap-3 p-3 mb-4 shadow-sm border-2 border-danger rounded-3">
+      <i class="bi bi-x-octagon-fill fs-1 text-danger"></i>
+      <div>
+        <h5 class="fw-bold mb-1 text-danger">This Bill is CANCELLED and VOIDED</h5>
+        <div>Reason: <strong><?= htmlspecialchars($bill['cancellation_reason'] ?? 'Not specified') ?></strong> &bull; Cancelled on: <strong><?= !empty($bill['cancelled_at']) ? date('d-M-Y h:i A', strtotime($bill['cancelled_at'])) : 'N/A' ?></strong></div>
+        <div class="small text-muted mt-1">Invoice modifications and result entries are permanently disabled for cancelled records.</div>
+      </div>
+    </div>
+  <?php elseif ($is_locked_for_user): ?>
+    <div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 mb-4 shadow-sm border-2 border-warning rounded-3">
+      <div class="d-flex align-items-center gap-3">
+        <i class="bi bi-lock-fill fs-1 text-warning"></i>
+        <div>
+          <h5 class="fw-bold mb-1 text-dark">Bill Modification Locked</h5>
+          <div class="text-dark">The diagnostic report for Bill #<?= $bill_id ?> has already been printed, downloaded, or results completed.</div>
+          <div class="small text-muted mt-1">To protect clinical audit compliance, non-admin staff cannot alter completed bills. If corrections are needed, please submit a Cancellation Request.</div>
+        </div>
+      </div>
+      <div>
+        <button type="button" class="btn btn-danger fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#cancelModal">
+          <i class="bi bi-x-circle me-1"></i> Request Cancellation
+        </button>
+      </div>
+    </div>
+  <?php elseif ($is_report_done && $is_admin): ?>
+    <div class="alert alert-info d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 mb-4 shadow-sm border-2 border-info rounded-3">
+      <div class="d-flex align-items-center gap-3">
+        <i class="bi bi-shield-exclamation fs-1 text-primary"></i>
+        <div>
+          <h5 class="fw-bold mb-1 text-primary">Administrator Override Mode</h5>
+          <div class="text-dark">The diagnostic report for this bill has already been printed or completed.</div>
+          <div class="small text-muted mt-1">You are editing as an Administrator. Please verify that altering investigation items does not contradict already dispensed reports.</div>
+        </div>
+      </div>
+      <div>
+        <button type="button" class="btn btn-outline-danger btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#cancelModal">
+          <i class="bi bi-trash me-1"></i> Cancel Bill
+        </button>
+      </div>
+    </div>
+  <?php endif; ?>
 
   <!-- Main Edit Form -->
   <form id="billForm" method="POST" action="bill_update.php" novalidate>
@@ -906,19 +968,46 @@ if ($doc_query) {
             </select>
           </div>
 
-          <!-- Primary Submit Button -->
+          <!-- Action Buttons -->
           <div class="d-grid gap-2">
-            <button type="submit" class="btn btn-submit-bill btn-lg shadow-sm">
-              <i class="bi bi-check2-circle fs-5"></i> Save Changes & View Bill
-            </button>
+            <?php if ($is_cancelled): ?>
+              <button type="button" class="btn btn-danger btn-lg shadow-sm" disabled>
+                <i class="bi bi-slash-circle me-1"></i> Bill is Cancelled (Read-Only)
+              </button>
+              <a href="print_bill.php?bill_id=<?= $bill_id ?>" target="_blank" class="btn btn-outline-danger">
+                <i class="bi bi-printer me-1"></i> Print Cancelled Bill Invoice
+              </a>
+            <?php elseif ($is_locked_for_user): ?>
+              <button type="button" class="btn btn-secondary btn-lg shadow-sm" disabled title="Modification locked because report is already generated/printed">
+                <i class="bi bi-lock-fill me-1"></i> Modification Locked
+              </button>
+              <?php if (($bill['cancellation_status'] ?? '') === 'requested'): ?>
+                <div class="alert alert-warning py-2 px-3 small mb-0 border-warning text-center">
+                  <i class="bi bi-hourglass-split me-1"></i> Cancellation Pending Admin Approval
+                </div>
+              <?php else: ?>
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                  <i class="bi bi-exclamation-octagon me-1"></i> Request Cancellation (Admin Approval)
+                </button>
+              <?php endif; ?>
+            <?php else: ?>
+              <button type="submit" class="btn btn-submit-bill btn-lg shadow-sm">
+                <i class="bi bi-check2-circle fs-5 me-1"></i> <?= ($is_admin && $is_report_done) ? 'Admin Override & Save Changes' : 'Save Changes & View Bill' ?>
+              </button>
+              <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                <i class="bi bi-x-circle me-1"></i> <?= ($is_report_done && !$is_admin) ? 'Request Cancellation' : 'Cancel Bill' ?>
+              </button>
+            <?php endif; ?>
             <a href="bill_list.php" class="btn btn-outline-secondary btn-sm py-2">
-              <i class="bi bi-x-circle me-1"></i> Cancel & Back to List
+              <i class="bi bi-arrow-left me-1"></i> Back to Bills List
             </a>
           </div>
 
+          <?php if (!$is_locked_for_user): ?>
           <div class="text-center text-muted small mt-3" style="font-size:0.75rem;">
             <i class="bi bi-keyboard me-1"></i> Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to save changes
           </div>
+          <?php endif; ?>
 
         </div>
       </div>
@@ -928,6 +1017,59 @@ if ($doc_query) {
 
 </div>
 
+<!-- Bill Cancellation Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0">
+      <form action="bill_cancel.php" method="POST">
+        <input type="hidden" name="bill_id" value="<?= $bill_id ?>">
+        <input type="hidden" name="action" value="<?= ($is_admin || !$is_report_done) ? 'direct_cancel' : 'request_cancel' ?>">
+
+        <div class="modal-header <?= ($is_admin || !$is_report_done) ? 'bg-danger text-white' : 'bg-warning text-dark' ?>">
+          <h5 class="modal-title fw-bold" id="cancelModalLabel">
+            <i class="bi <?= ($is_admin || !$is_report_done) ? 'bi-exclamation-triangle-fill' : 'bi-shield-exclamation' ?> me-2"></i>
+            <?= ($is_admin || !$is_report_done) ? 'Confirm Bill Cancellation' : 'Submit Cancellation Request' ?>
+          </h5>
+          <button type="button" class="btn-close <?= ($is_admin || !$is_report_done) ? 'btn-close-white' : '' ?>" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body p-4">
+          <div class="text-center mb-3">
+            <div class="badge bg-light text-dark border px-3 py-2 font-monospace fs-6">
+              Bill #<?= $bill_id ?> &bull; <?= htmlspecialchars($patient['full_name'] ?? 'Patient') ?>
+            </div>
+          </div>
+
+          <?php if ($is_report_done && !$is_admin): ?>
+            <div class="alert alert-warning border-warning small">
+              <i class="bi bi-info-circle-fill me-1"></i>
+              <strong>Diagnostic Report Generated:</strong> This bill has already been tested, printed, or downloaded. In compliance with clinical auditing protocols, non-admin staff cannot cancel this bill directly. Submitting this request will send it to the <strong>Administrator</strong> for approval.
+            </div>
+          <?php else: ?>
+            <div class="alert alert-danger border-danger small">
+              <i class="bi bi-exclamation-octagon-fill me-1"></i>
+              <strong>Warning:</strong> Cancelling this bill will mark it as <strong>VOID / CANCELLED</strong>, deduct its amount from active revenue summaries, and watermark all printed invoices & reports. This action is permanently logged in the clinical audit trail.
+            </div>
+          <?php endif; ?>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Reason for Cancellation <span class="text-danger">*</span></label>
+            <textarea name="reason" class="form-control" rows="3" required placeholder="Please describe why this bill needs to be cancelled..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn <?= ($is_admin || !$is_report_done) ? 'btn-danger' : 'btn-warning text-dark fw-bold' ?>">
+            <i class="bi bi-check2-circle me-1"></i>
+            <?= ($is_admin || !$is_report_done) ? 'Yes, Cancel Bill Now' : 'Submit for Admin Approval' ?>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- Scripts -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
@@ -935,6 +1077,12 @@ const testData = <?= json_encode($tests_arr) ?>;
 const packageData = <?= json_encode($packages_arr) ?>;
 
 $(document).ready(function() {
+<?php if ($is_locked_for_user): ?>
+  // Freeze all inputs on the form to prevent modification when locked
+  $('#billForm input:not([type="hidden"]), #billForm select, #billForm textarea').prop('disabled', true);
+  $('.btn-delete-row, .btn-action-add, .pay-shortcut-pill, .btn-submit-bill').addClass('disabled').css('pointer-events', 'none');
+<?php endif; ?>
+
   calculateTotal();
   reindexRows();
 
