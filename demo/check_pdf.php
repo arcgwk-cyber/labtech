@@ -134,7 +134,14 @@ function appendTestNotesAndSignature($test_id, $qr_link, $pdf, $include_notes, $
 
     if ($interpretation) {
         $interpretation = preg_replace('/<figure[^>]*>/', '', $interpretation);
-        $interpretation = str_replace(['</figure>', '<table', '<td', '<th'], ['', '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;"', '<td style="border:1px solid #000;"', '<th style="border:1px solid #000;"'], $interpretation);
+        $interpretation = str_replace('</figure>', '', $interpretation);
+        if (strpos($interpretation, 'cellpadding') === false) {
+            $interpretation = str_replace(['<table', '<td', '<th'], [
+                '<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse; font-size:8pt; width:100%;"',
+                '<td style="border:1px solid #cbd5e1; font-size:8pt; padding:3px;"',
+                '<th style="border:1px solid #94a3b8; background-color:#f1f5f9; font-weight:bold; font-size:8pt; padding:3px;"'
+            ], $interpretation);
+        }
     }
 
     $html = '';

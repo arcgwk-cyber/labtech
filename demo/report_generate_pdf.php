@@ -537,14 +537,15 @@ function getTestNotesAndInterpretationHTML($test_id, $test_name, $include_notes,
 
     // B. Clinical Interpretation Table (NABL/CAP formatted light callout box with blue left accent bar)
     if ($include_interpretation && !empty($interpretation)) {
-        $clean_interp = strip_tags($interpretation, '<br><b><strong><ul><li><p><i><em><u>');
-        if (strpos($clean_interp, '<p>') === false && strpos($clean_interp, '<br') === false) {
+        $allowed_tags = '<br><b><strong><ul><li><ol><p><i><em><u><table><thead><tbody><tr><th><td><span><font><hr><div>';
+        $clean_interp = strip_tags($interpretation, $allowed_tags);
+        if (strpos($clean_interp, '<p>') === false && strpos($clean_interp, '<br') === false && strpos($clean_interp, '<table') === false) {
             $clean_interp = nl2br($clean_interp);
         }
         $html .= '<table width="100%" cellpadding="3" cellspacing="0" style="margin-top:3px; margin-bottom:6px; font-family:Helvetica, Arial, sans-serif; border-collapse:collapse;">
             <tr>
                 <td style="background-color:#f8fafc; border-left:3px solid #0284c7; font-size:7.8pt; color:#334155; padding:4px 8px; line-height:1.35;">
-                    <span style="font-weight:bold; color:#0369a1;">Clinical Interpretation:</span> ' . $clean_interp . '
+                    <span style="font-weight:bold; color:#0369a1;">Clinical Interpretation:</span><br>' . $clean_interp . '
                 </td>
             </tr>
         </table>';

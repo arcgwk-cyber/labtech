@@ -50,6 +50,27 @@ $data = $result->fetch_assoc() ?? [
     'show_interpretation' => 0,
     'show_notes' => 0
 ];
+
+// Fallback to standard master interpretation & notes from lab_tests if empty
+if (empty($data['interpretation']) && $mode === 'test' && $entity_id > 0) {
+    $lt_stmt = $conn->prepare("SELECT interpretations, notes FROM lab_tests WHERE test_id = ?");
+    if ($lt_stmt) {
+        $lt_stmt->bind_param("i", $entity_id);
+        $lt_stmt->execute();
+        $lt_res = $lt_stmt->get_result()->fetch_assoc();
+        if ($lt_res) {
+            if (empty($data['interpretation']) && !empty($lt_res['interpretations'])) {
+                $data['interpretation'] = $lt_res['interpretations'];
+                $data['show_interpretation'] = 1;
+            }
+            if (empty($data['notes']) && !empty($lt_res['notes'])) {
+                $data['notes'] = $lt_res['notes'];
+                $data['show_notes'] = 1;
+            }
+        }
+        $lt_stmt->close();
+    }
+}
 ?>
 <!DOCTYPE html>
 <html>
