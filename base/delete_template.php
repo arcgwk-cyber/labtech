@@ -17,12 +17,19 @@ if($template_id <= 0){
 }
 
 try {
-    $conn->query("DELETE FROM template_version_history WHERE template_id = " . $template_id);
+    $stmt_v = $conn->prepare("DELETE FROM template_version_history WHERE template_id = ?");
+    if ($stmt_v) {
+        $stmt_v->bind_param("i", $template_id);
+        $stmt_v->execute();
+        $stmt_v->close();
+    }
     
     $stmt = $conn->prepare("DELETE FROM report_templates WHERE template_id = ?");
-    $stmt->bind_param("i", $template_id);
-    $stmt->execute();
-    $stmt->close();
+    if ($stmt) {
+        $stmt->bind_param("i", $template_id);
+        $stmt->execute();
+        $stmt->close();
+    }
 
     echo json_encode(['success' => true]);
 } catch (Exception $e) {

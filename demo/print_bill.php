@@ -103,18 +103,25 @@ if ($conn && !$conn->connect_error) {
     }
 }
 
-// Dynamic Logo search across standard lab folders
+// Dynamic Logo search across standard lab folders (newest by filemtime, no amma fallback)
 $logo_file = null;
-foreach ([
+$logo_mtime = 0;
+$logo_candidates = [
     'qrtemp/logo.png', 'qrtemp/logo.jpg', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
-    'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg',
-    'logo.png', 'logo.jpg', 'assets/amma_logo.png'
-] as $lp) {
-    if (file_exists(__DIR__ . '/' . $lp)) {
-        $logo_file = $lp;
-        break;
+    'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg', 'uploads/logo.webp',
+    'logo.png', 'logo.jpg', 'logo.jpeg', 'logo.webp'
+];
+foreach ($logo_candidates as $lp) {
+    $abs_lp = __DIR__ . '/' . $lp;
+    if (file_exists($abs_lp)) {
+        $mtime = filemtime($abs_lp);
+        if ($mtime > $logo_mtime) {
+            $logo_mtime = $mtime;
+            $logo_file = $lp;
+        }
     }
 }
+$logo_url = ($logo_file && $logo_mtime) ? ($logo_file . '?v=' . $logo_mtime) : $logo_file;
 
 // 5. Token & QR Code Generation (Using offline TCPDF barcode or fallback)
 $token = encodeID($bill_id);
@@ -596,7 +603,7 @@ $billed_by = !empty($bill['billed_by_name']) ? $bill['billed_by_name'] : (!empty
     <div class="digital-header">
       <div class="logo-container">
         <?php if ($logo_file): ?>
-          <img src="<?= htmlspecialchars($logo_file) ?>" alt="Logo" class="lab-logo-img">
+          <img src="<?= htmlspecialchars($logo_url) ?>" alt="Logo" class="lab-logo-img">
         <?php else: ?>
           <i class="bi bi-hospital fs-2 text-primary"></i>
         <?php endif; ?>
@@ -728,12 +735,26 @@ $billed_by = !empty($bill['billed_by_name']) ? $bill['billed_by_name'] : (!empty
 
       <!-- Summary Totals -->
       <tfoot>
+        <?php 
+          $discount = (float)($bill['discount'] ?? 0);
+          $subtotal = (float)$bill['total_amount'] + $discount;
+        ?>
+        <?php if ($discount > 0): ?>
+          <tr>
+            <th colspan="3" class="text-end text-muted font-monospace">Gross Subtotal:</th>
+            <td class="text-end font-monospace fw-semibold">₹<?= number_format($subtotal, 2) ?></td>
+          </tr>
+          <tr>
+            <th colspan="3" class="text-end text-success font-monospace">Discount:</th>
+            <td class="text-end font-monospace text-success fw-bold">-₹<?= number_format($discount, 2) ?></td>
+          </tr>
+        <?php endif; ?>
         <tr>
-          <th colspan="3" class="text-end text-muted font-monospace">Total Amount:</th>
+          <th colspan="3" class="text-end text-muted font-monospace">Net Amount:</th>
           <td class="text-end font-monospace fw-bold fs-6">₹<?= number_format($bill['total_amount'], 2) ?></td>
         </tr>
         <tr>
-          <th colspan="3" class="text-end text-muted font-monospace">Paid Amount:</th>
+          <th colspan="3" class="text-end text-muted font-monospace">Paid Amount (<?= htmlspecialchars($bill['payment_mode'] ?? 'Cash') ?>):</th>
           <td class="text-end font-monospace text-success fw-bold">₹<?= number_format($bill['paid_amount'], 2) ?></td>
         </tr>
         <tr>

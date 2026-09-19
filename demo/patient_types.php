@@ -137,8 +137,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if (isset($_GET['delete_category'])) {
     $del_id = intval($_GET['delete_category']);
     if ($del_id > 0) {
-        $conn->query("DELETE FROM patient_type_fields WHERE type_id = $del_id");
-        $conn->query("DELETE FROM patient_types WHERE type_id = $del_id");
+        $st1 = $conn->prepare("DELETE FROM patient_type_fields WHERE type_id = ?");
+        if ($st1) {
+            $st1->bind_param("i", $del_id);
+            $st1->execute();
+            $st1->close();
+        }
+        $st2 = $conn->prepare("DELETE FROM patient_types WHERE type_id = ?");
+        if ($st2) {
+            $st2->bind_param("i", $del_id);
+            $st2->execute();
+            $st2->close();
+        }
         $_SESSION['alert'] = ['type' => 'danger', 'msg' => "Patient category deleted successfully."];
     }
     header("Location: patient_types.php");
@@ -148,7 +158,12 @@ if (isset($_GET['delete_category'])) {
 if (isset($_GET['delete_field'])) {
     $del_fid = intval($_GET['delete_field']);
     if ($del_fid > 0) {
-        $conn->query("DELETE FROM patient_type_fields WHERE field_id = $del_fid");
+        $st3 = $conn->prepare("DELETE FROM patient_type_fields WHERE field_id = ?");
+        if ($st3) {
+            $st3->bind_param("i", $del_fid);
+            $st3->execute();
+            $st3->close();
+        }
         $_SESSION['alert'] = ['type' => 'danger', 'msg' => "Custom field deleted successfully."];
     }
     header("Location: patient_types.php?tab=fields");

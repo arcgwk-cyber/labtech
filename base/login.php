@@ -52,7 +52,7 @@ if ($conn && !$conn->connect_error) {
                 $settings = array_merge($settings, $row1);
             }
         }
-        if ($settings['company_name'] === 'Amma Diagnostic Centre' || empty($settings['company_name'])) {
+        if (empty($settings['company_name']) || $settings['company_name'] === 'Amma Diagnostic Centre') {
             $settings['company_name'] = 'Vensaas LabTech';
             if (empty($settings['company_address']) || strpos($settings['company_address'], 'ICHAPURAM') !== false || $settings['company_address'] === 'Srikakulam') {
                 $settings['company_address'] = 'Visakhapatnam-530016 (A.P)';
@@ -279,16 +279,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
 }
 
 $logo_path = null;
+$logo_mtime = 0;
 foreach ([
     'qrtemp/logo.png', 'qrtemp/logo.jpg', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
-    'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg',
-    'logo.png', 'logo.jpg', 'assets/amma_logo.png'
+    'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg', 'uploads/logo.webp',
+    'logo.png', 'logo.jpg', 'logo.jpeg', 'logo.webp'
 ] as $lp) {
-    if (file_exists($lp)) {
-        $logo_path = $lp;
-        break;
+    $full = __DIR__ . '/' . $lp;
+    if (file_exists($full) && is_file($full)) {
+        $mtime = filemtime($full);
+        if ($mtime > $logo_mtime) {
+            $logo_mtime = $mtime;
+            $logo_path = $lp;
+        }
     }
 }
+$logo_url = $logo_path ? ($logo_path . '?v=' . ($logo_mtime ?: time())) : null;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -402,8 +408,8 @@ foreach ([
 
   <div class="login-card">
     <div class="login-header">
-      <?php if ($logo_path): ?>
-        <img src="<?= $logo_path ?>" alt="Logo" style="max-height: 55px; margin-bottom: 12px;" class="bg-white rounded p-1">
+      <?php if ($logo_url): ?>
+        <img src="<?= htmlspecialchars($logo_url) ?>" alt="Logo" style="max-height: 55px; margin-bottom: 12px;" class="bg-white rounded p-1">
       <?php else: ?>
         <div class="mb-2"><i class="fas fa-microscope fa-2x"></i></div>
       <?php endif; ?>

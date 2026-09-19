@@ -103,14 +103,19 @@ function getLabHeaderHTML($conn) {
     }
 
     $logo_file = null;
+    $logo_mtime = 0;
     foreach ([
         'qrtemp/logo.png', 'qrtemp/logo.jpg', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
-        'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg',
-        'logo.png', 'logo.jpg', 'assets/amma_logo.png'
+        'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg', 'uploads/logo.webp',
+        'logo.png', 'logo.jpg', 'logo.jpeg', 'logo.webp'
     ] as $p) {
-        if (file_exists(__DIR__ . '/' . $p)) {
-            $logo_file = __DIR__ . '/' . $p;
-            break;
+        $full = __DIR__ . '/' . $p;
+        if (file_exists($full) && is_file($full)) {
+            $mtime = filemtime($full);
+            if ($mtime > $logo_mtime) {
+                $logo_mtime = $mtime;
+                $logo_file = $full;
+            }
         }
     }
 
@@ -754,7 +759,7 @@ $configured_top_margin = isset($opts['top_margin']) && is_numeric($opts['top_mar
 $configured_bottom_margin = isset($opts['bottom_margin']) && is_numeric($opts['bottom_margin']) ? floatval($opts['bottom_margin']) : null;
 
 // Header & Margins setup based on header_mode:
-// 1. letterhead_image: Background letterhead image (letterhead.jpg / ammaletterhead.jpg)
+// 1. letterhead_image: Background letterhead image (letterhead.jpg / letterhead.png)
 // 2. blank_1_5: Top margin is exactly 1.5 inches = 38.1 mm (for pre-printed stationery)
 // 3. printed: Top margin 12mm with Lab Logo & Address letterhead
 // 4. plain: Top margin 12mm with plain page
@@ -856,7 +861,16 @@ $stmt->close();
 
 // Fallback if no test results recorded yet
 if (empty($grouped_results)) {
-    $bq = $conn->query("SELECT t.test_id, t.test_name, g.group_name FROM bill_tests bt JOIN lab_tests t ON bt.test_id = t.test_id LEFT JOIN test_groups g ON t.group_id = g.group_id WHERE bt.bill_id = {$bill_id}");
+    $bq = $conn->query("
+        SELECT t.test_id, t.test_name, g.group_name 
+        FROM (
+            SELECT bt.test_id FROM bill_tests bt WHERE bt.bill_id = {$bill_id}
+            UNION
+            SELECT pt.test_id FROM bill_packages bp JOIN package_test_map pt ON bp.package_id = pt.package_id WHERE bp.bill_id = {$bill_id}
+        ) all_bt
+        JOIN lab_tests t ON all_bt.test_id = t.test_id 
+        LEFT JOIN test_groups g ON t.group_id = g.group_id
+    ");
     if ($bq) {
         while ($brow = $bq->fetch_assoc()) {
             $g = $brow['group_name'] ?: 'General Tests';
@@ -1023,7 +1037,9 @@ if (!$preview_mode) {
     }
 }
 
-ob_end_clean();
+while (ob_get_level() > 0) {
+    ob_end_clean();
+}
 
 if ($download_mode) {
     $pdf->Output("diagnostic_report_{$bill_id}.pdf", 'D');

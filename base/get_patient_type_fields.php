@@ -1,13 +1,18 @@
 <?php
-include 'db.php';
+include_once 'auth_check.php';
+include_once 'db.php';
 
 if (isset($_POST['patient_type_id'])) {
     $patient_type_id = (int)$_POST['patient_type_id'];
 
     // fetch field definitions for the patient type
-    $result = $conn->query("SELECT field_id, field_label, field_type 
+    $stmt = $conn->prepare("SELECT field_id, field_label, field_type 
                             FROM patient_type_fields 
-                            WHERE type_id = $patient_type_id");
+                            WHERE type_id = ?");
+    if ($stmt) {
+        $stmt->bind_param("i", $patient_type_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
     while ($row = $result->fetch_assoc()) {
         $fieldId    = (int)$row['field_id'];
@@ -18,6 +23,8 @@ if (isset($_POST['patient_type_id'])) {
         echo '  <label class="form-label">' . $label . '</label>';
         echo '  <input type="' . $inputType . '" name="extra[' . $fieldId . ']" class="form-control">';
         echo '</div>';
+    }
+        $stmt->close();
     }
 }
 ?>

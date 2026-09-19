@@ -92,7 +92,12 @@ if (isset($_POST['save'])) {
 if (isset($_GET['delete'])) {
     $did = intval($_GET['delete']);
     if ($did > 0) {
-        $conn->query("DELETE FROM sign_master WHERE id=$did");
+        $del_stmt = $conn->prepare("DELETE FROM sign_master WHERE id = ?");
+        if ($del_stmt) {
+            $del_stmt->bind_param("i", $did);
+            $del_stmt->execute();
+            $del_stmt->close();
+        }
         $msg = "Signatory profile deleted successfully.";
         $msgClass = 'danger';
     }
@@ -105,7 +110,13 @@ $edit = null;
 if (isset($_GET['edit'])) {
     $eid = intval($_GET['edit']);
     if ($eid > 0) {
-        $edit = $conn->query("SELECT * FROM sign_master WHERE id=$eid")->fetch_assoc();
+        $edit_stmt = $conn->prepare("SELECT * FROM sign_master WHERE id = ?");
+        if ($edit_stmt) {
+            $edit_stmt->bind_param("i", $eid);
+            $edit_stmt->execute();
+            $edit = $edit_stmt->get_result()->fetch_assoc();
+            $edit_stmt->close();
+        }
     }
 }
 

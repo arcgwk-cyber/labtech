@@ -5,12 +5,29 @@ session_start(); // For alerts
 
 $bill_id        = isset($_POST['bill_id']) && $_POST['bill_id'] > 0 ? (int)$_POST['bill_id'] : 0;
 $patient_id     = (int)($_POST['patient_id'] ?? 0);
-$bill_date      = $_POST['bill_date'] ?? date('Y-m-d');
-$total_amount   = (float)($_POST['total_amount'] ?? 0);
-$paid_amount    = (float)($_POST['paid_amount'] ?? 0);
-$balance        = $total_amount - $paid_amount;
-$payment_status = $_POST['payment_status'] ?? 'Pending';
-$created_by     = $_SESSION['user_id'] ?? 1;
+$bill_date       = $_POST['bill_date'] ?? date('Y-m-d');
+$subtotal        = (float)($_POST['subtotal'] ?? 0);
+$discount        = max(0, (float)($_POST['discount'] ?? 0));
+$total_amount    = (float)($_POST['total_amount'] ?? 0);
+if ($total_amount <= 0 && $subtotal > 0) {
+    $total_amount = max(0, $subtotal - $discount);
+}
+$paid_amount     = max(0, (float)($_POST['paid_amount'] ?? 0));
+$balance         = max(0, $total_amount - $paid_amount);
+
+// Normalize payment_status enum: 'paid', 'partial', 'unpaid'
+$raw_status = strtolower(trim($_POST['payment_status'] ?? ''));
+if ($balance <= 0 && $total_amount > 0) {
+    $payment_status = 'paid';
+} elseif ($paid_amount > 0 && $balance > 0) {
+    $payment_status = 'partial';
+} elseif ($raw_status === 'paid' || $raw_status === 'partial' || $raw_status === 'unpaid') {
+    $payment_status = $raw_status;
+} else {
+    $payment_status = 'unpaid';
+}
+$payment_mode    = trim($_POST['payment_mode'] ?? 'Cash') ?: 'Cash';
+$created_by      = $_SESSION['user_id'] ?? 1;
 $patient_type_id = !empty($_POST['patient_type_id']) ? (int)$_POST['patient_type_id'] : null;
 
 $item_types  = $_POST['item_type'] ?? [];
@@ -110,36 +127,51 @@ try {
     // --- Bill Insert / Update ---
     if ($bill_id > 0) {
         $stmt = $conn->prepare("UPDATE bills 
-            SET patient_id=?, bill_date=?, total_amount=?, paid_amount=?, balance=?, payment_status=?, patient_type_id=? 
+            SET patient_id=?, bill_date=?, total_amount=?, discount=?, paid_amount=?, balance=?, payment_status=?, payment_mode=?, patient_type_id=? 
             WHERE bill_id=?");
-        $stmt->bind_param("isddssii",
+        $stmt->bind_param("isddddssii",
             $patient_id,
             $bill_date,
             $total_amount,
+            $discount,
             $paid_amount,
             $balance,
             $payment_status,
+            $payment_mode,
             $patient_type_id,
             $bill_id
         );
         $stmt->execute();
         $stmt->close();
 
-        // Clear previous tests/packages/extra fields
-        $conn->query("DELETE FROM bill_tests WHERE bill_id = $bill_id");
-        $conn->query("DELETE FROM bill_packages WHERE bill_id = $bill_id");
-        $conn->query("DELETE FROM patient_extra_info WHERE bill_id = $bill_id");
+        // Clear previous tests/packages/extra fields with prepared statements
+        $delBt = $conn->prepare("DELETE FROM bill_tests WHERE bill_id = ?");
+        $delBt->bind_param("i", $bill_id);
+        $delBt->execute();
+        $delBt->close();
+
+        $delBp = $conn->prepare("DELETE FROM bill_packages WHERE bill_id = ?");
+        $delBp->bind_param("i", $bill_id);
+        $delBp->execute();
+        $delBp->close();
+
+        $delPe = $conn->prepare("DELETE FROM patient_extra_info WHERE bill_id = ?");
+        $delPe->bind_param("i", $bill_id);
+        $delPe->execute();
+        $delPe->close();
     } else {
         $stmt = $conn->prepare("INSERT INTO bills 
-            (patient_id, bill_date, total_amount, paid_amount, balance, payment_status, created_by, patient_type_id) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("isddssii",
+            (patient_id, bill_date, total_amount, discount, paid_amount, balance, payment_status, payment_mode, created_by, patient_type_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("isddddssii",
             $patient_id,
             $bill_date,
             $total_amount,
+            $discount,
             $paid_amount,
             $balance,
             $payment_status,
+            $payment_mode,
             $created_by,
             $patient_type_id
         );

@@ -68,6 +68,22 @@ if (($conn->connect_error || !$conn) && ($host === 'localhost' || $host === '127
             $conn = $fallback_conn;
             $user = $fallback_user;
             $pass = $fallback_pass;
+        } else {
+            // Also try fallback to 'diagnostic_lab_db' if the configured dbname failed
+            $alt_dbname = 'diagnostic_lab_db';
+            if ($dbname !== $alt_dbname) {
+                $alt_conn = mysqli_init();
+                if ($alt_conn) {
+                    $alt_conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 2);
+                    @$alt_conn->real_connect($host, $fallback_user, $fallback_pass, $alt_dbname);
+                    if (!$alt_conn->connect_error) {
+                        $conn = $alt_conn;
+                        $user = $fallback_user;
+                        $pass = $fallback_pass;
+                        $dbname = $alt_dbname;
+                    }
+                }
+            }
         }
     }
 }
@@ -184,6 +200,109 @@ if (!$conn || $conn->connect_error) {
         }
     }
     ensureBillCancellationSchema($conn);
+
+    // Auto-migration for Billing, Payment, and Report Options
+    if (!function_exists('ensureBillingAndReportSchema')) {
+        function ensureBillingAndReportSchema($conn) {
+            if (!$conn || $conn->connect_error) return;
+            static $checked = false;
+            if ($checked) return;
+            $checked = true;
+
+            if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['billing_schema_checked'])) {
+                return;
+            }
+
+            // 1. Add discount & payment_mode to bills
+            $colsRes = $conn->query("SHOW COLUMNS FROM bills");
+            if ($colsRes) {
+                $existing = [];
+                while ($c = $colsRes->fetch_assoc()) {
+                    $existing[strtolower($c['Field'])] = true;
+                }
+                if (empty($existing['discount'])) {
+                    @$conn->query("ALTER TABLE bills ADD COLUMN discount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER total_amount");
+                }
+                if (empty($existing['payment_mode'])) {
+                    @$conn->query("ALTER TABLE bills ADD COLUMN payment_mode VARCHAR(50) NOT NULL DEFAULT 'Cash' AFTER payment_status");
+                }
+                if (empty($existing['patient_type_id'])) {
+                    @$conn->query("ALTER TABLE bills ADD COLUMN patient_type_id INT(11) NULL DEFAULT NULL AFTER payment_mode");
+                    @$conn->query("ALTER TABLE bills ADD INDEX idx_bills_patient_type (patient_type_id)");
+                }
+            }
+
+            // 1b. Add age & dr_ref to patients if missing
+            $pColsRes = $conn->query("SHOW COLUMNS FROM patients");
+            if ($pColsRes) {
+                $pExisting = [];
+                while ($pc = $pColsRes->fetch_assoc()) {
+                    $pExisting[strtolower($pc['Field'])] = true;
+                }
+                if (empty($pExisting['age'])) {
+                    @$conn->query("ALTER TABLE patients ADD COLUMN age INT(11) NULL DEFAULT NULL AFTER gender");
+                }
+                if (empty($pExisting['dr_ref'])) {
+                    @$conn->query("ALTER TABLE patients ADD COLUMN dr_ref VARCHAR(150) NULL DEFAULT NULL AFTER address");
+                }
+            }
+
+            // 2. Ensure test_id column exists in test_results
+            $trCols = $conn->query("SHOW COLUMNS FROM test_results LIKE 'test_id'");
+            if ($trCols && $trCols->num_rows === 0) {
+                @$conn->query("ALTER TABLE test_results ADD COLUMN test_id INT(11) NULL DEFAULT NULL AFTER parameter_id");
+                @$conn->query("ALTER TABLE test_results ADD INDEX idx_tr_test_id (test_id)");
+            }
+
+            // 2b. Ensure reference_text columns in parameter_reference_ranges
+            $prrCols = $conn->query("SHOW COLUMNS FROM parameter_reference_ranges LIKE 'use_reference_text'");
+            if ($prrCols && $prrCols->num_rows === 0) {
+                @$conn->query("ALTER TABLE parameter_reference_ranges ADD COLUMN use_reference_text TINYINT(1) DEFAULT 0 AFTER child_default, ADD COLUMN reference_text TEXT NULL AFTER use_reference_text");
+            }
+
+            // 2c. Ensure param_order and section_name in lab_test_parameters
+            $ltpCols = $conn->query("SHOW COLUMNS FROM lab_test_parameters LIKE 'param_order'");
+            if ($ltpCols && $ltpCols->num_rows === 0) {
+                @$conn->query("ALTER TABLE lab_test_parameters ADD COLUMN param_order INT(11) NOT NULL DEFAULT 0 AFTER parameter_id, ADD COLUMN section_name VARCHAR(100) NULL DEFAULT NULL AFTER param_order");
+            }
+
+            // 3. Ensure bill_report_options table exists
+            @$conn->query("
+                CREATE TABLE IF NOT EXISTS `bill_report_options` (
+                  `bill_id` int(11) NOT NULL PRIMARY KEY,
+                  `style` varchar(32) DEFAULT 'clinical',
+                  `header_mode` varchar(32) DEFAULT 'printed',
+                  `include_method` tinyint(1) DEFAULT 0,
+                  `include_notes` tinyint(1) DEFAULT 1,
+                  `include_interpretation` tinyint(1) DEFAULT 1,
+                  `pagebreak_per_test` tinyint(1) DEFAULT 0,
+                  `include_signature` tinyint(1) DEFAULT 1,
+                  `top_margin` decimal(5,2) DEFAULT 55.00,
+                  `bottom_margin` decimal(5,2) DEFAULT 35.00,
+                  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+
+            // 4. Backfill missing test_id in test_results using lab_test_parameters or bill_tests
+            @$conn->query("
+                UPDATE test_results r
+                JOIN lab_test_parameters ltp ON r.parameter_id = ltp.parameter_id
+                SET r.test_id = ltp.test_id
+                WHERE (r.test_id IS NULL OR r.test_id = 0)
+            ");
+            @$conn->query("
+                UPDATE test_results r
+                JOIN bill_tests bt ON r.bill_id = bt.bill_id
+                SET r.test_id = bt.test_id
+                WHERE (r.test_id IS NULL OR r.test_id = 0)
+            ");
+
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                $_SESSION['billing_schema_checked'] = true;
+            }
+        }
+    }
+    ensureBillingAndReportSchema($conn);
 }
 
 // 2. PDO Connection ($pdo) - Lazy loaded only when needed to cut DB connection overhead by 50%

@@ -1,5 +1,7 @@
 <?php
-ob_clean();
+if (ob_get_level() > 0) {
+    ob_clean();
+}
 require_once(__DIR__.'/TCPDF/tcpdf.php');
 require_once('db.php');
 

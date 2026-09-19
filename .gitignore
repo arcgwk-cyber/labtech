@@ -21,6 +21,8 @@ base/qrtemp/*.png
 demo/qrtemp/*.png
 !base/qrtemp/.gitkeep
 !demo/qrtemp/.gitkeep
+!base/qrtemp/logo.png
+!demo/qrtemp/logo.png
 
 # Session / Temp uploads if applicable
 */uploads/temp/*

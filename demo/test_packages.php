@@ -21,8 +21,18 @@ $selected_tests = [];
 if (isset($_GET['delete'])) {
     $del_id = (int)$_GET['delete'];
     if ($del_id > 0) {
-        $conn->query("DELETE FROM package_test_map WHERE package_id = $del_id");
-        $conn->query("DELETE FROM test_packages WHERE package_id = $del_id");
+        $stmt_m = $conn->prepare("DELETE FROM package_test_map WHERE package_id = ?");
+        if ($stmt_m) {
+            $stmt_m->bind_param("i", $del_id);
+            $stmt_m->execute();
+            $stmt_m->close();
+        }
+        $stmt_p = $conn->prepare("DELETE FROM test_packages WHERE package_id = ?");
+        if ($stmt_p) {
+            $stmt_p->bind_param("i", $del_id);
+            $stmt_p->execute();
+            $stmt_p->close();
+        }
         $_SESSION['alert'] = ['type' => 'danger', 'msg' => 'Test package deleted successfully.'];
     }
     header("Location: test_packages.php");

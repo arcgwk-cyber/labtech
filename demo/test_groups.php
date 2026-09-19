@@ -29,7 +29,12 @@ if (isset($_POST['add'])) {
 if (isset($_GET['delete'])) {
     $id = intval($_GET['delete']);
     if ($id > 0) {
-        $conn->query("DELETE FROM test_groups WHERE group_id = $id");
+        $del_stmt = $conn->prepare("DELETE FROM test_groups WHERE group_id = ?");
+        if ($del_stmt) {
+            $del_stmt->bind_param("i", $id);
+            $del_stmt->execute();
+            $del_stmt->close();
+        }
         $_SESSION['alert'] = ['type' => 'danger', 'msg' => "Test group deleted successfully."];
     }
     header("Location: test_groups.php");

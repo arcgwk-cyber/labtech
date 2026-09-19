@@ -240,7 +240,8 @@ function getSpecimenBadge($test_name) {
     .tests-table-wrapper {
       border: 1px solid var(--border-color);
       border-radius: 12px;
-      overflow: hidden;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
       background: #ffffff;
     }
     .tests-table {

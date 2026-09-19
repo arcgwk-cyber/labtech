@@ -9,7 +9,7 @@ if (!isset($_SESSION['username']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
-$upload_dir = "qrtemp/";
+$upload_dir = __DIR__ . '/qrtemp/';
 $allowed_types = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
 $max_size = 5 * 1024 * 1024;
 
@@ -20,42 +20,86 @@ if (!is_dir(__DIR__ . '/uploads')) { @mkdir(__DIR__ . '/uploads', 0755, true); }
 
 function getActiveLogo() {
     $candidates = [
-        'qrtemp/logo.jpg', 'qrtemp/logo.png', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
-        'uploads/logo.jpg', 'uploads/logo.png', 'uploads/logo.jpeg', 'uploads/logo.webp',
-        'logo.jpg', 'logo.png'
+        'qrtemp/logo.png', 'qrtemp/logo.jpg', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
+        'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg', 'uploads/logo.webp',
+        'logo.png', 'logo.jpg', 'logo.jpeg', 'logo.webp'
     ];
+    $newest = null;
+    $newest_mtime = 0;
     foreach ($candidates as $c) {
-        if (file_exists(__DIR__ . '/' . $c)) return $c;
+        $full = __DIR__ . '/' . $c;
+        if (file_exists($full) && is_file($full)) {
+            $mtime = filemtime($full);
+            if ($mtime > $newest_mtime) {
+                $newest_mtime = $mtime;
+                $newest = $c;
+            }
+        }
     }
-    return null;
+    return $newest;
 }
 
 function getActiveLetterhead() {
     $candidates = [
         'qrtemp/letterhead.jpg', 'qrtemp/letterhead.png', 'qrtemp/letterhead.jpeg', 'qrtemp/letterhead.webp',
-        'uploads/letterhead.jpg', 'uploads/letterhead.png', 'uploads/letterhead.jpeg',
-        'letterhead.jpg', 'letterhead.png', 'ammaletterhead.jpg'
+        'uploads/letterhead.jpg', 'uploads/letterhead.png', 'uploads/letterhead.jpeg', 'uploads/letterhead.webp',
+        'letterhead.jpg', 'letterhead.png', 'letterhead.jpeg', 'letterhead.webp'
     ];
+    $newest = null;
+    $newest_mtime = 0;
     foreach ($candidates as $c) {
-        if (file_exists(__DIR__ . '/' . $c)) return $c;
+        $full = __DIR__ . '/' . $c;
+        if (file_exists($full) && is_file($full)) {
+            $mtime = filemtime($full);
+            if ($mtime > $newest_mtime) {
+                $newest_mtime = $mtime;
+                $newest = $c;
+            }
+        }
     }
-    return null;
+    return $newest;
 }
 
 // Handle file deletion or saving
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $currentDir = basename(__DIR__);
+    $parentDir = strtolower(basename(dirname(__DIR__)));
+    $isStateFolder = in_array($parentDir, ['ap', 'ts', 'os', 'od', 'ka', 'tn', 'mh', 'dl', 'wb', 'kl', 'labs']);
+    $fullSlug = $isStateFolder ? ($parentDir . '/' . $currentDir) : $currentDir;
+
     if (!empty($_POST['delete_logo'])) {
-        foreach (['qrtemp/logo.jpg', 'qrtemp/logo.png', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
-                  'uploads/logo.jpg', 'uploads/logo.png', 'logo.jpg', 'logo.png'] as $f) {
-            if (file_exists(__DIR__ . '/' . $f)) { @unlink(__DIR__ . '/' . $f); }
+        foreach (['qrtemp/', 'uploads/', ''] as $folder) {
+            foreach (['jpg', 'jpeg', 'png', 'webp'] as $ext) {
+                $target = __DIR__ . '/' . $folder . 'logo.' . $ext;
+                if (file_exists($target)) { @unlink($target); }
+            }
+        }
+        if ($conn && !$conn->connect_error) {
+            $vmCheck = $conn->query("SHOW TABLES LIKE 'vendor_master'");
+            if ($vmCheck && $vmCheck->num_rows > 0) {
+                $escDir = $conn->real_escape_string($currentDir);
+                $escFull = $conn->real_escape_string($fullSlug);
+                @$conn->query("UPDATE vendor_master SET logo_image = NULL WHERE remarks LIKE '%/{$escDir}%' OR remarks LIKE '%/{$escFull}%' OR vendor_userid = '{$escDir}'");
+            }
         }
         $messages[] = '<div class="alert alert-warning">Logo removed.</div>';
     }
 
     if (!empty($_POST['delete_letter'])) {
-        foreach (['qrtemp/letterhead.jpg', 'qrtemp/letterhead.png', 'qrtemp/letterhead.jpeg', 'qrtemp/letterhead.webp',
-                  'uploads/letterhead.jpg', 'uploads/letterhead.png', 'letterhead.jpg', 'letterhead.png', 'ammaletterhead.jpg'] as $f) {
-            if (file_exists(__DIR__ . '/' . $f)) { @unlink(__DIR__ . '/' . $f); }
+        foreach (['qrtemp/', 'uploads/', ''] as $folder) {
+            foreach (['jpg', 'jpeg', 'png', 'webp'] as $ext) {
+                $target = __DIR__ . '/' . $folder . 'letterhead.' . $ext;
+                if (file_exists($target)) { @unlink($target); }
+            }
+        }
+        if (file_exists(__DIR__ . '/ammaletterhead.jpg')) { @unlink(__DIR__ . '/ammaletterhead.jpg'); }
+        if ($conn && !$conn->connect_error) {
+            $vmCheck = $conn->query("SHOW TABLES LIKE 'vendor_master'");
+            if ($vmCheck && $vmCheck->num_rows > 0) {
+                $escDir = $conn->real_escape_string($currentDir);
+                $escFull = $conn->real_escape_string($fullSlug);
+                @$conn->query("UPDATE vendor_master SET letterhead_image = NULL WHERE remarks LIKE '%/{$escDir}%' OR remarks LIKE '%/{$escFull}%' OR vendor_userid = '{$escDir}'");
+            }
         }
         $messages[] = '<div class="alert alert-warning">Letterhead removed.</div>';
     }
@@ -69,15 +113,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $logo = $_FILES['logo_file'];
             if ($logo['size'] <= $max_size) {
                 $ext = strtolower(pathinfo($logo['name'], PATHINFO_EXTENSION));
-                if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) $ext = 'jpg';
+                if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) $ext = 'png';
+
+                // Purge older logo extensions to prevent format collisions
+                foreach (['qrtemp/', 'uploads/', ''] as $folder) {
+                    foreach (['jpg', 'jpeg', 'png', 'webp'] as $e) {
+                        $old_f = __DIR__ . '/' . $folder . 'logo.' . $e;
+                        if (file_exists($old_f)) { @unlink($old_f); }
+                    }
+                }
+
                 $dest = $upload_dir . 'logo.' . $ext;
                 if (move_uploaded_file($logo['tmp_name'], $dest)) {
-                    @copy($dest, $upload_dir . 'logo.jpg');
+                    $now = time();
+                    @touch($dest, $now);
+
                     @copy($dest, __DIR__ . '/uploads/logo.' . $ext);
-                    @copy($dest, __DIR__ . '/uploads/logo.jpg');
+                    @touch(__DIR__ . '/uploads/logo.' . $ext, $now);
                     @copy($dest, __DIR__ . '/logo.' . $ext);
-                    @copy($dest, __DIR__ . '/logo.jpg');
-                    $messages[] = '<div class="alert alert-success">Logo updated successfully across the portal.</div>';
+                    @touch(__DIR__ . '/logo.' . $ext, $now);
+
+                    if ($ext !== 'jpg') {
+                        @copy($dest, $upload_dir . 'logo.jpg');
+                        @touch($upload_dir . 'logo.jpg', $now);
+                        @copy($dest, __DIR__ . '/uploads/logo.jpg');
+                        @touch(__DIR__ . '/uploads/logo.jpg', $now);
+                        @copy($dest, __DIR__ . '/logo.jpg');
+                        @touch(__DIR__ . '/logo.jpg', $now);
+                    }
+
+                    if ($conn && !$conn->connect_error) {
+                        $vmCheck = $conn->query("SHOW TABLES LIKE 'vendor_master'");
+                        if ($vmCheck && $vmCheck->num_rows > 0) {
+                            $escDir = $conn->real_escape_string($currentDir);
+                            $escFull = $conn->real_escape_string($fullSlug);
+                            $relLogo = 'qrtemp/logo.' . $ext;
+                            @$conn->query("UPDATE vendor_master SET logo_image = '{$relLogo}' WHERE remarks LIKE '%/{$escDir}%' OR remarks LIKE '%/{$escFull}%' OR vendor_userid = '{$escDir}'");
+                        }
+                    }
+
+                    $messages[] = '<div class="alert alert-success">Logo updated successfully across the portal in real time.</div>';
                 }
             } else {
                 $messages[] = '<div class="alert alert-danger">Invalid logo file type or size exceeds 5MB.</div>';
@@ -90,15 +165,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($letter['size'] <= $max_size) {
                 $ext = strtolower(pathinfo($letter['name'], PATHINFO_EXTENSION));
                 if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) $ext = 'jpg';
+
+                // Purge older letterhead extensions
+                foreach (['qrtemp/', 'uploads/', ''] as $folder) {
+                    foreach (['jpg', 'jpeg', 'png', 'webp'] as $e) {
+                        $old_f = __DIR__ . '/' . $folder . 'letterhead.' . $e;
+                        if (file_exists($old_f)) { @unlink($old_f); }
+                    }
+                }
+                if (file_exists(__DIR__ . '/ammaletterhead.jpg')) { @unlink(__DIR__ . '/ammaletterhead.jpg'); }
+
                 $dest = $upload_dir . 'letterhead.' . $ext;
                 if (move_uploaded_file($letter['tmp_name'], $dest)) {
-                    @copy($dest, $upload_dir . 'letterhead.jpg');
+                    $now = time();
+                    @touch($dest, $now);
+
                     @copy($dest, __DIR__ . '/uploads/letterhead.' . $ext);
-                    @copy($dest, __DIR__ . '/uploads/letterhead.jpg');
+                    @touch(__DIR__ . '/uploads/letterhead.' . $ext, $now);
                     @copy($dest, __DIR__ . '/letterhead.' . $ext);
-                    @copy($dest, __DIR__ . '/letterhead.jpg');
-                    @copy($dest, __DIR__ . '/ammaletterhead.jpg');
-                    $messages[] = '<div class="alert alert-success">Letterhead updated successfully for PDF reports.</div>';
+                    @touch(__DIR__ . '/letterhead.' . $ext, $now);
+
+                    if ($ext !== 'jpg') {
+                        @copy($dest, $upload_dir . 'letterhead.jpg');
+                        @touch($upload_dir . 'letterhead.jpg', $now);
+                        @copy($dest, __DIR__ . '/uploads/letterhead.jpg');
+                        @touch(__DIR__ . '/uploads/letterhead.jpg', $now);
+                        @copy($dest, __DIR__ . '/letterhead.jpg');
+                        @touch(__DIR__ . '/letterhead.jpg', $now);
+                    }
+
+                    if ($conn && !$conn->connect_error) {
+                        $vmCheck = $conn->query("SHOW TABLES LIKE 'vendor_master'");
+                        if ($vmCheck && $vmCheck->num_rows > 0) {
+                            $escDir = $conn->real_escape_string($currentDir);
+                            $escFull = $conn->real_escape_string($fullSlug);
+                            $relLh = 'qrtemp/letterhead.' . $ext;
+                            @$conn->query("UPDATE vendor_master SET letterhead_image = '{$relLh}' WHERE remarks LIKE '%/{$escDir}%' OR remarks LIKE '%/{$escFull}%' OR vendor_userid = '{$escDir}'");
+                        }
+                    }
+
+                    $messages[] = '<div class="alert alert-success">Letterhead updated successfully for PDF reports in real time.</div>';
                 }
             } else {
                 $messages[] = '<div class="alert alert-danger">Invalid letterhead file type or size exceeds 5MB.</div>';
@@ -166,6 +272,12 @@ if ($conn && !$conn->connect_error) {
     }
     if ($result && $row = $result->fetch_assoc()) {
         $settings = $row;
+        if ($labSlug === 'demo' && ($settings['company_name'] === 'Amma Diagnostic Centre' || empty($settings['company_name']))) {
+            $settings['company_name'] = 'Vensaas Labtech';
+            if (empty($settings['company_address']) || strpos($settings['company_address'], 'ICHAPURAM') !== false || $settings['company_address'] === 'Srikakulam') {
+                $settings['company_address'] = 'Visakhapatnam-530016 (A.P)';
+            }
+        }
     } else {
         if ($labSlug === 'demo') {
             $settings['company_name'] = 'Vensaas Labtech';

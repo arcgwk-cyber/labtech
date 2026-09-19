@@ -1,7 +1,6 @@
 <?php
-include 'db.php';
+die("Notice: User generation script is disabled.");
 
-$username = 'admin';
 $password = 'admin123';
 $role = 'admin';
 $status = 'active';

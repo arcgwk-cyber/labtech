@@ -53,8 +53,11 @@ if ($conn && !$conn->connect_error) {
                 $app_settings = array_merge($app_settings, $row1);
             }
         }
-        if ($app_settings['company_name'] === 'Amma Diagnostic Centre' || empty($app_settings['company_name'])) {
+        if (empty($app_settings['company_name']) || $app_settings['company_name'] === 'Amma Diagnostic Centre') {
             $app_settings['company_name'] = 'Vensaas LabTech';
+            if (empty($app_settings['company_address']) || strpos($app_settings['company_address'], 'ICHAPURAM') !== false || $app_settings['company_address'] === 'Srikakulam') {
+                $app_settings['company_address'] = 'Visakhapatnam-530016 (A.P)';
+            }
         }
     } else {
         // NON-DEMO TENANT LAB:
@@ -96,18 +99,24 @@ if ($conn && !$conn->connect_error) {
     }
 }
 
-// Check logo
+// Check logo with real-time modification timestamp resolution
 $app_logo = null;
+$app_logo_mtime = 0;
 foreach ([
-    'qrtemp/logo.jpg', 'qrtemp/logo.png', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
-    'uploads/logo.jpg', 'uploads/logo.png', 'uploads/logo.jpeg',
-    'logo.jpg', 'logo.png'
+    'qrtemp/logo.png', 'qrtemp/logo.jpg', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
+    'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg', 'uploads/logo.webp',
+    'logo.png', 'logo.jpg', 'logo.jpeg', 'logo.webp'
 ] as $lp) {
-    if (file_exists(__DIR__ . '/' . $lp)) {
-        $app_logo = $lp;
-        break;
+    $full = __DIR__ . '/' . $lp;
+    if (file_exists($full) && is_file($full)) {
+        $mtime = filemtime($full);
+        if ($mtime > $app_logo_mtime) {
+            $app_logo_mtime = $mtime;
+            $app_logo = $lp;
+        }
     }
 }
+$app_logo_url = $app_logo ? ($app_logo . '?v=' . ($app_logo_mtime ?: time())) : null;
 
 // Detect current active page
 $active_page = basename($_SERVER['PHP_SELF']);
@@ -120,6 +129,7 @@ function isNavActive($page_or_pages, $active_page) {
 }
 ?>
 <!-- PWA Mobile Web App Manifest & App Configuration -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0284c7">
 <meta name="mobile-web-app-capable" content="yes">
@@ -448,8 +458,8 @@ function isNavActive($page_or_pages, $active_page) {
     
     <!-- Clinic Brand & Logo -->
     <a class="navbar-brand d-flex align-items-center gap-2" href="index.php">
-      <?php if ($app_logo): ?>
-        <img src="<?= $app_logo ?>" alt="Logo" class="rounded bg-white p-1" style="height: 38px; max-width: 120px; object-fit: contain;">
+      <?php if ($app_logo_url): ?>
+        <img src="<?= htmlspecialchars($app_logo_url) ?>" alt="Logo" class="rounded bg-white p-1" style="height: 38px; max-width: 120px; object-fit: contain;">
       <?php else: ?>
         <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; font-size: 1.1rem;">
           <i class="fas fa-microscope"></i>
@@ -590,7 +600,7 @@ function isNavActive($page_or_pages, $active_page) {
 <!-- Mobile PWA Install Banner (Strictly hidden by default; ONLY visible when installable) -->
 <div id="pwaInstallBanner" class="pwa-install-banner">
   <div class="pwa-info">
-    <img src="<?= htmlspecialchars(!empty($app_logo) ? $app_logo : 'assets/icon-192.png') ?>" alt="App Icon">
+    <img src="<?= htmlspecialchars(!empty($app_logo_url) ? $app_logo_url : 'assets/icon-192.png') ?>" alt="App Icon">
     <div>
       <div class="fw-bold" style="font-size: 0.88rem; line-height: 1.2;"><?= htmlspecialchars($app_settings['company_name']) ?></div>
       <div style="font-size: 0.72rem; color: #94a3b8;">Install app for fast 1-tap access</div>

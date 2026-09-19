@@ -1245,11 +1245,17 @@ body {
                                         $max = $row['male_max'];
                                     }
                                     
-                                    // Check existing recorded result from database if present
+                                    // Check existing recorded result from database if present (scoped by test_id & parameter_id)
                                     $prevResult = '';
-                                    $prevQ = $conn->query("SELECT result_value FROM test_results WHERE bill_id = $bill_id AND parameter_id = $param_id LIMIT 1");
-                                    if ($prevQ && $pr = $prevQ->fetch_assoc()) {
-                                        $prevResult = $pr['result_value'];
+                                    $prevStmt = $conn->prepare("SELECT result_value FROM test_results WHERE bill_id = ? AND test_id = ? AND parameter_id = ? LIMIT 1");
+                                    if ($prevStmt) {
+                                        $prevStmt->bind_param("iii", $bill_id, $test_id, $param_id);
+                                        $prevStmt->execute();
+                                        $prevQ = $prevStmt->get_result();
+                                        if ($prevQ && $pr = $prevQ->fetch_assoc()) {
+                                            $prevResult = $pr['result_value'];
+                                        }
+                                        $prevStmt->close();
                                     }
                                     $currentVal = $prevResult !== '' ? $prevResult : ($default ?? '');
 

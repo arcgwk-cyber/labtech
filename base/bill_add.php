@@ -805,8 +805,31 @@ if ($doc_query) {
 
           <!-- Prominent Grand Total Display -->
           <div class="total-display-box">
-            <div class="small text-uppercase opacity-75 fw-semibold">Grand Total Payable</div>
+            <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom border-white border-opacity-25">
+              <span class="small text-uppercase opacity-75 fw-semibold" style="font-size:0.75rem;">Gross Subtotal:</span>
+              <span class="font-monospace fw-bold" style="font-size:1.05rem;">₹ <span id="subtotal-text">0.00</span></span>
+            </div>
+            <div class="small text-uppercase opacity-75 fw-semibold mt-1">Net Payable Amount</div>
             <div class="total-amount-val">₹ <span id="grand-total-text">0.00</span></div>
+          </div>
+
+          <input type="hidden" name="subtotal" id="subtotal_input" value="0.00">
+          <input type="hidden" name="total_amount" id="total_amount" value="0.00">
+
+          <!-- Discount Input -->
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label mb-0">Discount (₹)</label>
+              <div class="d-flex gap-1">
+                <span class="pay-shortcut-pill" onclick="setDiscountPercent(10)">10%</span>
+                <span class="pay-shortcut-pill" onclick="setDiscountPercent(20)">20%</span>
+                <span class="pay-shortcut-pill" onclick="setDiscountZero()">Zero</span>
+              </div>
+            </div>
+            <div class="input-group">
+              <span class="input-group-text">₹</span>
+              <input type="number" step="0.01" min="0" name="discount" id="discount" class="form-control font-monospace fw-bold" placeholder="0.00" value="0.00" oninput="calculateNetAndBalance()">
+            </div>
           </div>
 
           <!-- Payment Input Fields -->
@@ -821,7 +844,7 @@ if ($doc_query) {
             </div>
             <div class="input-group">
               <span class="input-group-text">₹</span>
-              <input type="number" step="0.01" name="paid_amount" id="paid_amount" class="form-control font-monospace fw-bold" placeholder="0.00" oninput="updateBalance()">
+              <input type="number" step="0.01" min="0" name="paid_amount" id="paid_amount" class="form-control font-monospace fw-bold" placeholder="0.00" value="0.00" oninput="calculateNetAndBalance()">
             </div>
           </div>
 
@@ -834,12 +857,23 @@ if ($doc_query) {
             <div id="balanceAlertText" class="small mt-1 text-muted"></div>
           </div>
 
+          <div class="mb-3">
+            <label class="form-label">Payment Mode</label>
+            <select name="payment_mode" id="payment_mode" class="form-select fw-semibold">
+              <option value="Cash" selected>Cash</option>
+              <option value="UPI / QR">UPI / QR (GPay, PhonePe, Paytm)</option>
+              <option value="Card">Debit / Credit Card</option>
+              <option value="Net Banking">Net Banking</option>
+              <option value="Cheque">Cheque</option>
+            </select>
+          </div>
+
           <div class="mb-4">
             <label class="form-label">Payment Status</label>
             <select name="payment_status" id="payment_status" class="form-select fw-semibold">
-              <option value="Paid">Paid</option>
-              <option value="Pending" selected>Pending</option>
-              <option value="Partial">Partial</option>
+              <option value="paid">Paid (Fully Cleared)</option>
+              <option value="partial">Partial Payment</option>
+              <option value="unpaid" selected>Unpaid (Pending)</option>
             </select>
           </div>
 
@@ -1101,53 +1135,72 @@ function setPrice(select) {
 }
 
 function calculateTotal() {
-  let total = 0;
+  let subtotal = 0;
   $('.price').each(function() {
-    total += parseFloat($(this).val()) || 0;
+    subtotal += parseFloat($(this).val()) || 0;
   });
 
-  $('#grand-total-text').text(total.toFixed(2));
-  $('#mobileGrandTotal').text(total.toFixed(2));
-  $('#total_amount').val(total.toFixed(2));
-  updateBalance();
+  $('#subtotal-text').text(subtotal.toFixed(2));
+  $('#subtotal_input').val(subtotal.toFixed(2));
+  calculateNetAndBalance();
 }
 
-function updateBalance() {
-  const total = parseFloat($('#total_amount').val()) || 0;
-  const paidInput = $('#paid_amount').val();
-  const paid = parseFloat(paidInput) || 0;
-  const balance = total - paid;
+function calculateNetAndBalance() {
+  const subtotal = parseFloat($('#subtotal_input').val()) || 0;
+  let discount = parseFloat($('#discount').val()) || 0;
+  if (discount < 0) { discount = 0; $('#discount').val('0.00'); }
+  if (discount > subtotal) { discount = subtotal; $('#discount').val(subtotal.toFixed(2)); }
 
+  const netAmount = Math.max(0, subtotal - discount);
+  $('#grand-total-text').text(netAmount.toFixed(2));
+  $('#mobileGrandTotal').text(netAmount.toFixed(2));
+  $('#total_amount').val(netAmount.toFixed(2));
+
+  let paid = parseFloat($('#paid_amount').val()) || 0;
+  if (paid < 0) { paid = 0; $('#paid_amount').val('0.00'); }
+  const balance = Math.max(0, netAmount - paid);
   $('#balance').val(balance.toFixed(2));
 
   // Visual status & alert
   const alertEl = $('#balanceAlertText');
-  if (balance <= 0 && total > 0) {
-    $('#payment_status').val('Paid');
+  if (balance <= 0 && netAmount > 0) {
+    $('#payment_status').val('paid');
     alertEl.html('<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>Fully Cleared</span>');
-  } else if (balance < total && paid > 0) {
-    $('#payment_status').val('Partial');
-    alertEl.html('<span class="text-warning fw-bold"><i class="bi bi-hourglass-split me-1"></i>Partial Payment</span>');
+  } else if (paid > 0 && balance > 0) {
+    $('#payment_status').val('partial');
+    alertEl.html('<span class="text-warning fw-bold"><i class="bi bi-hourglass-split me-1"></i>Partial Payment (Due ₹' + balance.toFixed(2) + ')</span>');
   } else {
-    $('#payment_status').val('Pending');
-    alertEl.html('<span class="text-danger fw-bold"><i class="bi bi-exclamation-circle-fill me-1"></i>Payment Pending</span>');
+    $('#payment_status').val('unpaid');
+    alertEl.html('<span class="text-danger fw-bold"><i class="bi bi-exclamation-circle-fill me-1"></i>Payment Pending (Due ₹' + balance.toFixed(2) + ')</span>');
   }
+}
+
+// Discount shortcut buttons
+function setDiscountPercent(pct) {
+  const subtotal = parseFloat($('#subtotal_input').val()) || 0;
+  const d = (subtotal * (pct / 100));
+  $('#discount').val(d.toFixed(2));
+  calculateNetAndBalance();
+}
+function setDiscountZero() {
+  $('#discount').val('0.00');
+  calculateNetAndBalance();
 }
 
 // Payment shortcut buttons
 function setFullPaid() {
-  const total = parseFloat($('#total_amount').val()) || 0;
-  $('#paid_amount').val(total.toFixed(2));
-  updateBalance();
+  const net = parseFloat($('#total_amount').val()) || 0;
+  $('#paid_amount').val(net.toFixed(2));
+  calculateNetAndBalance();
 }
 function setPartialHalf() {
-  const total = parseFloat($('#total_amount').val()) || 0;
-  $('#paid_amount').val((total / 2).toFixed(2));
-  updateBalance();
+  const net = parseFloat($('#total_amount').val()) || 0;
+  $('#paid_amount').val((net / 2).toFixed(2));
+  calculateNetAndBalance();
 }
 function setZeroPaid() {
   $('#paid_amount').val('0.00');
-  updateBalance();
+  calculateNetAndBalance();
 }
 
 // Clear full form
@@ -1184,7 +1237,7 @@ function loadPatientTypeFields() {
   });
 }
 
-// Client-side form validation before submission
+// Client-side form validation and double-submission protection
 $('#billForm').on('submit', function(e) {
   const total = parseFloat($('#total_amount').val()) || 0;
   if (total <= 0) {
@@ -1208,6 +1261,9 @@ $('#billForm').on('submit', function(e) {
     $('#phone').focus();
     return false;
   }
+
+  const submitBtn = $(this).find('button[type="submit"]');
+  submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2" role="status"></span> Saving Invoice...');
 });
 </script>
 

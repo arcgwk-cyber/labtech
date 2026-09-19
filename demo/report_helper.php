@@ -34,15 +34,18 @@ if (!function_exists('getLetterheadImageFile')) {
             __DIR__ . '/uploads/letterhead.jpeg',
             __DIR__ . '/uploads/letterhead.webp'
         ];
-        if (basename(__DIR__) === 'demo') {
-            $candidates[] = __DIR__ . '/ammaletterhead.jpg';
-        }
+        $newest = null;
+        $newest_mtime = 0;
         foreach ($candidates as $path) {
-            if (file_exists($path)) {
-                return $path;
+            if (file_exists($path) && is_file($path)) {
+                $mtime = filemtime($path);
+                if ($mtime > $newest_mtime) {
+                    $newest_mtime = $mtime;
+                    $newest = $path;
+                }
             }
         }
-        return null;
+        return $newest;
     }
 }
 

@@ -152,9 +152,15 @@ $is_studio = (isset($_GET['studio']) && $_GET['studio'] == '1');
     .preview-frame {
       width: 100%;
       height: 740px;
+      min-height: 480px;
       border: 1px solid #cbd5e1;
       border-radius: 12px;
       background: #ffffff;
+    }
+    @media (max-width: 991.98px) {
+      .preview-frame {
+        height: 520px;
+      }
     }
     .loader-overlay {
       position: absolute;
@@ -205,6 +211,23 @@ $is_studio = (isset($_GET['studio']) && $_GET['studio'] == '1');
     <i class="bi bi-check-circle-fill fa-lg"></i>
     <div id="statusAlertText">Default report preferences saved successfully!</div>
     <button type="button" class="btn-close" onclick="this.parentElement.classList.add('d-none')"></button>
+  </div>
+
+  <!-- Mobile Direct Action Card for Small Screens -->
+  <div class="card-custom p-3 mb-4 d-block d-lg-none bg-light border-primary border-opacity-25 shadow-sm">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <div class="fw-bold text-dark"><i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i> Mobile PDF Viewer</div>
+      <span class="badge bg-primary bg-opacity-10 text-primary small">Instant Access</span>
+    </div>
+    <p class="small text-muted mb-2" style="font-size:0.75rem;">Mobile browsers do not always render PDFs inside web pages. Tap below to open or download the complete report:</p>
+    <div class="d-grid gap-2">
+      <a id="mobileOpenPdfBtn" href="#" target="_blank" class="btn btn-success fw-bold py-2">
+        <i class="bi bi-box-arrow-up-right me-1"></i> Open PDF Report in New Tab
+      </a>
+      <a id="mobileDownloadPdfBtn" href="#" class="btn btn-outline-primary fw-semibold py-2">
+        <i class="bi bi-download me-1"></i> Download Report PDF
+      </a>
+    </div>
   </div>
 
   <div class="row g-4">
@@ -676,11 +699,20 @@ function updateLivePreview() {
   if (pb) pb.href = printUrl;
   const pd = document.getElementById('panelDownloadBtn');
   if (pd) pd.href = downloadUrl;
+  const mobOpen = document.getElementById('mobileOpenPdfBtn');
+  if (mobOpen) mobOpen.href = previewUrl;
+  const mobDl = document.getElementById('mobileDownloadPdfBtn');
+  if (mobDl) mobDl.href = downloadUrl;
 
-  // Show loader and reload iframe
+  // Show loader and reload iframe with safety timeout for mobile browsers
   if (loader) loader.style.display = 'flex';
+  const loaderTimeout = setTimeout(function() {
+    if (loader) loader.style.display = 'none';
+  }, 3500);
+
   iframe.src = previewUrl + '#toolbar=0';
   iframe.onload = function() {
+    clearTimeout(loaderTimeout);
     if (loader) loader.style.display = 'none';
   };
 
