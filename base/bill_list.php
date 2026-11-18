@@ -2,6 +2,7 @@
 // bill_list.php
 include 'auth_check.php';
 require_once 'db.php';
+require_once __DIR__ . '/csrf.php';
 
 // 1. Collect Filter & Sort Inputs (All Bills by default, no date restriction)
 $search         = trim($_GET['search'] ?? '');
@@ -893,6 +894,7 @@ function buildUrl($overrides = []) {
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content shadow-lg border-0">
       <form action="bill_cancel.php" method="POST">
+        <?= getCsrfField() ?>
         <input type="hidden" name="bill_id" id="cancel_modal_bill_id" value="">
         <input type="hidden" name="action" id="cancel_modal_action" value="">
 
@@ -933,6 +935,7 @@ function buildUrl($overrides = []) {
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content shadow-lg border-0">
       <form action="bill_cancel.php" method="POST" id="approvalForm">
+        <?= getCsrfField() ?>
         <input type="hidden" name="bill_id" id="approval_bill_id" value="">
         <input type="hidden" name="action" id="approval_action" value="approve_cancel">
 

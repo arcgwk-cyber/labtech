@@ -167,7 +167,14 @@ if ($conn && !$conn->connect_error && !$isDemo && $currentDir !== 'base' && empt
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['password'])) {
-    if ($accountSuspended) {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $rateKey = 'login_attempts_' . md5($ip);
+    $lockKey = 'login_lockout_' . md5($ip);
+
+    if (isset($_SESSION[$lockKey]) && $_SESSION[$lockKey] > time()) {
+        $remaining = ceil(($_SESSION[$lockKey] - time()) / 60);
+        $error = "Too many failed login attempts. Please wait {$remaining} minute(s) before trying again.";
+    } elseif ($accountSuspended) {
         $error = "This laboratory account has been suspended by the administrator. Please contact support.";
     } elseif ($licenseExpired) {
         $error = "Software license or trial period has expired. Please renew your subscription to log in.";
@@ -224,11 +231,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
                 if ($result && $result->num_rows === 1) {
                     $user = $result->fetch_assoc();
 
-                    // Check password hash or fallback for initial setup
-                    $validPassword = password_verify($password, $user['password_hash']) || 
-                                     (md5($password) === $user['password_hash']) ||
-                                     ($password === $user['password_hash']) ||
-                                     ($password === 'admin123' && $username === 'admin'); // Fallback dev convenience
+                    // Strictly verify password using secure hash
+                    $validPassword = password_verify($password, $user['password_hash']);
 
                     // If password failed, check against vendor_master record for automatic sync/recovery
                     if (!$validPassword && !$isDemo) {
@@ -240,7 +244,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
                                 $vPassStmt->execute();
                                 $vpRes = $vPassStmt->get_result();
                                 if ($vpRes && $vpRow = $vpRes->fetch_assoc()) {
-                                    if ($password === $vpRow['password'] || password_verify($password, $vpRow['password']) || md5($password) === $vpRow['password']) {
+                                    if (password_verify($password, $vpRow['password'])) {
                                         $validPassword = true;
                                         $newH = password_hash($password, PASSWORD_BCRYPT);
                                         @$conn->query("UPDATE users SET password_hash = '{$newH}', status = 'active' WHERE user_id = " . (int)$user['user_id']);
@@ -252,6 +256,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
                     }
 
                     if ($validPassword) {
+                        // Reset failed attempts on success
+                        unset($_SESSION[$rateKey]);
+                        unset($_SESSION[$lockKey]);
+
                         $_SESSION['user_id']  = $user['user_id'];
                         $_SESSION['username'] = $user['username'];
                         $_SESSION['full_name']= $user['full_name'];
@@ -263,11 +271,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
                         header("Location: index.php");
                         exit;
                     } else {
-                        $error = "Invalid password. Please verify and try again.";
+                        $_SESSION[$rateKey] = ($_SESSION[$rateKey] ?? 0) + 1;
+                        if ($_SESSION[$rateKey] >= 5) {
+                            $_SESSION[$lockKey] = time() + 900;
+                            $error = "Too many failed login attempts. Account temporarily locked for 15 minutes.";
+                        } else {
+                            $error = "Invalid username or password.";
+                        }
                     }
                 } else {
-                    $error = "User not found or account is inactive.";
+                    $_SESSION[$rateKey] = ($_SESSION[$rateKey] ?? 0) + 1;
+                    if ($_SESSION[$rateKey] >= 5) {
+                        $_SESSION[$lockKey] = time() + 900;
+                        $error = "Too many failed login attempts. Account temporarily locked for 15 minutes.";
+                    } else {
+                        $error = "User not found or account is inactive.";
+                    }
                 }
+                $stmt->close();
             } else {
                 $error = "Database query error: " . $conn->error;
             }
@@ -466,14 +487,6 @@ $logo_url = $logo_path ? ($logo_path . '?v=' . ($logo_mtime ?: time())) : null;
         </form>
 
         <?php if ($isDemo): ?>
-        <!-- Demo auto-fill convenience for testers -->
-        <div class="demo-hint mb-3 text-center">
-          <span class="fw-semibold"><i class="fas fa-key me-1"></i> Demo Login Quick-Fill:</span><br>
-          <button type="button" class="btn btn-sm btn-outline-primary mt-1 px-3" onclick="fillCredentials('admin', 'admin123')">
-            Click to fill: <code>admin</code> / <code>admin123</code>
-          </button>
-        </div>
-
         <div class="text-center pt-3 border-top small">
           Register new lab? <a href="../register.php" class="fw-semibold text-primary">Start 14-Day Free Trial</a>
         </div>

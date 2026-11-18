@@ -8,6 +8,7 @@
  */
 include_once 'auth_check.php';
 include_once 'db.php';
+require_once __DIR__ . '/csrf.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -504,7 +505,7 @@ function getSpecimenBadge($test_name) {
                     <a href="lab_test_form_with_sections.php?id=<?= $t['test_id'] ?>" class="btn btn-sm btn-outline-warning" title="Edit Test and Parameter Sections">
                       <i class="bi bi-pencil"></i>
                     </a>
-                    <a href="lab_test_delete.php?id=<?= $t['test_id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete test \'<?= htmlspecialchars(addslashes($t['test_name'])) ?>\'?')" title="Delete Test">
+                    <a href="lab_test_delete.php?id=<?= $t['test_id'] ?>&csrf_token=<?= getCsrfToken() ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete test \'<?= htmlspecialchars(addslashes($t['test_name'])) ?>\'?')" title="Delete Test">
                       <i class="bi bi-trash"></i>
                     </a>
                   </div>

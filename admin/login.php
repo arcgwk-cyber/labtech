@@ -22,54 +22,62 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'logged_out') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $password = trim($_POST['password'] ?? '');
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $rateKey = 'sa_login_attempts_' . md5($ip);
+    $lockKey = 'sa_login_lockout_' . md5($ip);
 
-    if (empty($username) || empty($password)) {
-        $error = "Please enter both Super Admin username and password.";
+    if (isset($_SESSION[$lockKey]) && $_SESSION[$lockKey] > time()) {
+        $remaining = ceil(($_SESSION[$lockKey] - time()) / 60);
+        $error = "Too many failed admin login attempts. Please wait {$remaining} minute(s) before trying again.";
     } else {
-        $authenticated = false;
-        $super_admin_data = null;
+        $username = trim($_POST['username'] ?? '');
+        $password = trim($_POST['password'] ?? '');
 
-        if ($conn && !$conn->connect_error) {
-            $stmt = $conn->prepare("SELECT user_id, username, password_hash, full_name, role_id, status FROM users WHERE username = ? LIMIT 1");
-            if ($stmt) {
-                $stmt->bind_param("s", $username);
-                $stmt->execute();
-                $res = $stmt->get_result();
-                if ($user = $res->fetch_assoc()) {
-                    // Check if role is admin (role_id = 1) and status is active
-                    if ((int)$user['role_id'] === 1 && $user['status'] === 'active') {
-                        if (password_verify($password, $user['password_hash'])) {
-                            $authenticated = true;
-                            $super_admin_data = $user;
+        if (empty($username) || empty($password)) {
+            $error = "Please enter both Super Admin username and password.";
+        } else {
+            $authenticated = false;
+            $super_admin_data = null;
+
+            if ($conn && !$conn->connect_error) {
+                $stmt = $conn->prepare("SELECT user_id, username, password_hash, full_name, role_id, status FROM users WHERE username = ? LIMIT 1");
+                if ($stmt) {
+                    $stmt->bind_param("s", $username);
+                    $stmt->execute();
+                    $res = $stmt->get_result();
+                    if ($user = $res->fetch_assoc()) {
+                        // Check if role is admin (role_id = 1) and status is active
+                        if ((int)$user['role_id'] === 1 && $user['status'] === 'active') {
+                            if (password_verify($password, $user['password_hash'])) {
+                                $authenticated = true;
+                                $super_admin_data = $user;
+                            }
                         }
                     }
+                    $stmt->close();
                 }
-                $stmt->close();
             }
-        }
 
-        // Master emergency fallback for initial setup if password hash not yet reset
-        if (!$authenticated && $username === 'admin' && ($password === 'admin' || $password === 'admin123' )) {
-            $authenticated = true;
-            $super_admin_data = [
-                'user_id' => 1,
-                'username' => 'admin',
-                'full_name' => 'Super Administrator'
-            ];
-        }
+            if ($authenticated && $super_admin_data) {
+                unset($_SESSION[$rateKey]);
+                unset($_SESSION[$lockKey]);
 
-        if ($authenticated && $super_admin_data) {
-            $_SESSION['super_admin_logged_in'] = true;
-            $_SESSION['super_admin_id'] = $super_admin_data['user_id'];
-            $_SESSION['super_admin_user'] = $super_admin_data['username'];
-            $_SESSION['super_admin_name'] = $super_admin_data['full_name'] ?? 'Super Administrator';
-            
-            header("Location: index.php");
-            exit;
-        } else {
-            $error = "Invalid Super Admin credentials or account is not authorized.";
+                $_SESSION['super_admin_logged_in'] = true;
+                $_SESSION['super_admin_id'] = $super_admin_data['user_id'];
+                $_SESSION['super_admin_user'] = $super_admin_data['username'];
+                $_SESSION['super_admin_name'] = $super_admin_data['full_name'] ?? 'Super Administrator';
+                
+                header("Location: index.php");
+                exit;
+            } else {
+                $_SESSION[$rateKey] = ($_SESSION[$rateKey] ?? 0) + 1;
+                if ($_SESSION[$rateKey] >= 5) {
+                    $_SESSION[$lockKey] = time() + 900;
+                    $error = "Too many failed admin login attempts. Account temporarily locked for 15 minutes.";
+                } else {
+                    $error = "Invalid Super Admin credentials or account is not authorized.";
+                }
+            }
         }
     }
 }

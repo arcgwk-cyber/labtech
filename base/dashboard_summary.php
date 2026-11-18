@@ -9,16 +9,23 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit;
 }
 
-$start = $_GET['start_date'] ?? date('Y-m-01');
-$end = $_GET['end_date'] ?? date('Y-m-d');
+$raw_start = $_GET['start_date'] ?? date('Y-m-01');
+$raw_end = $_GET['end_date'] ?? date('Y-m-d');
 
-$where = "WHERE bill_date BETWEEN '$start' AND '$end'";
+$start = preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw_start) ? $raw_start : date('Y-m-01');
+$end   = preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw_end) ? $raw_end : date('Y-m-d');
 
-$bill_q = mysqli_query($conn, "SELECT COUNT(*) AS total_bills, SUM(total_amount) AS total_revenue, SUM(balance) AS total_due FROM bills $where");
-$bill_data = mysqli_fetch_assoc($bill_q);
+$bill_stmt = $conn->prepare("SELECT COUNT(*) AS total_bills, SUM(total_amount) AS total_revenue, SUM(balance) AS total_due FROM bills WHERE bill_date BETWEEN ? AND ?");
+$bill_stmt->bind_param("ss", $start, $end);
+$bill_stmt->execute();
+$bill_data = $bill_stmt->get_result()->fetch_assoc();
+$bill_stmt->close();
 
-$tests_q = mysqli_query($conn, "SELECT COUNT(*) AS total_tests FROM test_results WHERE result_date BETWEEN '$start' AND '$end'");
-$test_data = mysqli_fetch_assoc($tests_q);
+$tests_stmt = $conn->prepare("SELECT COUNT(*) AS total_tests FROM test_results WHERE result_date BETWEEN ? AND ?");
+$tests_stmt->bind_param("ss", $start, $end);
+$tests_stmt->execute();
+$test_data = $tests_stmt->get_result()->fetch_assoc();
+$tests_stmt->close();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -62,10 +69,10 @@ $test_data = mysqli_fetch_assoc($tests_q);
 
   <form class="row g-2 mb-4">
     <div class="col-12 col-md-3">
-      <input type="date" name="start_date" class="form-control" value="<?= $start ?>">
+      <input type="date" name="start_date" class="form-control" value="<?= htmlspecialchars($start, ENT_QUOTES, 'UTF-8') ?>">
     </div>
     <div class="col-12 col-md-3">
-      <input type="date" name="end_date" class="form-control" value="<?= $end ?>">
+      <input type="date" name="end_date" class="form-control" value="<?= htmlspecialchars($end, ENT_QUOTES, 'UTF-8') ?>">
     </div>
     <div class="col-12 col-md-3">
       <button class="btn btn-success w-100">Filter</button>

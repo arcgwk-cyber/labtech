@@ -5,16 +5,36 @@
  * and multi-tiered preference hierarchy resolution.
  */
 
-if (!function_exists('decodeID')) {
-    function decodeID($token, $key = 987654321) {
-        if (empty($token)) return 0;
-        return hexdec(strtolower(trim($token))) ^ $key;
+if (!function_exists('getAppTokenSecret')) {
+    function getAppTokenSecret() {
+        return getenv('APP_KEY') ?: 'VenSaas_LabTech_Secure_Salt_2026_@rcVsp';
     }
 }
 
 if (!function_exists('encodeID')) {
-    function encodeID($id, $key = 987654321) {
-        return strtoupper(dechex(((int)$id) ^ $key));
+    function encodeID($id) {
+        $id = (int)$id;
+        if ($id <= 0) return '';
+        $sig = substr(hash_hmac('sha256', (string)$id, getAppTokenSecret()), 0, 8);
+        return strtoupper(dechex($id) . '-' . $sig);
+    }
+}
+
+if (!function_exists('decodeID')) {
+    function decodeID($token) {
+        if (empty($token)) return 0;
+        $token = trim($token);
+        // Modern HMAC-signed token
+        if (strpos($token, '-') !== false) {
+            list($hex, $sig) = explode('-', $token, 2);
+            $id = hexdec($hex);
+            if ($id <= 0) return 0;
+            $expectedSig = strtoupper(substr(hash_hmac('sha256', (string)$id, getAppTokenSecret()), 0, 8));
+            return hash_equals($expectedSig, strtoupper($sig)) ? $id : 0;
+        }
+        // Safe backward compatibility check for existing printed QR codes
+        $legacy = hexdec(strtolower($token)) ^ 987654321;
+        return ($legacy > 0 && $legacy < 100000000) ? $legacy : 0;
     }
 }
 

@@ -4,6 +4,7 @@
  * Ensures lab_slug column exists in admin_settings and restores
  * Amma Diagnostic Centre (for demo) and SM Medical Centre (for tenant) records.
  */
+require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/db.php';
 
 $log = [];

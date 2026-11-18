@@ -2,8 +2,10 @@
 // toggle_status.php
 require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/csrf.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verifyCsrfToken();
     $bill_id = intval($_POST['bill_id'] ?? 0);
     $field = $_POST['field'] ?? '';
 
@@ -27,7 +29,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Safe Redirect back
-$ref = !empty($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'bill_list.php';
+// Safe Redirect back (Prevent Open Redirect)
+$ref = 'bill_list.php';
+if (!empty($_SERVER['HTTP_REFERER'])) {
+    $parts = parse_url($_SERVER['HTTP_REFERER']);
+    $refHost = $parts['host'] ?? '';
+    $currentHost = $_SERVER['HTTP_HOST'] ?? '';
+    if (empty($refHost) || strcasecmp($refHost, $currentHost) === 0) {
+        $ref = $_SERVER['HTTP_REFERER'];
+    }
+}
 header("Location: " . $ref);
 exit;

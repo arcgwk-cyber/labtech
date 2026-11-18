@@ -29,9 +29,11 @@ if (isset($_GET['filter']) && $_GET['filter'] === 'week') {
 } elseif (isset($_GET['filter']) && $_GET['filter'] === 'month') {
     $filter_clause = "AND bill_date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)";
 } elseif (!empty($_GET['start_date']) && !empty($_GET['end_date'])) {
-    $start = $_GET['start_date'];
-    $end = $_GET['end_date'];
-    $filter_clause = "AND bill_date BETWEEN '$start' AND '$end'";
+    $start = trim($_GET['start_date']);
+    $end = trim($_GET['end_date']);
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $start) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $end)) {
+        $filter_clause = "AND bill_date BETWEEN '" . $conn->real_escape_string($start) . "' AND '" . $conn->real_escape_string($end) . "'";
+    }
 }
 
 $stats = [

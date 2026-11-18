@@ -1,12 +1,20 @@
 <?php
 require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/csrf.php';
+
+// Only Admin can manage users
+if (empty($_SESSION['role_id']) || (int)$_SESSION['role_id'] !== 1) {
+    http_response_code(403);
+    die("Access Denied: Administrative privileges required.");
+}
 
 // Fetch roles for the dropdown
 $roles = mysqli_query($conn, "SELECT * FROM roles ORDER BY role_name");
 
 // Handle insert
 if (isset($_POST['submit'])) {
+    verifyCsrfToken();
     $username = trim($_POST['username']);
     $password = password_hash(trim($_POST['password']), PASSWORD_DEFAULT); // secure hash
     $fullname = trim($_POST['fullname']);
@@ -24,6 +32,7 @@ if (isset($_POST['submit'])) {
 
 // Handle delete
 if (isset($_GET['delete'])) {
+    verifyCsrfToken($_GET['csrf_token'] ?? '');
     $id = intval($_GET['delete']);
     // Prevent user from deleting their currently logged-in account
     if ($id > 0 && $id !== (int)($_SESSION['user_id'] ?? 0)) {
@@ -64,6 +73,7 @@ $users = mysqli_query($conn, "
     <h2 class="mb-4 text-center">User Management</h2>
 
     <form method="post" class="card p-4 shadow-sm mb-4">
+        <?= getCsrfField() ?>
         <div class="row mb-3">
             <div class="col">
                 <input type="text" name="username" class="form-control" placeholder="Username" required>
@@ -109,7 +119,7 @@ $users = mysqli_query($conn, "
                 <td><?= htmlspecialchars($user['status']) ?></td>
                 <td>
                     <a href="edit_user.php?id=<?= $user['user_id'] ?>" class="btn btn-sm btn-warning">Edit</a>
-                    <a href="users.php?delete=<?= $user['user_id'] ?>" onclick="return confirm('Delete this user?')" class="btn btn-sm btn-danger">Delete</a>
+                    <a href="users.php?delete=<?= $user['user_id'] ?>&csrf_token=<?= getCsrfToken() ?>" onclick="return confirm('Delete this user?')" class="btn btn-sm btn-danger">Delete</a>
                 </td>
             </tr>
         <?php } ?>

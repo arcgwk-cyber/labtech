@@ -58,10 +58,11 @@ if ($vendor_id <= 0) {
                     remarks = ? 
                 WHERE vendor_id = ?
             ");
+            $hashed_admin_pass = password_hash($result['admin_password'], PASSWORD_BCRYPT);
             $remarks = "Provisioned at /" . $result['folder_slug'] . " | DB: " . $result['db_name'];
             $update_stmt->bind_param("ssssi", 
                 $result['admin_username'], 
-                $result['admin_password'], 
+                $hashed_admin_pass, 
                 $result['due_date'], 
                 $remarks, 
                 $vendor_id

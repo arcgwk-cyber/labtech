@@ -1,23 +1,36 @@
 <?php
-include 'db.php';
+require_once __DIR__ . '/auth_check.php';
+require_once __DIR__ . '/db.php';
 
 $bill_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($bill_id <= 0) die("Invalid Bill ID");
 
 // Fetch bill, patient
-$bill = $conn->query("SELECT b.*, p.full_name, p.gender, p.date_of_birth, p.phone, p.address 
-                      FROM bills b JOIN patients p ON b.patient_id = p.patient_id 
-                      WHERE b.bill_id = $bill_id")->fetch_assoc();
+$stmt = $conn->prepare("SELECT b.*, p.full_name, p.gender, p.date_of_birth, p.phone, p.address 
+                        FROM bills b JOIN patients p ON b.patient_id = p.patient_id 
+                        WHERE b.bill_id = ?");
+$stmt->bind_param("i", $bill_id);
+$stmt->execute();
+$bill = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+
+if (!$bill) die("Invoice not found.");
 
 // Fetch tests
-$tests = $conn->query("SELECT t.test_name, t.price FROM bill_tests bt 
-                       JOIN lab_tests t ON bt.test_id = t.test_id 
-                       WHERE bt.bill_id = $bill_id");
+$t_stmt = $conn->prepare("SELECT t.test_name, t.price FROM bill_tests bt 
+                          JOIN lab_tests t ON bt.test_id = t.test_id 
+                          WHERE bt.bill_id = ?");
+$t_stmt->bind_param("i", $bill_id);
+$t_stmt->execute();
+$tests = $t_stmt->get_result();
 
 // Fetch packages
-$packages = $conn->query("SELECT p.package_name, p.package_price FROM bill_packages bp 
+$p_stmt = $conn->prepare("SELECT p.package_name, p.package_price FROM bill_packages bp 
                           JOIN test_packages p ON bp.package_id = p.package_id 
-                          WHERE bp.bill_id = $bill_id");
+                          WHERE bp.bill_id = ?");
+$p_stmt->bind_param("i", $bill_id);
+$p_stmt->execute();
+$packages = $p_stmt->get_result();
 ?>
 
 <!DOCTYPE html>
@@ -47,11 +60,11 @@ $packages = $conn->query("SELECT p.package_name, p.package_price FROM bill_packa
     </div>
 
     <div class="mb-3">
-        <strong>Patient Name:</strong> <?= $bill['full_name'] ?><br>
-        <strong>Gender:</strong> <?= $bill['gender'] ?> | 
-        <strong>DOB:</strong> <?= $bill['date_of_birth'] ?><br>
-        <strong>Phone:</strong> <?= $bill['phone'] ?><br>
-        <strong>Address:</strong> <?= $bill['address'] ?>
+        <strong>Patient Name:</strong> <?= htmlspecialchars($bill['full_name'], ENT_QUOTES, 'UTF-8') ?><br>
+        <strong>Gender:</strong> <?= htmlspecialchars($bill['gender'], ENT_QUOTES, 'UTF-8') ?> | 
+        <strong>DOB:</strong> <?= htmlspecialchars($bill['date_of_birth'], ENT_QUOTES, 'UTF-8') ?><br>
+        <strong>Phone:</strong> <?= htmlspecialchars($bill['phone'], ENT_QUOTES, 'UTF-8') ?><br>
+        <strong>Address:</strong> <?= htmlspecialchars($bill['address'], ENT_QUOTES, 'UTF-8') ?>
     </div>
 
     <hr>
@@ -66,11 +79,11 @@ $packages = $conn->query("SELECT p.package_name, p.package_price FROM bill_packa
         $i = 1;
         while ($t = $tests->fetch_assoc()):
         ?>
-            <tr><td><?= $i++ ?></td><td><?= $t['test_name'] ?></td><td>Test</td><td class="text-end"><?= number_format($t['price'], 2) ?></td></tr>
+            <tr><td><?= $i++ ?></td><td><?= htmlspecialchars($t['test_name'], ENT_QUOTES, 'UTF-8') ?></td><td>Test</td><td class="text-end"><?= number_format($t['price'], 2) ?></td></tr>
         <?php endwhile; ?>
 
         <?php while ($p = $packages->fetch_assoc()): ?>
-            <tr><td><?= $i++ ?></td><td><?= $p['package_name'] ?></td><td>Package</td><td class="text-end"><?= number_format($p['package_price'], 2) ?></td></tr>
+            <tr><td><?= $i++ ?></td><td><?= htmlspecialchars($p['package_name'], ENT_QUOTES, 'UTF-8') ?></td><td>Package</td><td class="text-end"><?= number_format($p['package_price'], 2) ?></td></tr>
         <?php endwhile; ?>
         </tbody>
         <tfoot>

@@ -8,6 +8,7 @@
  */
 include_once 'auth_check.php';
 include_once 'db.php';
+require_once __DIR__ . '/csrf.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -30,6 +31,7 @@ $msgClass = '';
 
 // --- Handle Save / Update ---
 if (isset($_POST['save'])) {
+    verifyCsrfToken();
     $id            = !empty($_POST['id']) ? intval($_POST['id']) : null;
     $name          = trim($_POST['name'] ?? '');
     $role          = trim($_POST['role'] ?? 'Doctor');
@@ -43,22 +45,52 @@ if (isset($_POST['save'])) {
 
     $uploadDir = __DIR__ . '/sign_stamp/';
     if (!is_dir($uploadDir)) {
-        @mkdir($uploadDir, 0777, true);
+        @mkdir($uploadDir, 0755, true);
+    }
+    // Protect upload folder from executing scripts
+    $htaccessFile = $uploadDir . '.htaccess';
+    if (!file_exists($htaccessFile)) {
+        @file_put_contents($htaccessFile, "<FilesMatch \"(?i)\\.(php|phtml|php3|php4|php5|php7|phps|phar|cgi|pl|sh)$\">\nOrder Deny,Allow\nDeny from all\n</FilesMatch>\n");
     }
 
+    $allowed_exts = ['jpg', 'jpeg', 'png', 'webp'];
+    $allowed_mimes = ['image/jpeg', 'image/png', 'image/webp'];
+
     $sign = '';
-    if (!empty($_FILES['signimage']['name'])) {
-        $signFile = time() . '_sig_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $_FILES['signimage']['name']);
-        if (move_uploaded_file($_FILES['signimage']['tmp_name'], $uploadDir . $signFile)) {
-            $sign = $signFile;
+    if (!empty($_FILES['signimage']['tmp_name']) && $_FILES['signimage']['error'] === UPLOAD_ERR_OK) {
+        $ext = strtolower(pathinfo($_FILES['signimage']['name'], PATHINFO_EXTENSION));
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->file($_FILES['signimage']['tmp_name']);
+
+        if (in_array($ext, $allowed_exts, true) && in_array($mime, $allowed_mimes, true)) {
+            $signFile = time() . '_sig_' . bin2hex(random_bytes(8)) . '.' . $ext;
+            if (move_uploaded_file($_FILES['signimage']['tmp_name'], $uploadDir . $signFile)) {
+                $sign = $signFile;
+            }
+        } else {
+            $msg = "Error: Invalid signature image format. Only JPG, PNG, and WebP are allowed.";
+            $msgClass = 'danger';
+            header("Location: sign_master.php?msg=" . urlencode($msg) . "&cls=$msgClass");
+            exit;
         }
     }
 
     $stamp = '';
-    if (!empty($_FILES['stampimage']['name'])) {
-        $stampFile = time() . '_stamp_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $_FILES['stampimage']['name']);
-        if (move_uploaded_file($_FILES['stampimage']['tmp_name'], $uploadDir . $stampFile)) {
-            $stamp = $stampFile;
+    if (!empty($_FILES['stampimage']['tmp_name']) && $_FILES['stampimage']['error'] === UPLOAD_ERR_OK) {
+        $ext = strtolower(pathinfo($_FILES['stampimage']['name'], PATHINFO_EXTENSION));
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->file($_FILES['stampimage']['tmp_name']);
+
+        if (in_array($ext, $allowed_exts, true) && in_array($mime, $allowed_mimes, true)) {
+            $stampFile = time() . '_stamp_' . bin2hex(random_bytes(8)) . '.' . $ext;
+            if (move_uploaded_file($_FILES['stampimage']['tmp_name'], $uploadDir . $stampFile)) {
+                $stamp = $stampFile;
+            }
+        } else {
+            $msg = "Error: Invalid stamp image format. Only JPG, PNG, and WebP are allowed.";
+            $msgClass = 'danger';
+            header("Location: sign_master.php?msg=" . urlencode($msg) . "&cls=$msgClass");
+            exit;
         }
     }
 
@@ -90,6 +122,7 @@ if (isset($_POST['save'])) {
 
 // --- Handle Delete ---
 if (isset($_GET['delete'])) {
+    verifyCsrfToken($_GET['csrf_token'] ?? '');
     $did = intval($_GET['delete']);
     if ($did > 0) {
         $del_stmt = $conn->prepare("DELETE FROM sign_master WHERE id = ?");
@@ -490,6 +523,7 @@ if ($conn) {
     </div>
 
     <form method="post" enctype="multipart/form-data">
+      <?= getCsrfField() ?>
       <input type="hidden" name="id" value="<?= $edit['id'] ?? '' ?>">
 
       <div class="row g-3">
@@ -657,7 +691,7 @@ if ($conn) {
                   <a href="?edit=<?= $r['id'] ?>" class="btn btn-sm btn-outline-warning" title="Edit Signatory">
                     <i class="bi bi-pencil"></i>
                   </a>
-                  <a href="?delete=<?= $r['id'] ?>" class="btn btn-sm btn-outline-danger" 
+                  <a href="?delete=<?= $r['id'] ?>&csrf_token=<?= getCsrfToken() ?>" class="btn btn-sm btn-outline-danger" 
                      onclick="return confirm('Delete signatory \'<?= htmlspecialchars(addslashes($r['Name'])) ?>\'?')" title="Delete Signatory">
                     <i class="bi bi-trash"></i>
                   </a>

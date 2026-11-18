@@ -67,13 +67,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = "The User ID '{$vendor_userid}' is already registered. Please choose a different User ID.";
             } else {
                 $remarks_val = "Suggested Folder: /" . $folder_slug;
+                $hashed_password = password_hash($raw_password, PASSWORD_BCRYPT);
                 $stmt = $conn->prepare("INSERT INTO vendor_master 
                     (vendor_userid, password, name, address, pincode, phone, email, logo_image, letterhead_image, status, payment, remarks) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'unpaid', ?)");
 
                 $stmt->bind_param("ssssssssss", 
                     $vendor_userid,
-                    $raw_password,
+                    $hashed_password,
                     $name,
                     $address,
                     $pincode,

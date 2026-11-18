@@ -1,10 +1,10 @@
 <?php 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
 include 'auth_check.php';
 include 'db.php';
+require_once __DIR__ . '/csrf.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -1199,6 +1199,7 @@ body {
             </div>
 
             <form method="post" action="save_results.php" id="resultForm" novalidate>
+                <?= getCsrfField() ?>
                 <input type="hidden" name="bill_id" value="<?= $bill_id; ?>">
                 
                 <datalist id="commonResults">

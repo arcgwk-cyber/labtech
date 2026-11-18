@@ -1,16 +1,17 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
 include 'auth_check.php';
 include 'db.php';
+require_once __DIR__ . '/csrf.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['bill_id'], $_POST['results'])) {
+    verifyCsrfToken();
 
     $bill_id = (int)$_POST['bill_id'];
     $results = $_POST['results'];

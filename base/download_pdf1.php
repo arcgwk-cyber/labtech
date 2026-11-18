@@ -1,12 +1,13 @@
 <?php
+require_once __DIR__ . '/auth_check.php';
 if (ob_get_level() > 0) {
     ob_clean();
 }
 require_once(__DIR__.'/TCPDF/tcpdf.php');
 require_once('db.php');
 
-$bill_id = $_GET['bill_id'] ?? 0;
-if (!$bill_id) die('Bill ID is required.');
+$bill_id = (int)($_GET['bill_id'] ?? 0);
+if ($bill_id <= 0) die('Valid Bill ID is required.');
 
 $include_method = isset($_GET['include_method']);
 $include_notes = isset($_GET['include_notes']);

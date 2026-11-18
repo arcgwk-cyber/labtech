@@ -9,25 +9,20 @@ ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/report_helper.php';
 
-if (!function_exists('decodeID')) {
-    function decodeID($token, $key = 987654321) {
-        return hexdec(strtolower($token)) ^ $key;
-    }
-}
-if (!function_exists('encodeID')) {
-    function encodeID($id, $key = 987654321) {
-        return strtoupper(dechex($id ^ $key));
-    }
-}
-
-// 1. Resolve Bill ID from token, bill_id, or id parameter
+// 1. Resolve Bill ID from token, or from bill_id/id ONLY if staff session is active
 $bill_id = 0;
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+$isStaffAuthenticated = !empty($_SESSION['user_id']);
+
 if (isset($_GET['token']) && trim($_GET['token']) !== '') {
     $bill_id = decodeID(trim($_GET['token']));
-} elseif (isset($_GET['bill_id']) && (int)$_GET['bill_id'] > 0) {
+} elseif ($isStaffAuthenticated && isset($_GET['bill_id']) && (int)$_GET['bill_id'] > 0) {
     $bill_id = (int)$_GET['bill_id'];
-} elseif (isset($_GET['id']) && (int)$_GET['id'] > 0) {
+} elseif ($isStaffAuthenticated && isset($_GET['id']) && (int)$_GET['id'] > 0) {
     $bill_id = (int)$_GET['id'];
 }
 
@@ -35,8 +30,8 @@ if ($bill_id <= 0) {
     displayStatusPage([
         'title'   => 'Invalid Report Link',
         'type'    => 'error',
-        'badge'   => 'Invalid Request',
-        'message' => 'The report verification token or bill number is invalid or has expired. Please check your printed bill or contact the laboratory reception.'
+        'badge'   => 'Verification Required',
+        'message' => 'The report verification token is missing or invalid. To view online reports, please scan the QR code printed on your official bill.'
     ]);
     exit;
 }

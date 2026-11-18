@@ -5,6 +5,7 @@
  */
 include_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/csrf.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -38,11 +39,22 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     respondResult(false, "Invalid request method.");
 }
 
+verifyCsrfToken();
+
 $action = trim($_POST['action'] ?? '');
 $bill_id = (int)($_POST['bill_id'] ?? 0);
 $reason  = trim($_POST['reason'] ?? $_POST['cancellation_reason'] ?? '');
 $remarks = trim($_POST['admin_remarks'] ?? $_POST['cancellation_admin_remarks'] ?? '');
-$referer = !empty($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'bill_list.php';
+
+$referer = 'bill_list.php';
+if (!empty($_SERVER['HTTP_REFERER'])) {
+    $parts = parse_url($_SERVER['HTTP_REFERER']);
+    $refHost = $parts['host'] ?? '';
+    $currentHost = $_SERVER['HTTP_HOST'] ?? '';
+    if (empty($refHost) || strcasecmp($refHost, $currentHost) === 0) {
+        $referer = $_SERVER['HTTP_REFERER'];
+    }
+}
 
 if ($bill_id <= 0) {
     respondResult(false, "Invalid Bill ID specified.", $referer);

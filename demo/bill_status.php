@@ -2,6 +2,7 @@
 // bill_status_list.php
 include 'auth_check.php';
 require_once 'db.php';
+require_once __DIR__ . '/csrf.php';
 
 // Filter values
 $sample_filter = $_GET['sample'] ?? '';
@@ -23,7 +24,8 @@ $where_sql = $where ? "WHERE " . implode(" AND ", $where) : "";
 
 $count_result = $conn->query("SELECT COUNT(*) as total FROM bills b JOIN patients p ON p.patient_id = b.patient_id $where_sql");
 if (!$count_result) {
-  die("SQL Error: " . $conn->error);
+  error_log("Bill status count error: " . $conn->error);
+  die("A database error occurred while fetching bill count.");
 }
 $total_rows = $count_result->fetch_assoc()['total'];
 $total_pages = ceil($total_rows / $limit);
@@ -38,7 +40,8 @@ LIMIT $limit OFFSET $offset";
 
 $result = $conn->query($query);
 if (!$result) {
-  die("Query Error: " . $conn->error . "<br><pre>$query</pre>");
+  error_log("Bill status list query error: " . $conn->error);
+  die("A database error occurred while fetching bills.");
 }
 ?>
 <!DOCTYPE html>
@@ -106,6 +109,7 @@ if (!$result) {
         <td><?= $row['gender'] ?></td>
         <td><?= $row['date_of_birth'] ?></td>
         <td><form method="post" action="toggle_status.php" style="display:inline">
+          <?= getCsrfField() ?>
           <input type="hidden" name="bill_id" value="<?= $row['bill_id'] ?>">
           <input type="hidden" name="field" value="sample_collected">
           <button type="submit" class="status-label <?= $row['sample_collected'] ? 'done' : 'pending' ?>">
@@ -113,6 +117,7 @@ if (!$result) {
           </button>
         </form></td>
         <td><form method="post" action="toggle_status.php" style="display:inline">
+          <?= getCsrfField() ?>
           <input type="hidden" name="bill_id" value="<?= $row['bill_id'] ?>">
           <input type="hidden" name="field" value="result_entered">
           <button type="submit" class="status-label <?= $row['result_entered'] ? 'done' : 'pending' ?>">

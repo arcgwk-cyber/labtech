@@ -1,6 +1,13 @@
 <?php
 require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/csrf.php';
+
+// Only Admin can edit users
+if (empty($_SESSION['role_id']) || (int)$_SESSION['role_id'] !== 1) {
+    http_response_code(403);
+    die("Access Denied: Administrative privileges required.");
+}
 
 // Get user ID
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
@@ -27,6 +34,7 @@ $roles = mysqli_query($conn, "SELECT * FROM roles ORDER BY role_name");
 
 // Handle update
 if (isset($_POST['update'])) {
+    verifyCsrfToken();
     $username = trim($_POST['username']);
     $fullname = trim($_POST['fullname']);
     $role_id = intval($_POST['role']);
@@ -66,6 +74,7 @@ if (isset($_POST['update'])) {
 <div class="container">
     <h3 class="mb-4 text-center">Edit User</h3>
     <form method="post" class="card p-4 shadow-sm">
+        <?= getCsrfField() ?>
         <div class="mb-3">
             <label>Username</label>
             <input type="text" name="username" value="<?= htmlspecialchars($user['username']) ?>" class="form-control" required>

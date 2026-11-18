@@ -14,6 +14,11 @@ if (empty($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/csrf.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verifyCsrfToken();
+}
 
 $user_id = (int)$_SESSION['user_id'];
 $old_pass = trim($_POST['old_password'] ?? '');

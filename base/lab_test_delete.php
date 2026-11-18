@@ -1,6 +1,14 @@
 <?php
 include 'auth_check.php';
 include 'db.php';
+require_once __DIR__ . '/csrf.php';
+
+if (empty($_SESSION['role_id']) || (int)$_SESSION['role_id'] !== 1) {
+    http_response_code(403);
+    die("Access Denied: Administrative privileges required.");
+}
+
+verifyCsrfToken($_GET['csrf_token'] ?? '');
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 

@@ -10,6 +10,12 @@ include_once 'db.php';
 
 header('Content-Type: application/json');
 
+if (empty($_SESSION['role_id']) || (int)$_SESSION['role_id'] !== 1) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized: Only administrators can modify lab tariffs.']);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Invalid request method']);
     exit;
