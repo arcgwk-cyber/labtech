@@ -30,7 +30,7 @@ try {
     $subtotal        = (float)($_POST['subtotal'] ?? 0);
     $discount        = max(0, (float)($_POST['discount'] ?? 0));
     $total_amount    = (float)($_POST['total_amount'] ?? 0);
-    if ($total_amount <= 0 && $subtotal > 0) {
+    if ($subtotal > 0) {
         $total_amount = max(0, $subtotal - $discount);
     }
     $paid_amount     = max(0, (float)($_POST['paid_amount'] ?? 0));
@@ -115,20 +115,33 @@ try {
     }
 
     // --- Save bill_tests and bill_packages ---
+    $item_prices = $_POST['item_price'] ?? [];
     foreach ($item_types as $index => $type) {
         $id = (int)$item_ids[$index];
         if ($id <= 0) continue;
+        $price = isset($item_prices[$index]) ? (float)$item_prices[$index] : 0.00;
 
         if ($type === 'test') {
-            $stmt = $conn->prepare("INSERT INTO bill_tests (bill_id, test_id) VALUES (?, ?)");
+            $stmt = $conn->prepare("INSERT INTO bill_tests (bill_id, test_id, price) VALUES (?, ?, ?)");
+            if (!$stmt) {
+                $stmt = $conn->prepare("INSERT INTO bill_tests (bill_id, test_id) VALUES (?, ?)");
+                if ($stmt) $stmt->bind_param("ii", $bill_id, $id);
+            } else {
+                $stmt->bind_param("iid", $bill_id, $id, $price);
+            }
         } elseif ($type === 'package') {
-            $stmt = $conn->prepare("INSERT INTO bill_packages (bill_id, package_id) VALUES (?, ?)");
+            $stmt = $conn->prepare("INSERT INTO bill_packages (bill_id, package_id, price) VALUES (?, ?, ?)");
+            if (!$stmt) {
+                $stmt = $conn->prepare("INSERT INTO bill_packages (bill_id, package_id) VALUES (?, ?)");
+                if ($stmt) $stmt->bind_param("ii", $bill_id, $id);
+            } else {
+                $stmt->bind_param("iid", $bill_id, $id, $price);
+            }
         } else {
             continue;
         }
         if (!$stmt) throw new Exception("Prepare failed: ".$conn->error);
 
-        $stmt->bind_param("ii", $bill_id, $id);
         if(!$stmt->execute()) throw new Exception("Insert test/package failed: ".$stmt->error);
         $stmt->close();
     }

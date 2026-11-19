@@ -48,7 +48,7 @@ if (!$bill) {
 
 // 3. Fetch Investigation Tests & Packages
 $tests_stmt = $conn->prepare("
-    SELECT t.test_name, t.price 
+    SELECT t.test_name, COALESCE(bt.price, t.price) AS price 
     FROM bill_tests bt 
     JOIN lab_tests t ON bt.test_id = t.test_id 
     WHERE bt.bill_id = ?
@@ -58,7 +58,7 @@ $tests_stmt->execute();
 $tests = $tests_stmt->get_result();
 
 $packages_stmt = $conn->prepare("
-    SELECT p.package_name, p.package_price 
+    SELECT p.package_name, COALESCE(bp.price, p.package_price) AS package_price 
     FROM bill_packages bp 
     JOIN test_packages p ON bp.package_id = p.package_id 
     WHERE bp.bill_id = ?
@@ -703,28 +703,48 @@ $billed_by = !empty($bill['billed_by_name']) ? $bill['billed_by_name'] : (!empty
         $item_idx = 1;
         $total_items = 0;
 
-        while ($t = $tests->fetch_assoc()):
+        $test_rows = [];
+        if ($tests) {
+            while ($t = $tests->fetch_assoc()) $test_rows[] = $t;
+        }
+        $pkg_rows = [];
+        if ($packages) {
+            while ($p = $packages->fetch_assoc()) $pkg_rows[] = $p;
+        }
+
+        $single_item = (count($test_rows) + count($pkg_rows) === 1);
+        $single_expected_amt = (float)$bill['total_amount'] + (float)($bill['discount'] ?? 0);
+
+        foreach ($test_rows as $t):
             $total_items++;
+            $t_price = (float)$t['price'];
+            if ($single_item && $single_expected_amt > 0 && abs($t_price - $single_expected_amt) > 0.01) {
+                $t_price = $single_expected_amt;
+            }
         ?>
           <tr>
             <td class="text-center text-muted"><?= $item_idx++ ?></td>
             <td class="fw-semibold text-dark"><?= htmlspecialchars($t['test_name']) ?></td>
             <td><span class="badge bg-light text-secondary border" style="font-size:0.65rem;">Single Test</span></td>
-            <td class="text-end font-monospace"><?= number_format($t['price'], 2) ?></td>
+            <td class="text-end font-monospace"><?= number_format($t_price, 2) ?></td>
           </tr>
-        <?php endwhile; ?>
+        <?php endforeach; ?>
 
         <?php
-        while ($p = $packages->fetch_assoc()):
+        foreach ($pkg_rows as $p):
             $total_items++;
+            $p_price = (float)$p['package_price'];
+            if ($single_item && $single_expected_amt > 0 && abs($p_price - $single_expected_amt) > 0.01) {
+                $p_price = $single_expected_amt;
+            }
         ?>
           <tr>
             <td class="text-center text-muted"><?= $item_idx++ ?></td>
             <td class="fw-bold text-primary"><?= htmlspecialchars($p['package_name']) ?></td>
             <td><span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" style="font-size:0.65rem;">Package</span></td>
-            <td class="text-end font-monospace fw-bold"><?= number_format($p['package_price'], 2) ?></td>
+            <td class="text-end font-monospace fw-bold"><?= number_format($p_price, 2) ?></td>
           </tr>
-        <?php endwhile; ?>
+        <?php endforeach; ?>
 
         <?php if ($total_items === 0): ?>
           <tr>

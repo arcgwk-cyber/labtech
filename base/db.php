@@ -266,6 +266,52 @@ if (!$conn || $conn->connect_error) {
                 @$conn->query("ALTER TABLE lab_test_parameters ADD COLUMN param_order INT(11) NOT NULL DEFAULT 0 AFTER parameter_id, ADD COLUMN section_name VARCHAR(100) NULL DEFAULT NULL AFTER param_order");
             }
 
+            // 2d. Ensure price column exists in bill_tests and bill_packages (Price Snapshotting)
+            $btCols = $conn->query("SHOW COLUMNS FROM bill_tests LIKE 'price'");
+            if ($btCols && $btCols->num_rows === 0) {
+                @$conn->query("ALTER TABLE bill_tests ADD COLUMN price DECIMAL(10,2) NULL DEFAULT NULL AFTER test_id");
+            }
+            $bpCols = $conn->query("SHOW COLUMNS FROM bill_packages LIKE 'price'");
+            if ($bpCols && $bpCols->num_rows === 0) {
+                @$conn->query("ALTER TABLE bill_packages ADD COLUMN price DECIMAL(10,2) NULL DEFAULT NULL AFTER package_id");
+            }
+
+            // Backfill legacy bill items price snapshot if NULL
+            @$conn->query("
+                UPDATE bill_tests bt 
+                JOIN lab_tests t ON bt.test_id = t.test_id 
+                SET bt.price = t.price 
+                WHERE bt.price IS NULL
+            ");
+            @$conn->query("
+                UPDATE bill_packages bp 
+                JOIN test_packages p ON bp.package_id = p.package_id 
+                SET bp.price = p.package_price 
+                WHERE bp.price IS NULL
+            ");
+
+            // For historical single-item bills, reconcile line item price with billed amount (e.g. Bill #32)
+            @$conn->query("
+                UPDATE bill_packages bp
+                JOIN bills b ON bp.bill_id = b.bill_id
+                JOIN (SELECT bill_id, COUNT(*) as cnt FROM bill_packages GROUP BY bill_id) pkg_cnt ON pkg_cnt.bill_id = bp.bill_id AND pkg_cnt.cnt = 1
+                LEFT JOIN (SELECT bill_id, COUNT(*) as cnt FROM bill_tests GROUP BY bill_id) test_cnt ON test_cnt.bill_id = bp.bill_id
+                SET bp.price = (b.total_amount + COALESCE(b.discount, 0))
+                WHERE (test_cnt.cnt IS NULL OR test_cnt.cnt = 0)
+                  AND b.total_amount > 0
+                  AND (bp.price IS NULL OR bp.price != (b.total_amount + COALESCE(b.discount, 0)))
+            ");
+            @$conn->query("
+                UPDATE bill_tests bt
+                JOIN bills b ON bt.bill_id = b.bill_id
+                JOIN (SELECT bill_id, COUNT(*) as cnt FROM bill_tests GROUP BY bill_id) test_cnt ON test_cnt.bill_id = bt.bill_id AND test_cnt.cnt = 1
+                LEFT JOIN (SELECT bill_id, COUNT(*) as cnt FROM bill_packages GROUP BY bill_id) pkg_cnt ON pkg_cnt.bill_id = bt.bill_id
+                SET bt.price = (b.total_amount + COALESCE(b.discount, 0))
+                WHERE (pkg_cnt.cnt IS NULL OR pkg_cnt.cnt = 0)
+                  AND b.total_amount > 0
+                  AND (bt.price IS NULL OR bt.price != (b.total_amount + COALESCE(b.discount, 0)))
+            ");
+
             // 3. Ensure bill_report_options table exists
             @$conn->query("
                 CREATE TABLE IF NOT EXISTS `bill_report_options` (

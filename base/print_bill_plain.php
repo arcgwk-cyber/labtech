@@ -17,7 +17,7 @@ $stmt->close();
 if (!$bill) die("Invoice not found.");
 
 // Fetch tests
-$t_stmt = $conn->prepare("SELECT t.test_name, t.price FROM bill_tests bt 
+$t_stmt = $conn->prepare("SELECT t.test_name, COALESCE(bt.price, t.price) AS price FROM bill_tests bt 
                           JOIN lab_tests t ON bt.test_id = t.test_id 
                           WHERE bt.bill_id = ?");
 $t_stmt->bind_param("i", $bill_id);
@@ -25,7 +25,7 @@ $t_stmt->execute();
 $tests = $t_stmt->get_result();
 
 // Fetch packages
-$p_stmt = $conn->prepare("SELECT p.package_name, p.package_price FROM bill_packages bp 
+$p_stmt = $conn->prepare("SELECT p.package_name, COALESCE(bp.price, p.package_price) AS package_price FROM bill_packages bp 
                           JOIN test_packages p ON bp.package_id = p.package_id 
                           WHERE bp.bill_id = ?");
 $p_stmt->bind_param("i", $bill_id);
@@ -77,14 +77,32 @@ $packages = $p_stmt->get_result();
         <tbody>
         <?php
         $i = 1;
-        while ($t = $tests->fetch_assoc()):
-        ?>
-            <tr><td><?= $i++ ?></td><td><?= htmlspecialchars($t['test_name'], ENT_QUOTES, 'UTF-8') ?></td><td>Test</td><td class="text-end"><?= number_format($t['price'], 2) ?></td></tr>
-        <?php endwhile; ?>
+        $test_rows = [];
+        if ($tests) while ($t = $tests->fetch_assoc()) $test_rows[] = $t;
+        $pkg_rows = [];
+        if ($packages) while ($p = $packages->fetch_assoc()) $pkg_rows[] = $p;
 
-        <?php while ($p = $packages->fetch_assoc()): ?>
-            <tr><td><?= $i++ ?></td><td><?= htmlspecialchars($p['package_name'], ENT_QUOTES, 'UTF-8') ?></td><td>Package</td><td class="text-end"><?= number_format($p['package_price'], 2) ?></td></tr>
-        <?php endwhile; ?>
+        $single_item = (count($test_rows) + count($pkg_rows) === 1);
+        $single_expected_amt = (float)$bill['total_amount'] + (float)($bill['discount'] ?? 0);
+
+        foreach ($test_rows as $t):
+            $t_price = (float)$t['price'];
+            if ($single_item && $single_expected_amt > 0 && abs($t_price - $single_expected_amt) > 0.01) {
+                $t_price = $single_expected_amt;
+            }
+        ?>
+            <tr><td><?= $i++ ?></td><td><?= htmlspecialchars($t['test_name'], ENT_QUOTES, 'UTF-8') ?></td><td>Test</td><td class="text-end"><?= number_format($t_price, 2) ?></td></tr>
+        <?php endforeach; ?>
+
+        <?php
+        foreach ($pkg_rows as $p):
+            $p_price = (float)$p['package_price'];
+            if ($single_item && $single_expected_amt > 0 && abs($p_price - $single_expected_amt) > 0.01) {
+                $p_price = $single_expected_amt;
+            }
+        ?>
+            <tr><td><?= $i++ ?></td><td><?= htmlspecialchars($p['package_name'], ENT_QUOTES, 'UTF-8') ?></td><td>Package</td><td class="text-end"><?= number_format($p_price, 2) ?></td></tr>
+        <?php endforeach; ?>
         </tbody>
         <tfoot>
             <tr>

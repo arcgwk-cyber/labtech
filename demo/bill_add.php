@@ -601,7 +601,6 @@ if ($doc_query) {
   <!-- Main Billing Form -->
   <form id="billForm" method="POST" action="bill_save.php" novalidate>
     <input type="hidden" name="patient_id" id="patient_id" value="">
-    <input type="hidden" name="total_amount" id="total_amount" value="0.00">
 
     <div class="row g-4">
       

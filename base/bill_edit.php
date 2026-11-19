@@ -129,13 +129,13 @@ if ($packages_query) {
 
 // 6. Fetch Existing Bill Items
 $bill_tests = $conn->query("
-    SELECT t.test_id as id, t.test_name as name, t.price, 'test' as type 
+    SELECT t.test_id as id, t.test_name as name, COALESCE(bt.price, t.price) as price, 'test' as type 
     FROM bill_tests bt
     JOIN lab_tests t ON bt.test_id = t.test_id 
     WHERE bt.bill_id = $bill_id
 ");
 $bill_packages = $conn->query("
-    SELECT p.package_id as id, p.package_name as name, p.package_price as price, 'package' as type 
+    SELECT p.package_id as id, p.package_name as name, COALESCE(bp.price, p.package_price) as price, 'package' as type 
     FROM bill_packages bp
     JOIN test_packages p ON bp.package_id = p.package_id 
     WHERE bp.bill_id = $bill_id
@@ -150,6 +150,14 @@ if ($bill_tests) {
 if ($bill_packages) {
     while ($bp = $bill_packages->fetch_assoc()) {
         $items[] = $bp;
+    }
+}
+
+// For single-item bills where master price changed, ensure item price reflects the actual billed subtotal
+if (count($items) === 1 && (float)$bill['total_amount'] > 0) {
+    $expected_single_amt = (float)$bill['total_amount'] + (float)($bill['discount'] ?? 0);
+    if ($expected_single_amt > 0 && abs((float)$items[0]['price'] - $expected_single_amt) > 0.01) {
+        $items[0]['price'] = $expected_single_amt;
     }
 }
 
@@ -719,7 +727,6 @@ if ($doc_query) {
   <form id="billForm" method="POST" action="bill_update.php" novalidate>
     <input type="hidden" name="bill_id" id="bill_id" value="<?= $bill_id ?>">
     <input type="hidden" name="patient_id" id="patient_id" value="<?= $patient['patient_id'] ?>">
-    <input type="hidden" name="total_amount" id="total_amount" value="<?= $bill['total_amount'] ?>">
 
     <div class="row g-4">
       
