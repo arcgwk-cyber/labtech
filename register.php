@@ -151,7 +151,7 @@
           </div>
 
           <div class="p-4 p-md-5">
-            <form action="register_action.php" method="post" enctype="multipart/form-data" id="registerForm">
+            <form action="register_action.php" method="post" enctype="multipart/form-data" id="registerForm" onsubmit="if(typeof gtag === 'function'){ gtag('event', 'sign_up', {'event_category': 'Conversion', 'event_label': 'Trial Registration Form'}); }">
               
               <!-- 1. Lab Details -->
               <div class="form-section-title">

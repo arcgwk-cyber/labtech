@@ -321,16 +321,16 @@
       </div>
     </div>
     <div class="d-flex align-items-center gap-2">
-      <button onclick="window.print()" class="btn btn-outline-secondary btn-sm fw-bold">
+      <button onclick="gtag('event', 'brochure_print', {'event_category': 'Engagement', 'event_label': 'Print / Save PDF'}); window.print();" class="btn btn-outline-secondary btn-sm fw-bold">
         <i class="fas fa-print me-1"></i> Print / Save PDF
       </button>
-      <a href="https://api.whatsapp.com/send?text=Check%20out%20VenSaas%20LabTech%20-%20Pathology%20Lab%20Reporting%20%26%20Management%20Software.%20Cloud%20SaaS%20Offer%20at%20%E2%82%B999/Month%20(Billed%20Per%20Annum,%20Reg%20%E2%82%B9499)%20or%20Offline%20One-Time%20Payment.%20Explore%20Live%20Demo:%20https://labs.vensaas.com/demo/%20%7C%20Brochure:%20https://labs.vensaas.com/brochure.php" target="_blank" class="btn btn-success btn-sm fw-bold" style="background: #25d366; border: none;">
+      <a href="https://api.whatsapp.com/send?text=Check%20out%20VenSaas%20LabTech%20-%20Pathology%20Lab%20Reporting%20%26%20Management%20Software.%20Cloud%20SaaS%20Offer%20at%20%E2%82%B9999/Year%20(Just%20~%E2%82%B983/mo,%20Reg%20%E2%82%B9499/mo)%20or%20Offline%20One-Time%20Payment.%20Explore%20Live%20Demo:%20https://labs.vensaas.com/demo/%20%7C%20Brochure:%20https://labs.vensaas.com/brochure.php" target="_blank" class="btn btn-success btn-sm fw-bold" style="background: #25d366; border: none;" onclick="gtag('event', 'brochure_share', {'event_category': 'Social', 'event_label': 'WhatsApp Share'});">
         <i class="fab fa-whatsapp me-1"></i> Share on WhatsApp
       </a>
-      <a href="demo/" target="_blank" class="btn btn-primary btn-sm fw-bold">
+      <a href="demo/" target="_blank" class="btn btn-primary btn-sm fw-bold" onclick="gtag('event', 'demo_click', {'event_category': 'Engagement', 'event_label': 'Brochure Live Demo'});">
         <i class="fas fa-play-circle me-1"></i> Live Demo
       </a>
-      <a href="register.php" target="_blank" class="btn btn-dark btn-sm fw-bold">
+      <a href="register.php" target="_blank" class="btn btn-dark btn-sm fw-bold" onclick="gtag('event', 'trial_cta_click', {'event_category': 'Conversion', 'event_label': 'Brochure Free Trial'});">
         <i class="fas fa-rocket me-1"></i> Free Trial
       </a>
     </div>
@@ -359,13 +359,13 @@
         <div>
           <div class="text-uppercase small text-white-50 fw-bold">Cloud SaaS Plan</div>
           <div class="d-flex align-items-baseline gap-2">
-            <span class="text-decoration-line-through text-white-50 fs-6">₹499</span>
-            <div class="price-big">₹99 <small>/ month</small></div>
+            <span class="text-decoration-line-through text-white-50 fs-6">₹5,988</span>
+            <div class="price-big">₹999 <small>/ year</small></div>
           </div>
-          <div class="text-info small fw-bold" style="font-size: 0.75rem;">Billed Per Annum</div>
+          <div class="text-info small fw-bold" style="font-size: 0.75rem;">Just ~₹83/mo &bull; Billed Annually</div>
         </div>
         <div class="border-start border-secondary ps-3 ms-2">
-          <div class="badge bg-success-subtle text-success border border-success-subtle fw-bold mb-1">Save 80% &bull; Zero Hidden Charges</div>
+          <div class="badge bg-success-subtle text-success border border-success-subtle fw-bold mb-1">Save 83% &bull; Zero Hidden Charges</div>
           <div class="small text-white-50">Unlimited Patients, Bills & Reports</div>
         </div>
       </div>
@@ -447,16 +447,16 @@
           <div class="plan-box featured">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <span class="badge bg-primary text-white">ONLINE CLOUD SAAS</span>
-              <span class="badge bg-danger text-white fw-bold">80% OFF</span>
+              <span class="badge bg-danger text-white fw-bold">83% OFF</span>
             </div>
             <div class="plan-title">Cloud Edition</div>
             <div class="d-flex align-items-baseline gap-2 mb-1">
-              <span class="text-decoration-line-through text-muted fw-bold">₹499</span>
-              <div class="plan-rate mb-0">₹99 <span class="fs-6 text-muted fw-normal">/ Month</span></div>
+              <span class="text-decoration-line-through text-muted fw-bold">₹5,988/yr</span>
+              <div class="plan-rate mb-0">₹999 <span class="fs-6 text-muted fw-normal">/ Year</span></div>
             </div>
-            <div class="text-primary small fw-bold mb-3"><i class="fas fa-calendar-alt me-1"></i> Billed Per Annum (Annual Billing)</div>
+            <div class="text-primary small fw-bold mb-3"><i class="fas fa-calendar-alt me-1"></i> Special Launch Offer (Just ~₹83/mo)</div>
             <ul class="plan-list">
-              <li><i class="fas fa-check-circle"></i> <strong>Special ₹99/mo Offer</strong> (Billed Per Annum)</li>
+              <li><i class="fas fa-check-circle"></i> <strong>Special ₹999/Year Offer</strong> (Billed Annually)</li>
               <li><i class="fas fa-check-circle"></i> <strong>Zero Hidden Charges</strong> Online</li>
               <li><i class="fas fa-check-circle"></i> Unlimited Patient Bills & Reports</li>
               <li><i class="fas fa-check-circle"></i> 500+ Built-in Pathology Tests & Packages</li>

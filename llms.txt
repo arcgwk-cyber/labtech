@@ -14,7 +14,7 @@ It supports dual deployment modes:
 2. **Offline On-Premise Edition**: Operates 100% offline on local computers and local LAN networks without requiring any domain registration, web hosting, or active internet connection.
 
 ## Pricing & Commercial Plans
-- **Cloud SaaS Edition**: Special promotional offer at **₹99/- per month** (billed per annum at ₹1,188/year, discounted from standard ₹499/month).
+- **Cloud SaaS Edition**: Special promotional offer at **₹999/- Year** (working out to just ~₹83/month, heavily discounted from standard ₹499/month).
   - Includes unlimited patient registrations and bills
   - Unlimited pathology reports
   - Automated daily backups

@@ -175,6 +175,9 @@ $super_user_name = $_SESSION['super_admin_name'] ?? 'Super Admin';
           <a href="payments.php" class="sa-nav-link <?= $active_nav === 'payments.php' ? 'active' : '' ?>">
             <i class="fas fa-receipt"></i> Payments
           </a>
+          <a href="analytics.php" class="sa-nav-link <?= $active_nav === 'analytics.php' ? 'active' : '' ?>">
+            <i class="fas fa-chart-pie"></i> Google Analytics
+          </a>
           <a href="settings.php" class="sa-nav-link <?= $active_nav === 'settings.php' ? 'active' : '' ?>">
             <i class="fas fa-cog"></i> Settings
           </a>
