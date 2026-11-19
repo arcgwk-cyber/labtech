@@ -99,6 +99,11 @@ if ($conn && !$conn->connect_error) {
     }
 }
 
+// Sanitize user display name: if full_name was set to the lab's company name, fallback to username
+if (!empty($app_settings['company_name']) && strcasecmp(trim($current_full_name), trim($app_settings['company_name'])) === 0) {
+    $current_full_name = $current_username;
+}
+
 // Check logo with real-time modification timestamp resolution
 $app_logo = null;
 $app_logo_mtime = 0;
@@ -457,15 +462,14 @@ function isNavActive($page_or_pages, $active_page) {
   <div class="container-fluid px-3 px-xl-4">
     
     <!-- Clinic Brand & Logo -->
-    <a class="navbar-brand d-flex align-items-center gap-2" href="index.php">
+    <a class="navbar-brand d-flex align-items-center" href="index.php" title="<?= htmlspecialchars($app_settings['company_name'] ?? 'Dashboard') ?>">
       <?php if ($app_logo_url): ?>
-        <img src="<?= htmlspecialchars($app_logo_url) ?>" alt="Logo" class="rounded bg-white p-1" style="height: 38px; max-width: 120px; object-fit: contain;">
+        <img src="<?= htmlspecialchars($app_logo_url) ?>" alt="<?= htmlspecialchars($app_settings['company_name'] ?? 'Logo') ?>" class="rounded bg-white p-1" style="height: 38px; max-width: 140px; object-fit: contain;">
       <?php else: ?>
         <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; font-size: 1.1rem;">
           <i class="fas fa-microscope"></i>
         </div>
       <?php endif; ?>
-      <span class="d-none d-sm-inline"><?= htmlspecialchars($app_settings['company_name']) ?></span>
     </a>
 
     <!-- Mobile Toggle -->
@@ -568,16 +572,18 @@ function isNavActive($page_or_pages, $active_page) {
         </a>
 
         <div class="dropdown">
-          <button class="user-pill dropdown-toggle" type="button" data-nav-dropdown="toggle" aria-expanded="false">
+          <button class="user-pill dropdown-toggle" type="button" data-nav-dropdown="toggle" aria-expanded="false" title="Logged in as <?= htmlspecialchars($current_username) ?>">
             <i class="fas fa-user-circle text-primary fs-5"></i>
-            <span><?= htmlspecialchars($current_full_name) ?></span>
+            <span><?= htmlspecialchars($current_username) ?></span>
           </button>
           <ul class="dropdown-menu dropdown-menu-end shadow border-0">
             <li>
               <div class="px-3 py-2 border-bottom mb-1">
-                <div class="fw-bold text-dark"><?= htmlspecialchars($current_full_name) ?></div>
-                <div class="small text-muted">User: <code><?= htmlspecialchars($current_username) ?></code></div>
-                <span class="badge bg-primary-subtle text-primary mt-1 text-uppercase"><?= htmlspecialchars($current_role) ?></span>
+                <div class="fw-bold text-dark"><?= htmlspecialchars($current_username) ?></div>
+                <?php if (!empty($current_full_name) && strcasecmp(trim($current_full_name), trim($app_settings['company_name'])) !== 0 && strcasecmp(trim($current_full_name), trim($current_username)) !== 0): ?>
+                  <div class="small text-muted"><?= htmlspecialchars($current_full_name) ?></div>
+                <?php endif; ?>
+                <div class="small text-muted mt-1">Role: <span class="badge bg-primary-subtle text-primary text-uppercase"><?= htmlspecialchars($current_role) ?></span></div>
               </div>
             </li>
             <li><a class="dropdown-item" href="profile.php"><i class="fas fa-clinic-medical text-muted me-2"></i> Clinic Settings</a></li>

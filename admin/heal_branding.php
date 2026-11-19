@@ -86,11 +86,13 @@ if ($vRes) {
                 $roleChk = $conn->query("SELECT role_id FROM roles WHERE role_id = 1 LIMIT 1");
                 $roleId = ($roleChk && $roleChk->num_rows > 0) ? 1 : 1;
                 $conn->query("INSERT INTO users (username, password_hash, full_name, role_id, status) 
-                              VALUES ('" . $conn->real_escape_string($uName) . "', '{$uHash}', '" . $conn->real_escape_string($vRow['name']) . "', {$roleId}, 'active')");
+                              VALUES ('" . $conn->real_escape_string($uName) . "', '{$uHash}', '" . $conn->real_escape_string($uName) . "', {$roleId}, 'active')");
                 $log[] = "Seeded active user '{$uName}' for {$vRow['name']} into users table.";
             } else {
                 $conn->query("UPDATE users SET password_hash = '{$uHash}', status = 'active' WHERE username = '" . $conn->real_escape_string($uName) . "'");
-                $log[] = "Synchronized password and activated user '{$uName}'.";
+                // If user's full_name is set to vendor/lab name, sanitize it to username
+                $conn->query("UPDATE users SET full_name = '" . $conn->real_escape_string($uName) . "' WHERE username = '" . $conn->real_escape_string($uName) . "' AND (full_name = '" . $conn->real_escape_string($vRow['name']) . "' OR full_name LIKE '%Diagnostic%')");
+                $log[] = "Synchronized password and sanitized user name for '{$uName}'.";
             }
         }
     }

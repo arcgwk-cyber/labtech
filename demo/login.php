@@ -156,7 +156,7 @@ if ($conn && !$conn->connect_error && !$isDemo && $currentDir !== 'base' && empt
                 $vHash = password_hash($vVendor['password'], PASSWORD_BCRYPT);
                 $seedStmt = $conn->prepare("INSERT INTO users (username, password_hash, full_name, role_id, status) VALUES (?, ?, ?, ?, 'active')");
                 if ($seedStmt) {
-                    $seedStmt->bind_param("sssi", $vUser, $vHash, $vVendor['name'], $roleId);
+                    $seedStmt->bind_param("sssi", $vUser, $vHash, $vUser, $roleId);
                     $seedStmt->execute();
                     $seedStmt->close();
                 }
@@ -260,9 +260,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
                         unset($_SESSION[$rateKey]);
                         unset($_SESSION[$lockKey]);
 
+                        // If full_name was previously set to company/lab name, sanitize to username
+                        $sessionFullName = $user['full_name'];
+                        if (!empty($settings['company_name']) && strcasecmp(trim($sessionFullName), trim($settings['company_name'])) === 0) {
+                            $sessionFullName = $user['username'];
+                            @$conn->query("UPDATE users SET full_name = '" . $conn->real_escape_string($user['username']) . "' WHERE user_id = " . (int)$user['user_id']);
+                        }
+
                         $_SESSION['user_id']  = $user['user_id'];
                         $_SESSION['username'] = $user['username'];
-                        $_SESSION['full_name']= $user['full_name'];
+                        $_SESSION['full_name']= $sessionFullName;
                         $_SESSION['role_id']  = $user['role_id'];
                         $_SESSION['role']     = $user['role_name'] ?: ($user['role_id'] == 1 ? 'admin' : 'user');
 
