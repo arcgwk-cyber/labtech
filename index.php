@@ -737,18 +737,25 @@
       box-shadow: 0 20px 40px -10px rgba(2, 132, 199, 0.35);
     }
 
-    /* Footer */
+    /* Footer - High-Contrast Dark Slate */
     .footer-landing {
       background: #0f172a;
+      color: #cbd5e1;
+      padding: 70px 0 35px;
+      font-size: 0.93rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .footer-desc {
       color: #94a3b8;
-      padding: 60px 0 30px;
-      font-size: 0.92rem;
+      font-size: 0.9rem;
+      line-height: 1.65;
     }
     .footer-heading {
       color: #ffffff;
       font-weight: 700;
-      font-size: 1rem;
-      margin-bottom: 18px;
+      font-size: 1.02rem;
+      letter-spacing: 0.2px;
+      margin-bottom: 20px;
     }
     .footer-links {
       list-style: none;
@@ -756,14 +763,80 @@
       margin: 0;
     }
     .footer-links li {
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
     .footer-links a {
+      color: #cbd5e1;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+    }
+    .footer-links a:hover {
+      color: #38bdf8;
+      transform: translateX(3px);
+    }
+    .footer-contact-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      color: #e2e8f0;
+      margin-bottom: 16px;
+      font-size: 0.92rem;
+    }
+    .footer-contact-item a {
+      color: #f1f5f9;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+    .footer-contact-item a:hover {
+      color: #38bdf8;
+      text-decoration: underline;
+    }
+    .footer-contact-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      flex-shrink: 0;
+    }
+    .footer-social-link {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #cbd5e1;
+      font-size: 1rem;
+      transition: all 0.25s ease;
+      text-decoration: none;
+    }
+    .footer-social-link:hover {
+      background: #0284c7;
+      border-color: #0284c7;
+      color: #ffffff;
+      transform: translateY(-2px);
+    }
+    .footer-bottom-bar {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 24px;
       color: #94a3b8;
+      font-size: 0.88rem;
+    }
+    .footer-bottom-bar a {
+      color: #cbd5e1;
       text-decoration: none;
       transition: color 0.2s;
     }
-    .footer-links a:hover {
+    .footer-bottom-bar a:hover {
       color: #38bdf8;
     }
 
@@ -1817,62 +1890,84 @@
       <div class="row g-4 mb-5">
         <div class="col-lg-4 col-md-6">
           <div class="d-flex align-items-center gap-2 mb-3">
-            <div class="brand-icon-box" style="width: 34px; height: 34px; font-size: 0.9rem;">
+            <div class="brand-icon-box" style="width: 36px; height: 36px; font-size: 0.95rem;">
               <i class="fas fa-microscope"></i>
             </div>
             <span class="text-white fw-bold fs-5">VenSaas LabTech</span>
           </div>
-          <p class="small text-muted" style="line-height: 1.6;">
-            Next-generation Laboratory Information Management System (LIMS) & Clinical ERP designed for standalone pathology laboratories, hospital diagnostics, and scan centres.
+          <p class="footer-desc mb-4">
+            Next-generation Laboratory Information Management System (LIMS) &amp; Clinical ERP designed for standalone pathology laboratories, hospital diagnostics, and scan centres.
           </p>
-          <div class="d-flex gap-3 text-white-50 fs-5 pt-2">
-            <a href="#" class="text-secondary"><i class="fab fa-facebook"></i></a>
-            <a href="#" class="text-secondary"><i class="fab fa-twitter"></i></a>
-            <a href="#" class="text-secondary"><i class="fab fa-linkedin"></i></a>
-            <a href="#" class="text-secondary"><i class="fab fa-youtube"></i></a>
+          <div class="d-flex gap-2">
+            <a href="#" class="footer-social-link" title="Facebook"><i class="fab fa-facebook-f"></i></a>
+            <a href="#" class="footer-social-link" title="Twitter"><i class="fab fa-twitter"></i></a>
+            <a href="#" class="footer-social-link" title="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+            <a href="#" class="footer-social-link" title="YouTube"><i class="fab fa-youtube"></i></a>
           </div>
         </div>
 
         <div class="col-lg-2 col-md-6">
           <h4 class="footer-heading">Quick Links</h4>
           <ul class="footer-links">
-            <li><a href="demo/"><i class="fas fa-chevron-right me-1 small"></i> Live Demo</a></li>
-            <li><a href="register.php"><i class="fas fa-chevron-right me-1 small"></i> Free Trial</a></li>
-            <li><a href="#pricing"><i class="fas fa-chevron-right me-1 small"></i> Price Card</a></li>
-            <li><a href="#features"><i class="fas fa-chevron-right me-1 small"></i> Features</a></li>
-            <li><a href="#faq"><i class="fas fa-chevron-right me-1 small"></i> FAQs</a></li>
-            <li><a href="brochure.php" target="_blank"><i class="fas fa-chevron-right me-1 small"></i> Digital Brochure</a></li>
+            <li><a href="demo/"><i class="fas fa-chevron-right me-2 text-primary small"></i> Live Demo</a></li>
+            <li><a href="register.php"><i class="fas fa-chevron-right me-2 text-primary small"></i> Free Trial</a></li>
+            <li><a href="#pricing"><i class="fas fa-chevron-right me-2 text-primary small"></i> Price Card</a></li>
+            <li><a href="#offline-vs-cloud"><i class="fas fa-chevron-right me-2 text-primary small"></i> Online Vs Offline</a></li>
+            <li><a href="#features"><i class="fas fa-chevron-right me-2 text-primary small"></i> Features</a></li>
+            <li><a href="#faq"><i class="fas fa-chevron-right me-2 text-primary small"></i> FAQs</a></li>
+            <li><a href="brochure.php" target="_blank"><i class="fas fa-chevron-right me-2 text-primary small"></i> Digital Brochure</a></li>
           </ul>
         </div>
 
         <div class="col-lg-3 col-md-6">
           <h4 class="footer-heading">Features</h4>
           <ul class="footer-links">
-            <li><a href="demo/bill_add.php">Patient Smart Billing</a></li>
-            <li><a href="demo/sample_collection.php">Phlebotomy Barcode Station</a></li>
-            <li><a href="demo/template_designer.php">Report Template Designer</a></li>
-            <li><a href="demo/rate_card.php">In-Place Rate Card Studio</a></li>
-            <li><a href="demo/sign_master.php">Doctor Digital Signatures</a></li>
+            <li><a href="demo/bill_add.php"><i class="fas fa-chevron-right me-2 text-primary small"></i> Patient Smart Billing</a></li>
+            <li><a href="demo/sample_collection.php"><i class="fas fa-chevron-right me-2 text-primary small"></i> Phlebotomy Barcode Station</a></li>
+            <li><a href="demo/template_designer.php"><i class="fas fa-chevron-right me-2 text-primary small"></i> Report Template Designer</a></li>
+            <li><a href="demo/rate_card.php"><i class="fas fa-chevron-right me-2 text-primary small"></i> In-Place Rate Card Studio</a></li>
+            <li><a href="demo/sign_master.php"><i class="fas fa-chevron-right me-2 text-primary small"></i> Doctor Digital Signatures</a></li>
           </ul>
         </div>
 
         <div class="col-lg-3 col-md-6">
-          <h4 class="footer-heading">Contact & Support</h4>
-          <ul class="footer-links text-muted small">
-            <li class="mb-2"><i class="fas fa-envelope text-primary me-2"></i> support@vensaas.com</li>
-            <li class="mb-2"><i class="fab fa-whatsapp text-success me-2"></i> +91 98765 43210</li>
-            <li class="mb-2"><i class="fas fa-map-marker-alt text-danger me-2"></i> Health Tech Towers, Chennai, India</li>
-          </ul>
+          <h4 class="footer-heading">Contact &amp; Support</h4>
+          <div class="d-flex flex-column">
+            <div class="footer-contact-item">
+              <div class="footer-contact-icon text-primary"><i class="fas fa-envelope"></i></div>
+              <div>
+                <div class="text-white-50 small" style="font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Email Support</div>
+                <a href="mailto:support@vensaas.com" class="fw-semibold">support@vensaas.com</a>
+              </div>
+            </div>
+
+            <div class="footer-contact-item">
+              <div class="footer-contact-icon text-success"><i class="fab fa-whatsapp"></i></div>
+              <div>
+                <div class="text-white-50 small" style="font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">WhatsApp / Phone</div>
+                <a href="https://wa.me/919876543210" target="_blank" class="fw-semibold">+91 98765 43210</a>
+              </div>
+            </div>
+
+            <div class="footer-contact-item">
+              <div class="footer-contact-icon text-danger"><i class="fas fa-map-marker-alt"></i></div>
+              <div>
+                <div class="text-white-50 small" style="font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Office Location</div>
+                <span class="text-light">Health Tech Towers, Chennai, India</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="border-top border-secondary pt-4 d-flex flex-wrap align-items-center justify-content-between text-muted small">
+      <div class="footer-bottom-bar d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div>
-          &copy; <?= date('Y') ?> VenSaas LabTech. All rights reserved. Clinical Diagnostics ERP.
+          &copy; <?= date('Y') ?> <strong class="text-white">VenSaas LabTech</strong>. All rights reserved. Clinical Diagnostics ERP.
         </div>
-        <div class="d-flex gap-3">
-          <a href="#" class="text-muted text-decoration-none">Privacy Policy</a>
-          <a href="#" class="text-muted text-decoration-none">Terms of Service</a>
+        <div class="d-flex gap-4">
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms of Service</a>
+          <a href="brochure.php" target="_blank">Brochure</a>
         </div>
       </div>
     </div>
