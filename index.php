@@ -716,6 +716,172 @@
     .footer-links a:hover {
       color: #38bdf8;
     }
+
+    /* 4-Step Lab Workflow Pipeline */
+    .workflow-section {
+      background: #f8fafc;
+      padding: 85px 0;
+      border-top: 1px solid var(--card-border);
+      border-bottom: 1px solid var(--card-border);
+    }
+    .workflow-card {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 28px 22px;
+      height: 100%;
+      position: relative;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .workflow-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+      border-color: #bae6fd;
+    }
+    .step-number-badge {
+      width: 34px;
+      height: 34px;
+      background: var(--primary);
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 0.88rem;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+    .step-icon-wrap {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      margin-bottom: 16px;
+    }
+    .step-duration-pill {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-top: auto;
+      align-self: flex-start;
+    }
+
+    /* Old Way vs LabTech Way */
+    .comparison-box-wrap {
+      background: #ffffff;
+      border-radius: 20px;
+      border: 1px solid var(--card-border);
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+    }
+    .compare-side-old {
+      background: #fff5f5;
+      padding: 36px 30px;
+      border-right: 1px solid #fee2e2;
+    }
+    .compare-side-new {
+      background: #f0fdf4;
+      padding: 36px 30px;
+    }
+    .compare-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .compare-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+      font-size: 0.94rem;
+      line-height: 1.5;
+    }
+
+    /* Trust & Accreditation Bar */
+    .trust-badge-strip {
+      background: #ffffff;
+      border-top: 1px solid var(--card-border);
+      border-bottom: 1px solid var(--card-border);
+      padding: 22px 0;
+    }
+    .trust-badge-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--slate-800);
+    }
+    .trust-badge-item i {
+      font-size: 1.35rem;
+    }
+
+    /* Floating WhatsApp Lead Widget */
+    .floating-whatsapp-widget {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      background: #25d366;
+      color: #ffffff;
+      padding: 10px 18px 10px 14px;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 0.92rem;
+      box-shadow: 0 8px 24px rgba(37, 211, 102, 0.4);
+      transition: all 0.3s ease;
+    }
+    .floating-whatsapp-widget:hover {
+      background: #1eb956;
+      color: #ffffff;
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 12px 30px rgba(37, 211, 102, 0.5);
+    }
+    .whatsapp-pulse-dot {
+      width: 10px;
+      height: 10px;
+      background: #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+      animation: pulse-green 1.8s infinite;
+    }
+    @keyframes pulse-green {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(255, 255, 255, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+    }
+
+    /* Sample Report Modal Mockup */
+    .sample-report-modal .modal-content {
+      border-radius: 20px;
+      border: none;
+      box-shadow: 0 25px 60px rgba(15, 23, 42, 0.3);
+      overflow: hidden;
+    }
+    .report-sheet {
+      background: #ffffff;
+      padding: 30px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    .report-header-preview {
+      border-bottom: 2px solid #0284c7;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
   </style>
 </head>
 <body>
@@ -743,6 +909,7 @@
 
       <div class="collapse navbar-collapse" id="navContent">
         <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link nav-link-custom" href="#workflow">Workflow</a></li>
           <li class="nav-item"><a class="nav-link nav-link-custom" href="#features">Features</a></li>
           <li class="nav-item"><a class="nav-link nav-link-custom" href="#pricing">Price Card</a></li>
           <li class="nav-item"><a class="nav-link nav-link-custom" href="#offline-vs-cloud">Offline vs Cloud</a></li>
@@ -777,23 +944,24 @@
             Modernize your diagnostic centre with lightning-fast patient billing, smart phlebotomy barcoding, drag-and-drop report templates, doctor digital signatures, and zero-cost WhatsApp report delivery.
           </p>
 
-          <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start gap-3 mb-4">
-            <a href="demo/" class="btn-hero-primary" onclick="gtag('event', 'demo_click', {'event_category': 'Engagement', 'event_label': 'Hero Live Demo'});">
-              <i class="fas fa-play-circle"></i> Launch Live Demo
+          <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start gap-3 mb-3">
+            <a href="register.php" class="btn btn-primary btn-lg fw-bold px-4 py-3 shadow" style="border-radius: 12px; font-size: 1.05rem;" onclick="gtag('event', 'trial_cta_click', {'event_category': 'Conversion', 'event_label': 'Hero Primary Free Trial'});">
+              <i class="fas fa-rocket me-2"></i> Start 14-Day Free Trial
             </a>
-            <a href="register.php" class="btn-hero-outline" onclick="gtag('event', 'trial_cta_click', {'event_category': 'Conversion', 'event_label': 'Hero Start Free Trial'});">
-              <i class="fas fa-rocket text-primary"></i> Start Free Cloud Trial
+            <a href="demo/" class="btn btn-outline-dark btn-lg fw-bold px-4 py-3" style="border-radius: 12px; font-size: 1.05rem; background: #ffffff;" onclick="gtag('event', 'demo_click', {'event_category': 'Engagement', 'event_label': 'Hero Secondary Live Demo'});">
+              <i class="fas fa-play-circle text-primary me-2"></i> Explore Live Demo
             </a>
-            <a href="https://wa.me/919876543210?text=Hello%20VenSaas%20LabTech,%20I%20want%20to%20know%20more%20about%20your%20Lab%20Software%20(Cloud%20Offer%20₹999/Year%20and%20Offline%20One-Time)" target="_blank" class="btn-hero-whatsapp" onclick="gtag('event', 'whatsapp_inquiry', {'event_category': 'Leads', 'event_label': 'Hero WhatsApp'});">
-              <i class="fab fa-whatsapp fs-5"></i> Chat on WhatsApp
-            </a>
+            <button type="button" class="btn btn-outline-primary btn-lg fw-bold px-3 py-3" style="border-radius: 12px; font-size: 1rem;" data-bs-toggle="modal" data-bs-target="#sampleReportModal" onclick="gtag('event', 'sample_report_view', {'event_category': 'Engagement'});">
+              <i class="fas fa-file-medical text-danger me-1"></i> View Sample Report
+            </button>
           </div>
 
-          <!-- Bullet Points -->
-          <div class="d-flex flex-wrap justify-content-center justify-content-lg-start gap-4 pt-2 text-muted small fw-semibold">
-            <span><i class="fas fa-check-circle text-success me-1"></i> Special Offer: ₹999/Year (Just ~₹83/mo &bull; Reg. <del class="text-muted">₹499/mo</del>)</span>
-            <span><i class="fas fa-check-circle text-success me-1"></i> Offline One-Time Payment Available</span>
-            <span><i class="fas fa-check-circle text-success me-1"></i> No Domain & Hosting Needed</span>
+          <!-- Micro-Trust Points -->
+          <div class="d-flex flex-wrap justify-content-center justify-content-lg-start gap-3 pt-2 text-muted small fw-semibold">
+            <span><i class="fas fa-check-circle text-success me-1"></i> <strong>Launch Offer: ₹999/Year</strong> (<del class="text-muted">₹5,988</del>)</span>
+            <span><i class="fas fa-check-circle text-success me-1"></i> 500+ Preloaded Assays</span>
+            <span><i class="fas fa-check-circle text-success me-1"></i> Offline Edition Available</span>
+            <span><i class="fas fa-check-circle text-success me-1"></i> No Credit Card Required</span>
           </div>
         </div>
 
@@ -901,6 +1069,131 @@
     </div>
   </section>
 
+  <!-- 2.5 ACCREDITATION & TRUST STRIP -->
+  <div class="trust-badge-strip">
+    <div class="container">
+      <div class="row g-3 justify-content-between align-items-center">
+        <div class="col-md-3 col-6">
+          <div class="trust-badge-item">
+            <i class="fas fa-certificate text-primary"></i>
+            <div>
+              <div>NABL ISO 15189</div>
+              <span class="text-muted fw-normal" style="font-size: 0.76rem;">Ready Reporting Layout</span>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 col-6">
+          <div class="trust-badge-item">
+            <i class="fas fa-signature text-success"></i>
+            <div>
+              <div>Digital Signatures</div>
+              <span class="text-muted fw-normal" style="font-size: 0.76rem;">Doctor Sign & Tamper Seal</span>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 col-6">
+          <div class="trust-badge-item">
+            <i class="fas fa-barcode" style="color: #7c3aed;"></i>
+            <div>
+              <div>Smart Barcoding</div>
+              <span class="text-muted fw-normal" style="font-size: 0.76rem;">Tube Color Identification</span>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 col-6">
+          <div class="trust-badge-item">
+            <i class="fab fa-whatsapp text-success" style="color: #25d366;"></i>
+            <div>
+              <div>WhatsApp Reports</div>
+              <span class="text-muted fw-normal" style="font-size: 0.76rem;">Zero Recurring API Costs</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2.6 DAILY LAB WORKFLOW IN 4 STEPS -->
+  <section class="workflow-section" id="workflow">
+    <div class="container">
+      <div class="section-title-wrap">
+        <span class="section-eyebrow">Standard Operating Procedure</span>
+        <h2 class="section-heading">How Your Lab Runs Every Day with LabTech</h2>
+        <p class="section-subtext">Eliminate manual paperwork. Experience complete diagnostic automation from patient arrival to signed report delivery in under 5 minutes.</p>
+      </div>
+
+      <div class="row g-4">
+        <!-- Step 1 -->
+        <div class="col-lg-3 col-md-6">
+          <div class="workflow-card">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="step-number-badge">1</span>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle step-duration-pill">~30 Seconds</span>
+            </div>
+            <div class="step-icon-wrap" style="background: #e0f2fe; color: #0284c7;">
+              <i class="fas fa-cash-register"></i>
+            </div>
+            <h5 class="fw-bold text-dark mb-2">Front Desk Billing & UHID</h5>
+            <p class="text-muted small mb-0" style="line-height: 1.55;">
+              Search returning patients by phone or auto-assign a new UHID. Select test packages, apply doctor commissions, and print thermal or A4 receipts with sample barcode stickers.
+            </p>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="col-lg-3 col-md-6">
+          <div class="workflow-card">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="step-number-badge" style="background: #7c3aed;">2</span>
+              <span class="badge border step-duration-pill" style="background: #f3e8ff; color: #7c3aed; border-color: #ddd6fe;">Phlebotomy</span>
+            </div>
+            <div class="step-icon-wrap" style="background: #ede9fe; color: #7c3aed;">
+              <i class="fas fa-vial"></i>
+            </div>
+            <h5 class="fw-bold text-dark mb-2">Phlebotomy & Barcode Tubes</h5>
+            <p class="text-muted small mb-0" style="line-height: 1.55;">
+              The system automatically tells the phlebotomist which color vacutainer tubes to draw (EDTA Purple, SST Gold, Fluoride Grey). Stick the generated barcode on the tube—zero sample mix-ups.
+            </p>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="col-lg-3 col-md-6">
+          <div class="workflow-card">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="step-number-badge" style="background: #059669;">3</span>
+              <span class="badge bg-success-subtle text-success border border-success-subtle step-duration-pill">Auto-Flagging</span>
+            </div>
+            <div class="step-icon-wrap" style="background: #d1fae5; color: #059669;">
+              <i class="fas fa-laptop-medical"></i>
+            </div>
+            <h5 class="fw-bold text-dark mb-2">Result Entry & Normal Ranges</h5>
+            <p class="text-muted small mb-0" style="line-height: 1.55;">
+              Technicians key in values directly into pre-loaded templates (500+ assays). The software automatically highlights abnormal high/low values based on the patient's age and gender.
+            </p>
+          </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="col-lg-3 col-md-6">
+          <div class="workflow-card">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="step-number-badge" style="background: #d97706;">4</span>
+              <span class="badge bg-warning-subtle text-dark border border-warning-subtle step-duration-pill">Instant Dispatch</span>
+            </div>
+            <div class="step-icon-wrap" style="background: #fef3c7; color: #d97706;">
+              <i class="fab fa-whatsapp"></i>
+            </div>
+            <h5 class="fw-bold text-dark mb-2">Doctor Sign & WhatsApp Delivery</h5>
+            <p class="text-muted small mb-0" style="line-height: 1.55;">
+              Pathologist reviews and clicks to attach their high-res digital signature and dynamic verification QR. Click <em>"Send WhatsApp"</em> to dispatch the verified PDF directly to the patient—zero paper waste!
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- 3. SIX CORE FEATURE PILLARS -->
   <section class="py-5" id="features">
     <div class="container py-4">
@@ -986,6 +1279,81 @@
             <p class="feature-text">
               Secure authorized reports with dual pathologist and lab technician digital signatures. Every report includes a tamper-proof QR code for instant authentication by doctors and hospitals.
             </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3.5 THE OLD WAY VS THE LABTECH WAY -->
+  <section class="py-5 bg-white">
+    <div class="container py-3">
+      <div class="section-title-wrap">
+        <span class="section-eyebrow">Measurable Return on Investment</span>
+        <h2 class="section-heading">Why Leading Labs Are Upgrading to LabTech</h2>
+        <p class="section-subtext">Stop losing hours to repetitive manual typing and handwritten sample tubes. Modernize your diagnostic centre operations.</p>
+      </div>
+
+      <div class="comparison-box-wrap">
+        <div class="row g-0">
+          <!-- The Traditional Way -->
+          <div class="col-md-6 compare-side-old">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <span class="badge bg-danger text-white px-2 py-1">TRADITIONAL LAB METHOD</span>
+              <h5 class="fw-bold text-danger mb-0">The Old Way</h5>
+            </div>
+            <ul class="compare-list">
+              <li>
+                <i class="fas fa-times-circle text-danger mt-1 fs-5"></i>
+                <div><strong>Manual Typing in Word/Excel:</strong> Technicians spend 15–20 minutes re-typing parameter headers, biological intervals, and patient details for every report.</div>
+              </li>
+              <li>
+                <i class="fas fa-times-circle text-danger mt-1 fs-5"></i>
+                <div><strong>Handwritten Tube Stickers:</strong> Marker pens on tubes smudge and lead to dangerous specimen mix-ups and repeat blood draws.</div>
+              </li>
+              <li>
+                <i class="fas fa-times-circle text-danger mt-1 fs-5"></i>
+                <div><strong>Reception Crowding for Printouts:</strong> Patients must travel back to the lab or call reception repeatedly to collect paper report copies.</div>
+              </li>
+              <li>
+                <i class="fas fa-times-circle text-danger mt-1 fs-5"></i>
+                <div><strong>Expensive WhatsApp & SMS APIs:</strong> Third-party aggregators charge recurring monthly fees or metered SMS bundles.</div>
+              </li>
+              <li>
+                <i class="fas fa-times-circle text-danger mt-1 fs-5"></i>
+                <div><strong>Internet Dependency Anxiety:</strong> Traditional web-only software locks down completely when broadband fluctuates.</div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- With VenSaas LabTech -->
+          <div class="col-md-6 compare-side-new">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <span class="badge bg-success text-white px-2 py-1">WITH VENSAAS LABTECH</span>
+              <h5 class="fw-bold text-success mb-0">The Modern Way</h5>
+            </div>
+            <ul class="compare-list">
+              <li>
+                <i class="fas fa-check-circle text-success mt-1 fs-5"></i>
+                <div><strong>500+ Pre-Configured Assays:</strong> Complete test templates with established reference intervals ready in 1 click. Zero formatting effort.</div>
+              </li>
+              <li>
+                <i class="fas fa-check-circle text-success mt-1 fs-5"></i>
+                <div><strong>Automated Barcode Label Printing:</strong> System advises tube colors and prints scannable barcode stickers at the billing counter instantly.</div>
+              </li>
+              <li>
+                <i class="fas fa-check-circle text-success mt-1 fs-5"></i>
+                <div><strong>Direct Patient WhatsApp Delivery:</strong> Authorized PDF reports delivered straight to the patient's mobile phone as soon as tests are signed.</div>
+              </li>
+              <li>
+                <i class="fas fa-check-circle text-success mt-1 fs-5"></i>
+                <div><strong>Zero-Cost Web WhatsApp Engine:</strong> Native browser WhatsApp integration sends reports with <strong>zero per-message API charges</strong>.</div>
+              </li>
+              <li>
+                <i class="fas fa-check-circle text-success mt-1 fs-5"></i>
+                <div><strong>Dual Cloud or 100% Offline LAN:</strong> Choose the Cloud SaaS edition or run 100% locally on your clinic network without internet.</div>
+              </li>
+            </ul>
           </div>
         </div>
       </div>
@@ -1356,6 +1724,114 @@
       </div>
     </div>
   </footer>
+
+  <!-- SAMPLE REPORT PREVIEW MODAL -->
+  <div class="modal fade sample-report-modal" id="sampleReportModal" tabindex="-1" aria-labelledby="sampleReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white py-3 px-4">
+          <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-file-medical-alt fa-lg"></i>
+            <div>
+              <h5 class="modal-title fw-bold mb-0" id="sampleReportModalLabel">Authentic NABL Pathology Report Format</h5>
+              <div class="small opacity-75">Generated dynamically with Doctor Digital Signature & Verification QR</div>
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4 bg-light">
+          <!-- Report Sheet Container -->
+          <div class="report-sheet shadow-sm">
+            <!-- Lab Letterhead Header -->
+            <div class="report-header-preview d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div class="d-flex align-items-center gap-3">
+                <div class="bg-primary text-white p-3 rounded-3" style="font-size: 1.5rem;"><i class="fas fa-microscope"></i></div>
+                <div>
+                  <h4 class="fw-bold text-primary mb-0">METROPOLIS DIAGNOSTIC CENTRE</h4>
+                  <div class="text-muted small">NABL ISO 15189 Accredited Clinical Laboratory</div>
+                  <div class="text-muted" style="font-size: 0.72rem;">124, Healthcare Avenue, GST Road, Chennai &bull; Ph: 044-24567890</div>
+                </div>
+              </div>
+              <div class="text-end">
+                <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold px-2 py-1">FINAL SIGNED REPORT</span>
+                <div class="small text-muted mt-1">Generated: <?= date('d M Y, h:i A') ?></div>
+              </div>
+            </div>
+
+            <!-- Patient Demographics Table -->
+            <div class="bg-light p-3 rounded-3 border mb-3 small">
+              <div class="row g-2">
+                <div class="col-sm-6 col-12"><strong>Patient Name:</strong> Mrs. Ananya Sharma (34 Yrs / Female)</div>
+                <div class="col-sm-6 col-12"><strong>UHID / Reg No:</strong> UHID-2026-9941</div>
+                <div class="col-sm-6 col-12"><strong>Ref. By Doctor:</strong> Dr. K. Ramesh, MBBS, MD</div>
+                <div class="col-sm-6 col-12"><strong>Sample Type:</strong> EDTA Whole Blood / Fluoride Plasma</div>
+              </div>
+            </div>
+
+            <!-- Pathology Observation Parameters -->
+            <div class="table-responsive mb-3">
+              <table class="table table-bordered table-sm align-middle mb-0" style="font-size: 0.8rem;">
+                <thead class="table-primary text-dark">
+                  <tr>
+                    <th>Investigation (Assay)</th>
+                    <th>Observed Result</th>
+                    <th>Biological Reference Interval</th>
+                    <th>Method</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="table-light"><td colspan="4" class="fw-bold text-primary py-1"><i class="fas fa-vial me-1"></i> COMPLETE BLOOD COUNT (CBC) - EDTA WHOLE BLOOD</td></tr>
+                  <tr><td>Hemoglobin (Hb)</td><td><strong>13.4 g/dL</strong></td><td>12.0 - 15.0 g/dL</td><td>SLS-Hemoglobin</td></tr>
+                  <tr><td>Total Leucocyte Count (WBC)</td><td class="text-danger fw-bold">12,600 /cu.mm <span class="badge bg-danger py-0 ms-1">HIGH</span></td><td>4,000 - 11,000 /cu.mm</td><td>Flow Cytometry</td></tr>
+                  <tr><td>RBC Count</td><td><strong>4.52 mill/cu.mm</strong></td><td>3.80 - 4.80 mill/cu.mm</td><td>Electrical Impedance</td></tr>
+                  <tr><td>Platelet Count</td><td><strong>2,48,000 /cu.mm</strong></td><td>1,50,000 - 4,50,000</td><td>Hydrodynamic Focusing</td></tr>
+                  <tr class="table-light"><td colspan="4" class="fw-bold text-primary py-1"><i class="fas fa-tint me-1"></i> BIOCHEMISTRY PROFILE</td></tr>
+                  <tr><td>Blood Glucose (Fasting)</td><td><strong>94 mg/dL</strong></td><td>70 - 100 mg/dL</td><td>GOD-POD Method</td></tr>
+                  <tr><td>Serum Creatinine</td><td><strong>0.85 mg/dL</strong></td><td>0.60 - 1.10 mg/dL</td><td>Modified Jaffe</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Signatures & Dynamic QR Verification -->
+            <div class="d-flex justify-content-between align-items-center pt-3 border-top mt-3">
+              <div class="d-flex align-items-center gap-2">
+                <div class="p-2 border rounded bg-light text-center">
+                  <i class="fas fa-qrcode fa-3x text-dark"></i>
+                  <div class="text-muted" style="font-size: 0.65rem;">Scan to Authenticate</div>
+                </div>
+                <div class="small text-muted" style="max-width: 200px; font-size: 0.72rem;">
+                  Tamper-proof Cryptographic QR Seal verified by VenSaas LabTech Engine.
+                </div>
+              </div>
+              <div class="text-end">
+                <div class="text-primary fw-bold font-monospace" style="font-size: 0.95rem; font-style: italic;">Dr. Suresh Nathan, MD</div>
+                <div class="fw-bold text-dark small">Consultant Pathologist & Lab Director</div>
+                <div class="text-muted" style="font-size: 0.68rem;">Reg No: KMC-78942 &bull; Authorized Electronic Seal</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-white d-flex justify-content-between align-items-center py-3 px-4">
+          <div class="text-muted small">
+            <i class="fas fa-check-circle text-success me-1"></i> Available in both <strong>Cloud Edition</strong> & <strong>Offline Edition</strong>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" data-bs-dismiss="modal">Close</button>
+            <a href="demo/" target="_blank" class="btn btn-primary btn-sm fw-bold">
+              <i class="fas fa-play-circle me-1"></i> Try Live in Demo
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING WHATSAPP LEAD WIDGET -->
+  <a href="https://wa.me/919876543210?text=Hello%20VenSaas%20LabTech,%20I%20am%20interested%20in%20the%20Special%20Launch%20Offer%20(₹999/Year)%20or%20Offline%20Edition" target="_blank" class="floating-whatsapp-widget" onclick="gtag('event', 'whatsapp_inquiry', {'event_category': 'Leads', 'event_label': 'Floating WhatsApp Widget'});">
+    <div class="whatsapp-pulse-dot"></div>
+    <i class="fab fa-whatsapp fs-5"></i>
+    <span>Chat with Us</span>
+  </a>
 
   <!-- Bootstrap Bundle JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
