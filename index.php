@@ -620,13 +620,15 @@
       flex-shrink: 0;
     }
 
-    /* Comparison Table - Elevated Card Format */
+    /* Comparison Table - Elevated Card Format (Compact & Crisp Borders) */
     .comparison-card-wrap {
+      max-width: 960px;
+      margin: 0 auto;
       background: #ffffff;
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
+      border: 1px solid #cbd5e1;
+      border-radius: 18px;
       overflow: hidden;
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
     }
     .comparison-table {
       width: 100%;
@@ -636,35 +638,40 @@
     }
     .comparison-table th {
       background: #f8fafc;
-      padding: 18px 22px;
+      padding: 16px 20px;
       font-weight: 800;
       font-size: 0.94rem;
       color: var(--dark);
-      border-bottom: 2px solid var(--card-border);
+      border: 1px solid #cbd5e1;
+      border-bottom: 2px solid #94a3b8;
+      vertical-align: middle;
     }
     .comparison-table th.col-online {
       background: #f0f9ff;
-      border-left: 2px solid #e0f2fe;
-      border-right: 2px solid #e0f2fe;
+      border: 1px solid #cbd5e1;
+      border-left: 2px solid #0284c7;
+      border-right: 2px solid #0284c7;
+      border-bottom: 2px solid #0284c7;
       color: var(--primary-dark);
     }
     .comparison-table td {
-      padding: 16px 22px;
+      padding: 14px 20px;
       font-size: 0.92rem;
-      border-bottom: 1px solid #f1f5f9;
+      border: 1px solid #e2e8f0;
       color: var(--slate-800);
       vertical-align: middle;
     }
     .comparison-table td.col-online {
-      background: rgba(240, 249, 255, 0.45);
-      border-left: 2px solid #e0f2fe;
-      border-right: 2px solid #e0f2fe;
+      background: rgba(240, 249, 255, 0.5);
+      border: 1px solid #e2e8f0;
+      border-left: 2px solid #38bdf8;
+      border-right: 2px solid #38bdf8;
     }
     .comparison-table tbody tr:hover td {
       background-color: #f8fafc;
     }
     .comparison-table tbody tr:hover td.col-online {
-      background-color: #f0f9ff;
+      background-color: #e0f2fe;
     }
     .comparison-table tr:last-child td {
       border-bottom: none;
@@ -1671,68 +1678,72 @@
         </span>
       </div>
 
-      <div class="comparison-card-wrap shadow-sm">
-        <div class="table-responsive">
-          <table class="comparison-table">
-            <thead>
-              <tr>
-                <th width="36%">Feature / Capability</th>
-                <th width="32%" class="text-primary text-center col-online"><i class="fas fa-cloud me-1"></i> Online Edition (₹999/yr*)</th>
-                <th width="32%" class="text-dark text-center"><i class="fas fa-hdd text-success me-1"></i> Offline Edition (One-Time)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>Active Internet Requirement</strong></td>
-                <td class="text-center col-online"><span class="badge bg-info-subtle text-info border">Required</span></td>
-                <td class="text-center"><span class="badge bg-success-subtle text-success border">100% Offline (No Internet Needed)</span></td>
-              </tr>
-              <tr>
-                <td><strong>Domain & Web Hosting</strong></td>
-                <td class="text-center col-online">by Vensaas</td>
-                <td class="text-center"><strong class="text-success">Not Required (0 cost)</strong></td>
-              </tr>
-              <tr>
-                <td><strong>Payment Structure</strong></td>
-                <td class="text-center col-online">
-                  <strong class="text-primary fs-5">₹999 / Year</strong><br>
-                  <span class="badge bg-success-subtle text-success border border-success-subtle small fw-bold">Just ~₹83/Month (Annual)</span><br>
-                  <small class="text-muted text-decoration-line-through">Regular ₹499/mo (₹5,988/yr)</small>
-                </td>
-                <td class="text-center"><strong class="text-dark">One-Time Payment</strong></td>
-              </tr>
-              <tr>
-                <td><strong>Multi-Counter LAN Operation</strong></td>
-                <td class="text-center col-online">Internet</td>
-                <td class="text-center">Local Network (LAN)</td>
-              </tr>
-              <tr>
-                <td><strong>Patient Data Storage</strong></td>
-                <td class="text-center col-online">Secure Cloud Data Centre (Daily Backups)</td>
-                <td class="text-center">Safe in Your Lab PC</td>
-              </tr>
-              <tr>
-                <td><strong>Barcoding & Tube Stickers</strong></td>
-                <td class="text-center col-online"><i class="fas fa-check-circle text-success"></i> Supported</td>
-                <td class="text-center"><i class="fas fa-check-circle text-success"></i> Supported</td>
-              </tr>
-              <tr>
-                <td><strong>Visual Drag-Drop Report Designer</strong></td>
-                <td class="text-center col-online"><i class="fas fa-check-circle text-success"></i> Included</td>
-                <td class="text-center"><i class="fas fa-check-circle text-success"></i> Included</td>
-              </tr>
-              <tr>
-                <td><strong>Web WhatsApp PDF Dispatch</strong></td>
-                <td class="text-center col-online"><i class="fas fa-check-circle text-success"></i> 1-Click (No API Fees)</td>
-                <td class="text-center"><i class="fas fa-check-circle text-success"></i> 1-Click via Browser</td>
-              </tr>
-              <tr>
-                <td><strong>Software Updates</strong></td>
-                <td class="text-center col-online">Automatic</td>
-                <td class="text-center">Free Minor Updates Included</td>
-              </tr>
-            </tbody>
-          </table>
+      <div class="row justify-content-center">
+        <div class="col-xl-9 col-lg-10">
+          <div class="comparison-card-wrap shadow-sm">
+            <div class="table-responsive">
+              <table class="comparison-table table-bordered">
+                <thead>
+                  <tr>
+                    <th width="36%">Feature / Capability</th>
+                    <th width="32%" class="text-primary text-center col-online"><i class="fas fa-cloud me-1"></i> Online Edition (₹999/yr*)</th>
+                    <th width="32%" class="text-dark text-center"><i class="fas fa-hdd text-success me-1"></i> Offline Edition (One-Time)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Active Internet Requirement</strong></td>
+                    <td class="text-center col-online"><span class="badge bg-info-subtle text-info border">Required</span></td>
+                    <td class="text-center"><span class="badge bg-success-subtle text-success border">100% Offline (No Internet Needed)</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Domain & Web Hosting</strong></td>
+                    <td class="text-center col-online">by Vensaas</td>
+                    <td class="text-center"><strong class="text-success">Not Required (0 cost)</strong></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Payment Structure</strong></td>
+                    <td class="text-center col-online">
+                      <strong class="text-primary fs-5">₹999 / Year</strong><br>
+                      <span class="badge bg-success-subtle text-success border border-success-subtle small fw-bold">Just ~₹83/Month (Annual)</span><br>
+                      <small class="text-muted text-decoration-line-through">Regular ₹499/mo (₹5,988/yr)</small>
+                    </td>
+                    <td class="text-center"><strong class="text-dark">One-Time Payment</strong></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Multi-Counter LAN Operation</strong></td>
+                    <td class="text-center col-online">Internet</td>
+                    <td class="text-center">Local Network (LAN)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Patient Data Storage</strong></td>
+                    <td class="text-center col-online">Secure Cloud Data Centre (Daily Backups)</td>
+                    <td class="text-center">Safe in Your Lab PC</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Barcoding & Tube Stickers</strong></td>
+                    <td class="text-center col-online"><i class="fas fa-check-circle text-success"></i> Supported</td>
+                    <td class="text-center"><i class="fas fa-check-circle text-success"></i> Supported</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Visual Drag-Drop Report Designer</strong></td>
+                    <td class="text-center col-online"><i class="fas fa-check-circle text-success"></i> Included</td>
+                    <td class="text-center"><i class="fas fa-check-circle text-success"></i> Included</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Web WhatsApp PDF Dispatch</strong></td>
+                    <td class="text-center col-online"><i class="fas fa-check-circle text-success"></i> 1-Click (No API Fees)</td>
+                    <td class="text-center"><i class="fas fa-check-circle text-success"></i> 1-Click via Browser</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Software Updates</strong></td>
+                    <td class="text-center col-online">Automatic</td>
+                    <td class="text-center">Free Minor Updates Included</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
