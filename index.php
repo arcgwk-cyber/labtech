@@ -295,15 +295,15 @@
       box-shadow: 0 2px 8px rgba(2, 132, 199, 0.08);
     }
     .hero-title {
-      font-size: 3.2rem;
+      font-size: clamp(2.2rem, 4.2vw, 3.25rem);
       font-weight: 800;
-      line-height: 1.18;
+      line-height: 1.16;
       letter-spacing: -0.03em;
       color: var(--dark);
       margin-bottom: 22px;
     }
     .hero-title .gradient-text {
-      background: linear-gradient(135deg, #0284c7 0%, #06b6d4 100%);
+      background: linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
@@ -415,9 +415,9 @@
     /* App Preview Mockup Window */
     .app-mockup-wrapper {
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      border-radius: 16px;
+      border-radius: 18px;
       padding: 12px;
-      box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      box-shadow: 0 25px 60px -15px rgba(2, 132, 199, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.1);
       position: relative;
     }
     .mockup-toolbar {
@@ -458,9 +458,9 @@
       display: block;
     }
     .section-heading {
-      font-size: 2.3rem;
+      font-size: clamp(1.85rem, 3.2vw, 2.45rem);
       font-weight: 800;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.025em;
       color: var(--dark);
     }
     .section-subtext {
@@ -539,8 +539,8 @@
     }
     .price-card.featured {
       border-color: var(--primary);
-      box-shadow: 0 16px 36px rgba(2, 132, 199, 0.12);
-      background: radial-gradient(circle at 100% 0%, rgba(2, 132, 199, 0.04) 0%, #ffffff 70%);
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2), 0 20px 45px rgba(2, 132, 199, 0.12);
+      background: radial-gradient(circle at 100% 0%, rgba(2, 132, 199, 0.05) 0%, #ffffff 70%);
     }
 
     .pricing-popular-badge {
@@ -741,6 +741,32 @@
       box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
       border-color: #bae6fd;
     }
+    @media (min-width: 992px) {
+      .workflow-card::after {
+        content: '\f054';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        position: absolute;
+        right: -24px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 32px;
+        height: 32px;
+        background: #ffffff;
+        border: 2px solid #e2e8f0;
+        color: var(--primary);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.76rem;
+        z-index: 3;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+      }
+      .workflow-card.last-step::after {
+        display: none !important;
+      }
+    }
     .step-number-badge {
       width: 34px;
       height: 34px;
@@ -810,18 +836,34 @@
       background: #ffffff;
       border-top: 1px solid var(--card-border);
       border-bottom: 1px solid var(--card-border);
-      padding: 22px 0;
+      padding: 24px 0;
     }
-    .trust-badge-item {
+    .trust-badge-card {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 14px 16px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      font-size: 0.88rem;
-      font-weight: 700;
-      color: var(--slate-800);
+      gap: 14px;
+      height: 100%;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+      transition: all 0.25s ease;
     }
-    .trust-badge-item i {
-      font-size: 1.35rem;
+    .trust-badge-card:hover {
+      border-color: #bae6fd;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.07);
+    }
+    .trust-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      flex-shrink: 0;
     }
 
     /* Floating WhatsApp Lead Widget */
@@ -848,6 +890,14 @@
       color: #ffffff;
       transform: translateY(-3px) scale(1.02);
       box-shadow: 0 12px 30px rgba(37, 211, 102, 0.5);
+    }
+    @media (max-width: 576px) {
+      .floating-whatsapp-widget {
+        bottom: 16px;
+        right: 16px;
+        padding: 8px 14px;
+        font-size: 0.85rem;
+      }
     }
     .whatsapp-pulse-dot {
       width: 10px;
@@ -1073,38 +1123,46 @@
   <div class="trust-badge-strip">
     <div class="container">
       <div class="row g-3 justify-content-between align-items-center">
-        <div class="col-md-3 col-6">
-          <div class="trust-badge-item">
-            <i class="fas fa-certificate text-primary"></i>
+        <div class="col-lg-3 col-6">
+          <div class="trust-badge-card" style="border-left: 4px solid #0284c7;">
+            <div class="trust-icon-box" style="background: #e0f2fe; color: #0284c7;">
+              <i class="fas fa-certificate"></i>
+            </div>
             <div>
-              <div>NABL ISO 15189</div>
-              <span class="text-muted fw-normal" style="font-size: 0.76rem;">Ready Reporting Layout</span>
+              <div class="fw-bold text-dark">NABL ISO 15189</div>
+              <span class="text-muted fw-normal" style="font-size: 0.76rem;">Standard Reporting Format</span>
             </div>
           </div>
         </div>
-        <div class="col-md-3 col-6">
-          <div class="trust-badge-item">
-            <i class="fas fa-signature text-success"></i>
+        <div class="col-lg-3 col-6">
+          <div class="trust-badge-card" style="border-left: 4px solid #10b981;">
+            <div class="trust-icon-box" style="background: #d1fae5; color: #10b981;">
+              <i class="fas fa-signature"></i>
+            </div>
             <div>
-              <div>Digital Signatures</div>
+              <div class="fw-bold text-dark">Digital Signatures</div>
               <span class="text-muted fw-normal" style="font-size: 0.76rem;">Doctor Sign & Tamper Seal</span>
             </div>
           </div>
         </div>
-        <div class="col-md-3 col-6">
-          <div class="trust-badge-item">
-            <i class="fas fa-barcode" style="color: #7c3aed;"></i>
+        <div class="col-lg-3 col-6">
+          <div class="trust-badge-card" style="border-left: 4px solid #7c3aed;">
+            <div class="trust-icon-box" style="background: #ede9fe; color: #7c3aed;">
+              <i class="fas fa-barcode"></i>
+            </div>
             <div>
-              <div>Smart Barcoding</div>
-              <span class="text-muted fw-normal" style="font-size: 0.76rem;">Tube Color Identification</span>
+              <div class="fw-bold text-dark">Smart Barcoding</div>
+              <span class="text-muted fw-normal" style="font-size: 0.76rem;">Automatic Vacutainer Colors</span>
             </div>
           </div>
         </div>
-        <div class="col-md-3 col-6">
-          <div class="trust-badge-item">
-            <i class="fab fa-whatsapp text-success" style="color: #25d366;"></i>
+        <div class="col-lg-3 col-6">
+          <div class="trust-badge-card" style="border-left: 4px solid #25d366;">
+            <div class="trust-icon-box" style="background: #dcfce7; color: #16a34a;">
+              <i class="fab fa-whatsapp"></i>
+            </div>
             <div>
-              <div>WhatsApp Reports</div>
+              <div class="fw-bold text-dark">WhatsApp Reports</div>
               <span class="text-muted fw-normal" style="font-size: 0.76rem;">Zero Recurring API Costs</span>
             </div>
           </div>
@@ -1176,7 +1234,7 @@
 
         <!-- Step 4 -->
         <div class="col-lg-3 col-md-6">
-          <div class="workflow-card">
+          <div class="workflow-card last-step">
             <div class="d-flex justify-content-between align-items-start mb-2">
               <span class="step-number-badge" style="background: #d97706;">4</span>
               <span class="badge bg-warning-subtle text-dark border border-warning-subtle step-duration-pill">Instant Dispatch</span>
@@ -1473,12 +1531,19 @@
   </section>
 
   <!-- 5. OFFLINE VS CLOUD COMPARISON TABLE -->
-  <section class="py-5 bg-white" id="offline-vs-cloud">
+  <section class="py-5 bg-light" id="offline-vs-cloud">
     <div class="container py-4">
       <div class="section-title-wrap">
         <span class="section-eyebrow">Compare Deployment Models</span>
         <h2 class="section-heading">Online Cloud SaaS vs. Offline On-Premise</h2>
         <p class="section-subtext">Both editions deliver the exact same comprehensive pathology reporting and clinical workflows. Pick what fits your lab best.</p>
+      </div>
+
+      <!-- Mobile Scroll Hint -->
+      <div class="d-md-none text-center mb-3">
+        <span class="badge bg-white text-secondary border px-3 py-2 fw-semibold shadow-sm">
+          <i class="fas fa-arrows-left-right text-primary me-1"></i> Swipe table left/right to view full comparison
+        </span>
       </div>
 
       <div class="table-responsive">
@@ -1816,7 +1881,10 @@
             <i class="fas fa-check-circle text-success me-1"></i> Available in both <strong>Cloud Edition</strong> & <strong>Offline Edition</strong>
           </div>
           <div class="d-flex gap-2">
-            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="window.print();">
+              <i class="fas fa-print me-1"></i> Print / PDF
+            </button>
+            <button type="button" class="btn btn-outline-dark btn-sm fw-bold" data-bs-dismiss="modal">Close</button>
             <a href="demo/" target="_blank" class="btn btn-primary btn-sm fw-bold">
               <i class="fas fa-play-circle me-1"></i> Try Live in Demo
             </a>
