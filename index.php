@@ -135,8 +135,10 @@
         ],
         "contactPoint": {
           "@type": "ContactPoint",
+          "telephone": "+91-7989169700",
+          "email": "info@vensaas.com",
           "contactType": "Customer Support & Sales",
-          "url": "https://wa.me/919876543210",
+          "url": "https://wa.me/917989169700",
           "availableLanguage": ["English", "Hindi", "Telugu", "Tamil"]
         }
       },
@@ -1642,7 +1644,7 @@
             </div>
 
             <div>
-              <a href="https://wa.me/919876543210?text=Hello%20VenSaas%20LabTech,%20I%20am%20interested%20in%20the%20Offline%20One-Time%20Payment%20Lifetime%20License%20(No%20Domain%20%26%20Hosting)." target="_blank" class="btn btn-dark w-100 py-3 fw-bold shadow-sm" style="border-radius: 10px; font-size: 1rem; background: var(--dark);">
+              <a href="https://wa.me/917989169700?text=Hello%20VenSaas%20LabTech,%20I%20am%20interested%20in%20the%20Offline%20One-Time%20Payment%20Lifetime%20License%20(No%20Domain%20%26%20Hosting)." target="_blank" class="btn btn-dark w-100 py-3 fw-bold shadow-sm" style="border-radius: 10px; font-size: 1rem; background: var(--dark);">
                 <i class="fab fa-whatsapp me-2 text-success"></i> Inquire Offline Lifetime Price
               </a>
               <div class="text-center text-muted small mt-2">Personalized Quote &bull; Instant WhatsApp Response</div>
@@ -1767,7 +1769,7 @@
               </div>
             </div>
 
-            <a href="https://wa.me/919876543210?text=Hello%20VenSaas%20LabTech,%20I%20have%20questions%20about%20the%20laboratory%20software." target="_blank" class="btn btn-success w-100 fw-bold py-2 shadow-sm mb-2" style="background: #25d366; border: none; border-radius: 10px;">
+            <a href="https://wa.me/917989169700?text=Hello%20VenSaas%20LabTech,%20I%20have%20questions%20about%20the%20laboratory%20software." target="_blank" class="btn btn-success w-100 fw-bold py-2 shadow-sm mb-2" style="background: #25d366; border: none; border-radius: 10px;">
               <i class="fab fa-whatsapp me-2"></i> Chat with Expert
             </a>
             <a href="demo/" target="_blank" class="btn btn-outline-primary w-100 fw-bold py-2" style="border-radius: 10px;">
@@ -1876,7 +1878,7 @@
           <a href="register.php" class="btn btn-outline-light px-4 py-3 fw-bold" style="border-radius: 10px; font-size: 1rem;" onclick="gtag('event', 'trial_cta_click', {'event_category': 'Conversion', 'event_label': 'CTA Banner Free Trial'});">
             <i class="fas fa-rocket me-2"></i> Start Free Trial
           </a>
-          <a href="https://wa.me/919876543210?text=Hi%20VenSaas%20LabTech,%20I%20want%20to%20get%20started%20with%20LabTech%20Software%20(Cloud%20Offer%20₹999/Year)" target="_blank" class="btn btn-success px-4 py-3 fw-bold shadow-sm" style="border-radius: 10px; font-size: 1rem; background: #25d366; border: none;" onclick="gtag('event', 'whatsapp_inquiry', {'event_category': 'Leads', 'event_label': 'CTA Banner WhatsApp'});">
+          <a href="https://wa.me/917989169700?text=Hi%20VenSaas%20LabTech,%20I%20want%20to%20get%20started%20with%20LabTech%20Software%20(Cloud%20Offer%20₹999/Year)" target="_blank" class="btn btn-success px-4 py-3 fw-bold shadow-sm" style="border-radius: 10px; font-size: 1rem; background: #25d366; border: none;" onclick="gtag('event', 'whatsapp_inquiry', {'event_category': 'Leads', 'event_label': 'CTA Banner WhatsApp'});">
             <i class="fab fa-whatsapp me-2"></i> Connect on WhatsApp
           </a>
         </div>
@@ -1937,7 +1939,7 @@
               <div class="footer-contact-icon text-primary"><i class="fas fa-envelope"></i></div>
               <div>
                 <div class="text-white-50 small" style="font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Email Support</div>
-                <a href="mailto:support@vensaas.com" class="fw-semibold">support@vensaas.com</a>
+                <a href="mailto:info@vensaas.com" class="fw-semibold">info@vensaas.com</a>
               </div>
             </div>
 
@@ -1945,7 +1947,7 @@
               <div class="footer-contact-icon text-success"><i class="fab fa-whatsapp"></i></div>
               <div>
                 <div class="text-white-50 small" style="font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">WhatsApp / Phone</div>
-                <a href="https://wa.me/919876543210" target="_blank" class="fw-semibold">+91 98765 43210</a>
+                <a href="https://wa.me/917989169700" target="_blank" class="fw-semibold">+91 79891 69700</a>
               </div>
             </div>
 
@@ -2078,7 +2080,7 @@
   </div>
 
   <!-- FLOATING WHATSAPP LEAD WIDGET -->
-  <a href="https://wa.me/919876543210?text=Hello%20VenSaas%20LabTech,%20I%20am%20interested%20in%20the%20Special%20Launch%20Offer%20(₹999/Year)%20or%20Offline%20Edition" target="_blank" class="floating-whatsapp-widget" onclick="gtag('event', 'whatsapp_inquiry', {'event_category': 'Leads', 'event_label': 'Floating WhatsApp Widget'});">
+  <a href="https://wa.me/917989169700?text=Hello%20VenSaas%20LabTech,%20I%20am%20interested%20in%20the%20Special%20Launch%20Offer%20(₹999/Year)%20or%20Offline%20Edition" target="_blank" class="floating-whatsapp-widget" onclick="gtag('event', 'whatsapp_inquiry', {'event_category': 'Leads', 'event_label': 'Floating WhatsApp Widget'});">
     <div class="whatsapp-pulse-dot"></div>
     <i class="fab fa-whatsapp fs-5"></i>
     <span>Chat with Us</span>

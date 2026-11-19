@@ -514,8 +514,8 @@
         <div class="text-muted small">Official Website: <strong>https://labs.vensaas.com/</strong> &bull; Cloud &bull; Offline LAN</div>
       </div>
       <div class="text-end">
-        <a href="https://wa.me/919876543210?text=Hi%20VenSaas%20LabTech,%20I%20saw%20your%20brochure%20and%20want%20to%20register%20my%20lab" target="_blank" class="btn btn-success btn-sm fw-bold px-3 py-2" style="background: #25d366; border: none;">
-          <i class="fab fa-whatsapp me-1"></i> WhatsApp: +91 98765 43210
+        <a href="https://wa.me/917989169700?text=Hi%20VenSaas%20LabTech,%20I%20saw%20your%20brochure%20and%20want%20to%20register%20my%20lab" target="_blank" class="btn btn-success btn-sm fw-bold px-3 py-2" style="background: #25d366; border: none;">
+          <i class="fab fa-whatsapp me-1"></i> WhatsApp: +91 79891 69700
         </a>
       </div>
     </div>
