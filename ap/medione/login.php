@@ -1,0 +1,576 @@
+<?php
+session_start();
+require_once 'db.php';
+
+// Dynamic Lab Name resolution & Multi-tenant isolation
+$parentDir = strtolower(basename(dirname(__DIR__)));
+$currentDir = strtolower(basename(__DIR__));
+$isStateFolder = in_array($parentDir, ['ap', 'ts', 'os', 'od', 'ka', 'tn', 'mh', 'dl', 'wb', 'kl', 'labs']);
+$fullSlug = $isStateFolder ? ($parentDir . '/' . $currentDir) : $currentDir;
+$isDemo = ($currentDir === 'demo' || (isset($_GET['demo']) && $_GET['demo'] === '1'));
+$labSlug = $isDemo ? 'demo' : (($currentDir === 'base') ? 'base' : $fullSlug);
+
+// Default settings
+$settings = [
+    'company_name'    => $isDemo ? 'Vensaas LabTech' : 'Diagnostic Centre ERP',
+    'company_address' => '',
+    'status'          => 'active',
+    'expiry_date'     => null,
+    'grace_days'      => 7
+];
+
+if ($conn && !$conn->connect_error) {
+    // 1. Ensure lab_slug column exists in admin_settings for strict multi-tenant isolation (cached in session)
+    if (empty($_SESSION['lab_slug_checked'])) {
+        $colCheck = $conn->query("SHOW COLUMNS FROM admin_settings LIKE 'lab_slug'");
+        if ($colCheck && $colCheck->num_rows === 0) {
+            @$conn->query("ALTER TABLE admin_settings ADD COLUMN lab_slug VARCHAR(100) DEFAULT NULL AFTER id");
+            @$conn->query("ALTER TABLE admin_settings ADD INDEX (lab_slug)");
+        }
+        $_SESSION['lab_slug_checked'] = true;
+    }
+
+    $escapedCurrentDir = $conn->real_escape_string($currentDir);
+    $escapedFullSlug   = $conn->real_escape_string($fullSlug);
+
+    $foundCustomSettings = false;
+
+    // 2. Query admin_settings for current lab specifically
+    $res = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = '{$escapedFullSlug}' OR lab_slug = '{$escapedCurrentDir}' OR lab_slug LIKE '%/{$escapedCurrentDir}' LIMIT 1");
+    if ($res && $row = $res->fetch_assoc()) {
+        if (!empty($row['company_name']) && $row['company_name'] !== 'Diagnostic Centre ERP' && ($isDemo || $row['company_name'] !== 'Vensaas LabTech')) {
+            $settings = array_merge($settings, $row);
+            $foundCustomSettings = true;
+        }
+    }
+
+    // Demo handling
+    if ($isDemo) {
+        if (!$foundCustomSettings) {
+            $r1 = $conn->query("SELECT * FROM admin_settings WHERE lab_slug = 'demo' OR id = 1 LIMIT 1");
+            if ($r1 && $row1 = $r1->fetch_assoc()) {
+                $settings = array_merge($settings, $row1);
+            }
+        }
+        if (empty($settings['company_name']) || $settings['company_name'] === 'Amma Diagnostic Centre') {
+            $settings['company_name'] = 'Vensaas LabTech';
+            if (empty($settings['company_address']) || strpos($settings['company_address'], 'ICHAPURAM') !== false || $settings['company_address'] === 'Srikakulam') {
+                $settings['company_address'] = 'Visakhapatnam-530016 (A.P)';
+            }
+            @$conn->query("UPDATE admin_settings SET company_name = 'Vensaas LabTech', company_address = '" . $conn->real_escape_string($settings['company_address']) . "', lab_slug = 'demo' WHERE lab_slug = 'demo' OR (id = 1 AND (lab_slug IS NULL OR lab_slug = ''))");
+        }
+    } else {
+        // NON-DEMO TENANT LAB:
+        // Query vendor_master if settings not found or if stale demo branding
+        if (!$foundCustomSettings || empty($settings['company_name']) || $settings['company_name'] === 'Diagnostic Centre ERP' || $settings['company_name'] === 'Vensaas LabTech' || $settings['company_name'] === 'Amma Diagnostic Centre') {
+            $vmCheck = $conn->query("SHOW TABLES LIKE 'vendor_master'");
+            if ($vmCheck && $vmCheck->num_rows > 0) {
+                $cleanFolderText = str_replace('_', ' ', $currentDir);
+                $vRes = $conn->query("SELECT * FROM vendor_master 
+                                      WHERE remarks LIKE '%/{$escapedCurrentDir}%' 
+                                         OR remarks LIKE '%/{$escapedFullSlug}%' 
+                                         OR vendor_userid = '{$escapedCurrentDir}' 
+                                         OR name LIKE '%" . $conn->real_escape_string($cleanFolderText) . "%' 
+                                      LIMIT 1");
+                if ($vRes && $vRow = $vRes->fetch_assoc()) {
+                    $settings['company_name']    = $vRow['name'];
+                    $settings['company_address'] = $vRow['address'] ?? '';
+                    $settings['phone']           = $vRow['phone'] ?? '';
+                    $settings['email']           = $vRow['email'] ?? '';
+                    if (!empty($vRow['due_date'])) $settings['expiry_date'] = $vRow['due_date'];
+                    if (!empty($vRow['status']))   $settings['status']      = $vRow['status'];
+                    $foundCustomSettings = true;
+
+                    // Automatically save/seed into admin_settings
+                    $escN = $conn->real_escape_string($vRow['name']);
+                    $escA = $conn->real_escape_string($vRow['address'] ?? '');
+                    $escP = $conn->real_escape_string($vRow['phone'] ?? '');
+                    $escE = $conn->real_escape_string($vRow['email'] ?? '');
+                    $escExp = !empty($vRow['due_date']) ? "'" . $conn->real_escape_string($vRow['due_date']) . "'" : "NULL";
+
+                    $existAS = $conn->query("SELECT id FROM admin_settings WHERE lab_slug = '{$escapedFullSlug}' OR lab_slug = '{$escapedCurrentDir}' LIMIT 1");
+                    if ($existAS && $existRow = $existAS->fetch_assoc()) {
+                        @$conn->query("UPDATE admin_settings SET company_name = '{$escN}', company_address = '{$escA}', phone = '{$escP}', email = '{$escE}', lab_slug = '{$escapedFullSlug}' WHERE id = " . (int)$existRow['id']);
+                    } else {
+                        @$conn->query("INSERT INTO admin_settings (company_name, company_address, phone, email, lab_slug, status, expiry_date, grace_days) 
+                                       VALUES ('{$escN}', '{$escA}', '{$escP}', '{$escE}', '{$escapedFullSlug}', 'active', {$escExp}, 7)");
+                    }
+                }
+            }
+        }
+
+        // If still default or matches platform name, format nicely from directory name
+        if (!$foundCustomSettings || empty($settings['company_name']) || $settings['company_name'] === 'Diagnostic Centre ERP' || $settings['company_name'] === 'Vensaas LabTech' || $settings['company_name'] === 'Amma Diagnostic Centre') {
+            if ($currentDir === 'medione') {
+                $settings['company_name'] = 'MEDIONE Diagnostic Centre';
+            } elseif ($currentDir === 'sm_medical_centre') {
+                $settings['company_name'] = 'SM Medical Centre';
+            } else {
+                $words = explode('_', str_replace('-', '_', $currentDir));
+                $formatted = array_map(function($w) {
+                    return (strlen($w) <= 3) ? strtoupper($w) : ucfirst($w);
+                }, $words);
+                $settings['company_name'] = implode(' ', $formatted);
+            }
+        }
+    }
+}
+
+// Check local trial / license validity and account suspension
+$licenseExpired = false;
+$accountSuspended = false;
+
+if (isset($settings['status']) && in_array(strtolower($settings['status']), ['inactive', 'suspended', 'blocked'])) {
+    $accountSuspended = true;
+}
+
+if (!empty($settings['expiry_date'])) {
+    $graceDays = (int)($settings['grace_days'] ?? 7);
+    $graceLimit = date('Y-m-d', strtotime($settings['expiry_date'] . " +{$graceDays} days"));
+    if (date('Y-m-d') > $graceLimit) {
+        $licenseExpired = true;
+    }
+}
+
+$error = null;
+
+// Self-healing: if non-demo tenant lab, ensure admin user exists in users table (cached in session to avoid redundant queries & CPU hashing)
+if ($conn && !$conn->connect_error && !$isDemo && $currentDir !== 'base' && empty($_SESSION['vendor_seeded_' . $currentDir])) {
+    $vmCheck = $conn->query("SHOW TABLES LIKE 'vendor_master'");
+    if ($vmCheck && $vmCheck->num_rows > 0) {
+        $cleanDir = $conn->real_escape_string($currentDir);
+        $cleanFull = $conn->real_escape_string($fullSlug);
+        $vAuto = $conn->query("SELECT * FROM vendor_master 
+                               WHERE remarks LIKE '%/{$cleanDir}%' 
+                                  OR remarks LIKE '%/{$cleanFull}%' 
+                                  OR vendor_userid = '{$cleanDir}' 
+                                  OR name LIKE '%" . $conn->real_escape_string(str_replace('_', ' ', $currentDir)) . "%' 
+                               LIMIT 1");
+        if ($vAuto && $vVendor = $vAuto->fetch_assoc()) {
+            $vUser = $vVendor['vendor_userid'];
+            $chkU = $conn->query("SELECT user_id FROM users WHERE username = '" . $conn->real_escape_string($vUser) . "' LIMIT 1");
+            if (!$chkU || $chkU->num_rows === 0) {
+                // Ensure role 1 exists
+                $roleChk = $conn->query("SELECT role_id FROM roles WHERE role_id = 1 LIMIT 1");
+                $roleId = ($roleChk && $roleChk->num_rows > 0) ? 1 : 1;
+                $vHash = password_hash($vVendor['password'], PASSWORD_BCRYPT);
+                $seedStmt = $conn->prepare("INSERT INTO users (username, password_hash, full_name, role_id, status) VALUES (?, ?, ?, ?, 'active')");
+                if ($seedStmt) {
+                    $seedStmt->bind_param("sssi", $vUser, $vHash, $vUser, $roleId);
+                    $seedStmt->execute();
+                    $seedStmt->close();
+                }
+            }
+            $_SESSION['vendor_seeded_' . $currentDir] = true;
+        }
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['password'])) {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $rateKey = 'login_attempts_' . md5($ip);
+    $lockKey = 'login_lockout_' . md5($ip);
+
+    if (isset($_SESSION[$lockKey]) && $_SESSION[$lockKey] > time()) {
+        $remaining = ceil(($_SESSION[$lockKey] - time()) / 60);
+        $error = "Too many failed login attempts. Please wait {$remaining} minute(s) before trying again.";
+    } elseif ($accountSuspended) {
+        $error = "This laboratory account has been suspended by the administrator. Please contact support.";
+    } elseif ($licenseExpired) {
+        $error = "Software license or trial period has expired. Please renew your subscription to log in.";
+    } else {
+        $username = trim($_POST['username']);
+        $password = trim($_POST['password']);
+
+        if ($conn && !$conn->connect_error) {
+            $stmt = $conn->prepare("SELECT users.*, roles.role_name 
+                                    FROM users 
+                                    LEFT JOIN roles ON users.role_id = roles.role_id 
+                                    WHERE users.username = ? AND users.status = 'active' 
+                                    LIMIT 1");
+            if ($stmt) {
+                $stmt->bind_param("s", $username);
+                $stmt->execute();
+                $result = $stmt->get_result();
+
+                // Self-healing login fallback: If user not found in users table, check vendor_master
+                if ((!$result || $result->num_rows === 0) && !$isDemo) {
+                    $vmCheck = $conn->query("SHOW TABLES LIKE 'vendor_master'");
+                    if ($vmCheck && $vmCheck->num_rows > 0) {
+                        $vCheckStmt = $conn->prepare("SELECT * FROM vendor_master WHERE vendor_userid = ? LIMIT 1");
+                        if ($vCheckStmt) {
+                            $vCheckStmt->bind_param("s", $username);
+                            $vCheckStmt->execute();
+                            $vRes = $vCheckStmt->get_result();
+                            if ($vRes && $vVendor = $vRes->fetch_assoc()) {
+                                $vPassOk = ($password === $vVendor['password']) ||
+                                           (password_verify($password, $vVendor['password'])) ||
+                                           (md5($password) === $vVendor['password']);
+                                if ($vPassOk) {
+                                    $roleChk = $conn->query("SELECT role_id FROM roles WHERE role_id = 1 LIMIT 1");
+                                    $roleId = ($roleChk && $roleChk->num_rows > 0) ? 1 : 1;
+                                    $newHash = password_hash($password, PASSWORD_BCRYPT);
+                                    
+                                    $seedStmt = $conn->prepare("INSERT INTO users (username, password_hash, full_name, role_id, status) VALUES (?, ?, ?, ?, 'active') ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), status = 'active'");
+                                    if ($seedStmt) {
+                                        $seedStmt->bind_param("sssi", $vVendor['vendor_userid'], $newHash, $vVendor['name'], $roleId);
+                                        $seedStmt->execute();
+                                        $seedStmt->close();
+                                    }
+                                    
+                                    // Re-run user query
+                                    $stmt->execute();
+                                    $result = $stmt->get_result();
+                                }
+                            }
+                            $vCheckStmt->close();
+                        }
+                    }
+                }
+
+                if ($result && $result->num_rows === 1) {
+                    $user = $result->fetch_assoc();
+
+                    // Strictly verify password using secure hash
+                    $validPassword = password_verify($password, $user['password_hash']);
+
+                    // If password failed, check against vendor_master record for automatic sync/recovery
+                    if (!$validPassword && !$isDemo) {
+                        $vmCheck = $conn->query("SHOW TABLES LIKE 'vendor_master'");
+                        if ($vmCheck && $vmCheck->num_rows > 0) {
+                            $vPassStmt = $conn->prepare("SELECT password FROM vendor_master WHERE vendor_userid = ? LIMIT 1");
+                            if ($vPassStmt) {
+                                $vPassStmt->bind_param("s", $username);
+                                $vPassStmt->execute();
+                                $vpRes = $vPassStmt->get_result();
+                                if ($vpRes && $vpRow = $vpRes->fetch_assoc()) {
+                                    if (password_verify($password, $vpRow['password'])) {
+                                        $validPassword = true;
+                                        $newH = password_hash($password, PASSWORD_BCRYPT);
+                                        @$conn->query("UPDATE users SET password_hash = '{$newH}', status = 'active' WHERE user_id = " . (int)$user['user_id']);
+                                    }
+                                }
+                                $vPassStmt->close();
+                            }
+                        }
+                    }
+
+                    if ($validPassword) {
+                        // Reset failed attempts on success
+                        unset($_SESSION[$rateKey]);
+                        unset($_SESSION[$lockKey]);
+
+                        // If full_name was previously set to company/lab name, sanitize to username
+                        $sessionFullName = $user['full_name'];
+                        if (!empty($settings['company_name']) && strcasecmp(trim($sessionFullName), trim($settings['company_name'])) === 0) {
+                            $sessionFullName = $user['username'];
+                            @$conn->query("UPDATE users SET full_name = '" . $conn->real_escape_string($user['username']) . "' WHERE user_id = " . (int)$user['user_id']);
+                        }
+
+                        $_SESSION['user_id']  = $user['user_id'];
+                        $_SESSION['username'] = $user['username'];
+                        $_SESSION['full_name']= $sessionFullName;
+                        $_SESSION['role_id']  = $user['role_id'];
+                        $_SESSION['role']     = $user['role_name'] ?: ($user['role_id'] == 1 ? 'admin' : 'user');
+
+                        // Release session lock before redirect so dashboard loads instantly
+                        session_write_close();
+                        header("Location: index.php");
+                        exit;
+                    } else {
+                        $_SESSION[$rateKey] = ($_SESSION[$rateKey] ?? 0) + 1;
+                        if ($_SESSION[$rateKey] >= 5) {
+                            $_SESSION[$lockKey] = time() + 900;
+                            $error = "Too many failed login attempts. Account temporarily locked for 15 minutes.";
+                        } else {
+                            $error = "Invalid username or password.";
+                        }
+                    }
+                } else {
+                    $_SESSION[$rateKey] = ($_SESSION[$rateKey] ?? 0) + 1;
+                    if ($_SESSION[$rateKey] >= 5) {
+                        $_SESSION[$lockKey] = time() + 900;
+                        $error = "Too many failed login attempts. Account temporarily locked for 15 minutes.";
+                    } else {
+                        $error = "User not found or account is inactive.";
+                    }
+                }
+                $stmt->close();
+            } else {
+                $error = "Database query error: " . $conn->error;
+            }
+        } else {
+            $connErr = ($conn && $conn->connect_error) ? $conn->connect_error : ($db_error ?? 'Unable to connect to database.');
+            $error = "Database connection unavailable: " . $connErr . ". Please verify database user and password in Admin Panel.";
+        }
+    }
+}
+
+$logo_path = null;
+$logo_mtime = 0;
+foreach ([
+    'qrtemp/logo.png', 'qrtemp/logo.jpg', 'qrtemp/logo.jpeg', 'qrtemp/logo.webp',
+    'uploads/logo.png', 'uploads/logo.jpg', 'uploads/logo.jpeg', 'uploads/logo.webp',
+    'logo.png', 'logo.jpg', 'logo.jpeg', 'logo.webp'
+] as $lp) {
+    $full = __DIR__ . '/' . $lp;
+    if (file_exists($full) && is_file($full)) {
+        $mtime = filemtime($full);
+        if ($mtime > $logo_mtime) {
+            $logo_mtime = $mtime;
+            $logo_path = $lp;
+        }
+    }
+}
+$logo_url = $logo_path ? ($logo_path . '?v=' . ($logo_mtime ?: time())) : null;
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- PWA Mobile Web App Configuration -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0284c7">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LabTech">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-512.png">
+
+  <title><?= htmlspecialchars($settings['company_name']) ?> - Portal Login</title>
+  <!-- CDN Preconnect & DNS-Prefetch for instantaneous asset delivery -->
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+  <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary-color: #0284c7;
+      --primary-dark: #0369a1;
+      --bg-gradient: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f8fafc 100%);
+    }
+
+    body {
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      padding: 20px;
+    }
+
+    .login-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      max-width: 440px;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .login-header {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #fff;
+      padding: 30px 24px;
+      text-align: center;
+    }
+
+    .login-header h4 {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .login-header p {
+      color: #e0f2fe;
+      font-size: 0.9rem;
+      margin-bottom: 0;
+    }
+
+    .form-control {
+      border-radius: 8px;
+      padding: 10px 14px;
+      border: 1px solid #cbd5e1;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+    }
+
+    .btn-login {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-weight: 600;
+      color: #fff;
+      width: 100%;
+      transition: all 0.2s;
+    }
+
+    .btn-login:hover {
+      background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    .demo-hint {
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.85rem;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-card">
+    <div class="login-header">
+      <?php if ($logo_url): ?>
+        <img src="<?= htmlspecialchars($logo_url) ?>" alt="Logo" style="max-height: 55px; margin-bottom: 12px;" class="bg-white rounded p-1">
+      <?php else: ?>
+        <div class="mb-2"><i class="fas fa-microscope fa-2x"></i></div>
+      <?php endif; ?>
+      <h4><?= htmlspecialchars($settings['company_name']) ?></h4>
+      <p>Diagnostic Centre Management System</p>
+    </div>
+
+    <div class="p-4 p-md-5">
+      <?php if ($accountSuspended): ?>
+        <div class="alert alert-danger text-center">
+          <i class="fas fa-ban fa-2x mb-2 text-danger"></i><br>
+          <strong>Account Suspended</strong><br>
+          This laboratory portal is currently inactive or suspended.<br>
+          <small class="text-muted">Please contact your administrator or VenSaas support.</small>
+        </div>
+      <?php elseif ($licenseExpired): ?>
+        <div class="alert alert-danger text-center">
+          <i class="fas fa-exclamation-triangle fa-2x mb-2"></i><br>
+          <strong>Subscription Expired</strong><br>
+          Your license or trial has concluded.<br>
+          <a href="renew.php" class="btn btn-warning btn-sm mt-3">Renew Subscription</a>
+        </div>
+      <?php else: ?>
+
+        <?php if ($error): ?>
+          <div class="alert alert-danger py-2 small mb-3">
+            <i class="fas fa-exclamation-circle me-1"></i> <?= htmlspecialchars($error) ?>
+          </div>
+        <?php endif; ?>
+
+        <form method="POST" id="loginForm">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Username / User ID</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-user text-muted"></i></span>
+              <input type="text" name="username" id="usernameInput" class="form-control" placeholder="Enter username" required autofocus>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <div class="d-flex justify-content-between">
+              <label class="form-label fw-semibold">Password</label>
+              <a href="reset_password.php" class="small text-decoration-none text-muted">Forgot?</a>
+            </div>
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-lock text-muted"></i></span>
+              <input type="password" name="password" id="passwordInput" class="form-control" placeholder="Enter password" required>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-login mb-3">
+            <i class="fas fa-sign-in-alt me-1"></i> Secure Login
+          </button>
+        </form>
+
+        <?php if ($isDemo): ?>
+        <div class="text-center pt-3 border-top small">
+          Register new lab? <a href="../register.php" class="fw-semibold text-primary">Start 14-Day Free Trial</a>
+        </div>
+        <?php else: ?>
+        <div class="text-center pt-3 border-top small text-muted">
+          <i class="fas fa-shield-alt text-success me-1"></i> Diagnostic Centre Management Portal
+        </div>
+        <?php endif; ?>
+
+        <!-- PWA 1-Tap Install Action (Strictly hidden by default; ONLY visible when installable) -->
+        <div id="pwaLoginInstallBox" class="text-center mt-3 pt-2 border-top" style="display: none;">
+          <button type="button" id="pwaLoginInstallBtn" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-bold shadow-sm" style="font-size: 0.82rem;">
+            <i class="fas fa-arrow-down-to-bracket me-1"></i> Install <?= htmlspecialchars($settings['company_name']) ?> App
+          </button>
+        </div>
+
+      <?php endif; ?>
+    </div>
+  </div>
+
+  <script>
+    function fillCredentials(u, p) {
+      document.getElementById('usernameInput').value = u;
+      document.getElementById('passwordInput').value = p;
+    }
+  </script>
+  <script>
+    // PWA Service Worker & Login Install Action (ONLY visible to install)
+    (function() {
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js').catch(() => {});
+        });
+      }
+
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                           window.navigator.standalone === true || 
+                           localStorage.getItem('pwa_installed') === 'true';
+
+      if (isStandalone) {
+        // App is already installed or running standalone; keep install button hidden
+        return;
+      }
+
+      let loginDeferredPrompt = null;
+      const installBox = document.getElementById('pwaLoginInstallBox');
+      const installBtn = document.getElementById('pwaLoginInstallBtn');
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        loginDeferredPrompt = e;
+        if (installBox) {
+          installBox.style.display = 'block';
+        }
+      });
+
+      if (installBtn) {
+        installBtn.addEventListener('click', async () => {
+          if (loginDeferredPrompt) {
+            loginDeferredPrompt.prompt();
+            const { outcome } = await loginDeferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+              localStorage.setItem('pwa_installed', 'true');
+            }
+            loginDeferredPrompt = null;
+            if (installBox) installBox.style.display = 'none';
+          }
+        });
+      }
+
+      window.addEventListener('appinstalled', () => {
+        localStorage.setItem('pwa_installed', 'true');
+        if (installBox) installBox.style.display = 'none';
+        loginDeferredPrompt = null;
+      });
+    })();
+  </script>
+
+</body>
+</html>
