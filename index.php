@@ -3,7 +3,7 @@
  * VenSaas LabTech - Next-Gen Pathology Laboratory Reporting & Management ERP
  * Direct Landing Page for https://labs.vensaas.com/
  * Highlights:
- *   - Online Cloud SaaS: ₹499/- Monthly (No hidden charges online)
+ *   - Online Cloud SaaS: ₹99/- Monthly (Billed Per Annum, Discounted from ₹499/-)
  *   - Offline On-Premise: One-Time Lifetime Payment (No Domain and Hosting Required)
  *   - Live Interactive Demo Access
  *   - Fast Onboarding / Registration
@@ -15,7 +15,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VenSaas LabTech | Pathology Lab Reporting & Diagnostic Management Software</title>
-  <meta name="description" content="Next-Gen Diagnostic Lab Reporting & Management System. Cloud SaaS at ₹499/Month (No hidden charges) or 100% Offline Lifetime Payment (No Domain and Hosting Required).">
+  <meta name="description" content="Next-Gen Diagnostic Lab Reporting & Management System. Cloud SaaS at special discount ₹99/Month (Billed Per Annum, Regular ₹499/mo) or 100% Offline Lifetime Payment (No Domain and Hosting Required).">
   <meta name="keywords" content="lab management software, pathology reporting software, LIMS, diagnostic billing, lab ERP, vensaas labtech">
 
   <!-- Bootstrap 5 & Icons -->
@@ -608,14 +608,14 @@
             <a href="register.php" class="btn-hero-outline">
               <i class="fas fa-rocket text-primary"></i> Start Free Cloud Trial
             </a>
-            <a href="https://wa.me/919876543210?text=Hello%20VenSaas%20LabTech,%20I%20want%20to%20know%20more%20about%20your%20Lab%20Software%20(Cloud%20₹499/mo%20and%20Offline%20One-Time)" target="_blank" class="btn-hero-whatsapp">
+            <a href="https://wa.me/919876543210?text=Hello%20VenSaas%20LabTech,%20I%20want%20to%20know%20more%20about%20your%20Lab%20Software%20(Cloud%20Offer%20₹99/mo%20Billed%20Per%20Annum%20and%20Offline%20One-Time)" target="_blank" class="btn-hero-whatsapp">
               <i class="fab fa-whatsapp fs-5"></i> Chat on WhatsApp
             </a>
           </div>
 
           <!-- Bullet Points -->
           <div class="d-flex flex-wrap justify-content-center justify-content-lg-start gap-4 pt-2 text-muted small fw-semibold">
-            <span><i class="fas fa-check-circle text-success me-1"></i> Monthly ₹499/- (No Hidden Charges)</span>
+            <span><i class="fas fa-check-circle text-success me-1"></i> Special Offer: ₹99/mo Billed Per Annum (<del class="text-muted">₹499</del>)</span>
             <span><i class="fas fa-check-circle text-success me-1"></i> Offline One-Time Payment Available</span>
             <span><i class="fas fa-check-circle text-success me-1"></i> No Domain & Hosting Needed</span>
           </div>
@@ -705,8 +705,8 @@
         </div>
         <div class="col-md-3 col-6">
           <div class="hero-stat-card">
-            <div class="stat-number">₹499</div>
-            <div class="stat-label">Cloud Monthly (No Hidden Cost)</div>
+            <div class="stat-number">₹99</div>
+            <div class="stat-label">Cloud / Mo (Billed Per Annum)</div>
           </div>
         </div>
         <div class="col-md-3 col-6">
@@ -826,11 +826,11 @@
       </div>
 
       <div class="row g-4 justify-content-center">
-        <!-- PLAN 1: CLOUD SAAS MONTHLY 499/- (ONLINE) -->
+        <!-- PLAN 1: CLOUD SAAS 99/- PER MONTH (BILLED PER ANNUM) -->
         <div class="col-lg-5 col-md-6">
           <div class="price-card featured">
             <div class="pricing-popular-badge">
-              <i class="fas fa-cloud me-1"></i> Cloud SaaS Plan
+              <span class="badge bg-warning text-dark fw-bold me-1">80% OFF</span> Cloud SaaS Plan
             </div>
 
             <div>
@@ -839,14 +839,23 @@
                 Ideal for growing diagnostic centres wanting remote access from anywhere with automated cloud backups.
               </p>
 
-              <div class="price-tag-wrap">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="text-decoration-line-through text-muted fs-5 fw-bold">₹499</span>
+                <span class="badge bg-danger text-white px-2 py-1 small fw-bold">SAVE 80%</span>
+              </div>
+
+              <div class="price-tag-wrap mb-2 pb-2">
                 <span class="price-currency">₹</span>
-                <span class="price-value">499</span>
+                <span class="price-value">99</span>
                 <span class="price-period">/ month</span>
               </div>
 
+              <div class="text-primary fw-bold small mb-3">
+                <i class="fas fa-calendar-check me-1"></i> Billed Per Annum (Annual Billing &bull; ₹1,188/yr)
+              </div>
+
               <div class="alert alert-success py-2 px-3 small fw-bold mb-4" style="border-radius: 8px;">
-                <i class="fas fa-check-circle me-1"></i> No Hidden Charges Online &bull; Cancel Anytime
+                <i class="fas fa-check-circle me-1"></i> Limited Period Discount &bull; Billed Per Annum &bull; Zero Hidden Fees
               </div>
 
               <ul class="price-feature-list">
@@ -933,7 +942,7 @@
           <thead>
             <tr>
               <th width="36%">Feature / Capability</th>
-              <th width="32%" class="text-primary text-center">Cloud SaaS Edition (₹499/mo)</th>
+              <th width="32%" class="text-primary text-center">Cloud SaaS Edition (₹99/mo*)</th>
               <th width="32%" class="text-dark text-center">Offline On-Premise Edition (One-Time)</th>
             </tr>
           </thead>
@@ -950,7 +959,11 @@
             </tr>
             <tr>
               <td><strong>Payment Structure</strong></td>
-              <td class="text-center"><strong class="text-primary">₹499 / Month</strong> (No Hidden Charges)</td>
+              <td class="text-center">
+                <strong class="text-primary fs-5">₹99 / Month</strong><br>
+                <span class="badge bg-success-subtle text-success border border-success-subtle small fw-bold">Billed Per Annum (₹1,188/yr)</span><br>
+                <small class="text-muted text-decoration-line-through">Regular ₹499 / Month</small>
+              </td>
               <td class="text-center"><strong class="text-dark">One-Time Lifetime Payment</strong></td>
             </tr>
             <tr>
@@ -1020,12 +1033,12 @@
             <div class="accordion-item border-0">
               <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
-                  2. Are there any hidden fees or per-patient charges on the ₹499/month Cloud plan?
+                  2. Are there any hidden fees or per-patient charges on the ₹99/month Cloud plan?
                 </button>
               </h2>
               <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                 <div class="accordion-body">
-                  <strong>There are zero hidden fees!</strong> The ₹499/month Cloud SaaS plan includes unlimited patient registrations, unlimited pathology report generation, unlimited barcode printing, automated daily backups, and free updates. We do not meter your bills or charge extra per test.
+                  <strong>There are zero hidden fees!</strong> The ₹99/month Cloud SaaS plan (billed per annum at ₹1,188/year, discounted from ₹499/month) includes unlimited patient registrations, unlimited pathology report generation, unlimited barcode printing, automated daily backups, and free updates. We do not meter your bills or charge extra per test.
                 </div>
               </div>
             </div>
