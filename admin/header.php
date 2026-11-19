@@ -132,6 +132,44 @@ $super_user_name = $_SESSION['super_admin_name'] ?? 'Super Admin';
       justify-content: center;
       font-size: 1.4rem;
     }
+    .sa-navbar .dropdown {
+      position: relative !important;
+    }
+    .sa-navbar .dropdown-menu {
+      display: none;
+      position: absolute !important;
+      right: 0 !important;
+      left: auto !important;
+      top: 100% !important;
+      margin-top: 8px !important;
+      min-width: 220px;
+      z-index: 1090 !important;
+      background: #ffffff;
+      border: 1px solid var(--sa-border);
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+      padding: 8px;
+    }
+    .sa-navbar .dropdown-menu.show {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+      animation: saDropdownFade 0.18s ease-out;
+    }
+    @keyframes saDropdownFade {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .sa-user-pill {
+      cursor: pointer !important;
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+    .sa-user-pill:hover {
+      background: rgba(255, 255, 255, 0.12) !important;
+      color: #ffffff !important;
+    }
   </style>
 </head>
 <body>
@@ -191,15 +229,15 @@ $super_user_name = $_SESSION['super_admin_name'] ?? 'Super Admin';
         </a>
         
         <div class="dropdown">
-          <button class="btn btn-dark btn-sm rounded-pill px-3 py-1 border border-secondary border-opacity-50 text-light d-flex align-items-center gap-2 dropdown-toggle" type="button" data-bs-toggle="dropdown">
+          <button id="superAdminUserDropdownBtn" class="btn btn-dark btn-sm rounded-pill px-3 py-1 border border-secondary border-opacity-50 text-light d-flex align-items-center gap-2 dropdown-toggle sa-user-pill" type="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="fas fa-user-circle fa-lg text-primary"></i>
             <span class="fw-semibold d-none d-md-inline"><?= htmlspecialchars($super_user_name) ?></span>
           </button>
-          <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 mt-2">
+          <ul id="superAdminUserDropdownMenu" class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 mt-2">
             <li><h6 class="dropdown-header">Super Administrator</h6></li>
             <li><a class="dropdown-item" href="settings.php"><i class="fas fa-key text-primary me-2"></i> Master Password</a></li>
             <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item text-danger" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
+            <li><a class="dropdown-item text-danger fw-semibold" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
           </ul>
         </div>
       </div>
@@ -207,5 +245,49 @@ $super_user_name = $_SESSION['super_admin_name'] ?? 'Super Admin';
     </div>
   </div>
 </nav>
+
+<script>
+// Bulletproof native dropdown toggler for Super Admin navbar
+(function() {
+  function initSaDropdown() {
+    var btn = document.getElementById('superAdminUserDropdownBtn');
+    var menu = document.getElementById('superAdminUserDropdownMenu');
+    if (!btn || !menu) return;
+
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var isOpen = menu.classList.contains('show');
+      if (isOpen) {
+        menu.classList.remove('show');
+        btn.setAttribute('aria-expanded', 'false');
+      } else {
+        menu.classList.add('show');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!btn.contains(e.target) && !menu.contains(e.target)) {
+        menu.classList.remove('show');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' || e.keyCode === 27) {
+        menu.classList.remove('show');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSaDropdown);
+  } else {
+    initSaDropdown();
+  }
+})();
+</script>
 
 <main class="flex-grow-1">
