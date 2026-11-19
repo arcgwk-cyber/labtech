@@ -1,0 +1,39 @@
+# VenSaas LabTech - Pathology Lab Reporting & Diagnostic Management ERP
+
+> Official Website: https://labs.vensaas.com/
+> Live Interactive Demo: https://labs.vensaas.com/demo/
+> Feature Brochure: https://labs.vensaas.com/brochure.php
+> Free Trial Registration: https://labs.vensaas.com/register.php
+> WhatsApp Support: https://wa.me/919876543210
+
+## Product Overview
+VenSaas LabTech is a next-generation Laboratory Information Management System (LIMS) and Diagnostic Centre ERP tailored for Indian pathology labs, diagnostic clinics, hospital pathology departments, and collection centers.
+
+It supports dual deployment modes:
+1. **Online Cloud SaaS Edition**: Accessible from anywhere on any desktop, laptop, tablet, or phone with automated cloud backups.
+2. **Offline On-Premise Edition**: Operates 100% offline on local computers and local LAN networks without requiring any domain registration, web hosting, or active internet connection.
+
+## Pricing & Commercial Plans
+- **Cloud SaaS Edition**: Special promotional offer at **₹99/- per month** (billed per annum at ₹1,188/year, discounted from standard ₹499/month).
+  - Includes unlimited patient registrations and bills
+  - Unlimited pathology reports
+  - Automated daily backups
+  - Free feature updates
+  - 14-day free trial (no credit card required)
+- **Offline On-Premise Lifetime Edition**: **One-time lifetime payment** with zero recurring monthly or annual hosting fees.
+
+## Core Capabilities & Features
+- **Fast Reception Billing**: Instant patient registration, barcode generation, customized letterhead and logo branding, thermal and laser invoice printing.
+- **500+ Built-in Indian Pathology Assays**: Comprehensive preloaded test catalog across Biochemistry, Hematology, Microbiology, Serology, Clinical Pathology, and Histopathology with age and gender-specific biological reference ranges.
+- **Smart Phlebotomy & Tube Barcoding**: Automatic color-coded vacutainer tube suggestions (EDTA, Serum, Sodium Fluoride, Citrate) with barcode label generation.
+- **Visual Template Designer**: Drag-and-drop report layout builder allowing labs to customize formats, fonts, tables, margins, and brand letterheads.
+- **Doctor Digital Signatures & Dynamic QR Code**: Automated high-resolution doctor signature attachment and cryptographic verification QR code compliant with diagnostic quality standards.
+- **Zero-Cost WhatsApp PDF Report Sharing**: Direct integration with Web WhatsApp to send signed diagnostic PDF reports directly to patients without expensive per-SMS or third-party WhatsApp API fees.
+- **In-Place Bulk Rate Card Adjuster**: Modify individual test rates, package tariffs, and referral doctor commissions directly on interactive tables with autosave.
+- **Multi-Counter LAN Operation**: Reception, lab technician, phlebotomy, and consulting pathologist can work simultaneously over local Wi-Fi or Ethernet without internet.
+
+## Target Audience
+- Standalone pathology laboratories and clinical diagnostic centres
+- Polyclinics and hospital diagnostic departments
+- Phlebotomy collection centres and franchise lab networks
+- Pathologists seeking digital signature report automation

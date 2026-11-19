@@ -3,7 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Diagnostic Centre Registration | Start Free Trial</title>
+  <title>Diagnostic Centre Registration | Start 14-Day Free Trial - VenSaas LabTech</title>
+  <meta name="description" content="Register your laboratory for VenSaas LabTech. Start your 14-day free Cloud trial with instant access to 500+ pathology test templates, billing, barcoding, and WhatsApp reports.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://labs.vensaas.com/register.php">
+
+  <!-- Google Tag Manager -->
+  <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-KB5QT3K2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://labs.vensaas.com/register.php">
+  <meta property="og:title" content="Diagnostic Centre Registration | VenSaas LabTech">
+  <meta property="og:description" content="Register your pathology lab and activate your 14-day full feature trial. Zero setup fees, no credit card needed.">
+  <meta property="og:image" content="https://labs.vensaas.com/assets/icon-512.png">
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Register Diagnostic Lab | VenSaas LabTech Free Trial">
+  <meta name="twitter:description" content="Register your pathology lab and activate your 14-day full feature trial. Zero setup fees, no credit card needed.">
+  <meta name="twitter:image" content="https://labs.vensaas.com/assets/icon-512.png">
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -102,6 +128,10 @@
   </style>
 </head>
 <body>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KB5QT3K2"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
   <div class="container">
     <div class="row justify-content-center">
       <div class="col-lg-9 col-xl-8">

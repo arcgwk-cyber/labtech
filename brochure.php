@@ -11,6 +11,48 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VenSaas LabTech | Pathology Lab Reporting & Management Software Brochure</title>
+  <meta name="description" content="Explore the official feature brochure for VenSaas LabTech. Comprehensive diagnostic laboratory ERP with billing, phlebotomy, barcoding, 500+ assays, and WhatsApp PDF reports. Special offer ₹99/mo (billed annually) or Offline Lifetime.">
+  <meta name="keywords" content="lab software brochure, pathology ERP features, LIMS brochure, diagnostic lab pricing, pathology software flyer">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <link rel="canonical" href="https://labs.vensaas.com/brochure.php">
+
+  <!-- Google Tag Manager -->
+  <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-KB5QT3K2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://labs.vensaas.com/brochure.php">
+  <meta property="og:title" content="VenSaas LabTech | Official Pathology Laboratory ERP Brochure">
+  <meta property="og:description" content="Download or view the official feature overview of VenSaas LabTech. Complete diagnostic workflow automation from patient billing to WhatsApp PDF reports.">
+  <meta property="og:image" content="https://labs.vensaas.com/assets/icon-512.png">
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="VenSaas LabTech | Diagnostic ERP Brochure">
+  <meta name="twitter:description" content="Download or view the official feature overview of VenSaas LabTech. Complete diagnostic workflow automation from patient billing to WhatsApp PDF reports.">
+  <meta name="twitter:image" content="https://labs.vensaas.com/assets/icon-512.png">
+
+  <!-- Structured Data JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "DigitalDocument",
+    "name": "VenSaas LabTech Feature Brochure & Diagnostic ERP Guide",
+    "url": "https://labs.vensaas.com/brochure.php",
+    "description": "Comprehensive specification sheet and feature guide for VenSaas LabTech Diagnostic Laboratory Management ERP.",
+    "publisher": {
+      "@type": "Organization",
+      "name": "VenSaas Technologies",
+      "url": "https://labs.vensaas.com/"
+    }
+  }
+  </script>
   
   <!-- Bootstrap 5 & Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -264,6 +306,10 @@
   </style>
 </head>
 <body>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KB5QT3K2"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
 
   <!-- Screen Top Bar -->
   <div class="brochure-actions no-print">

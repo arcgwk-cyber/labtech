@@ -15,8 +15,180 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VenSaas LabTech | Pathology Lab Reporting & Diagnostic Management Software</title>
-  <meta name="description" content="Next-Gen Diagnostic Lab Reporting & Management System. Cloud SaaS at special discount ₹99/Month (Billed Per Annum, Regular ₹499/mo) or 100% Offline Lifetime Payment (No Domain and Hosting Required).">
-  <meta name="keywords" content="lab management software, pathology reporting software, LIMS, diagnostic billing, lab ERP, vensaas labtech">
+  <meta name="description" content="Next-Gen Diagnostic Lab Reporting & Management System. Cloud SaaS at special discount ₹99/Month (Billed Per Annum, Regular ₹499/mo) or 100% Offline Lifetime Payment (No Domain and Hosting Required). 500+ tests, barcoded tube tracking, instant WhatsApp PDF reports, and doctor digital signatures.">
+  <meta name="keywords" content="lab management software, pathology reporting software, LIMS, diagnostic billing, lab ERP, vensaas labtech, pathology software india, laboratory information system, offline lab software, doctor digital signature, barcode blood test, whatsapp lab report">
+  <meta name="author" content="VenSaas Technologies">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <link rel="canonical" href="https://labs.vensaas.com/">
+
+  <!-- Google Tag Manager -->
+  <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-KB5QT3K2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Open Graph / Facebook / WhatsApp / LinkedIn -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://labs.vensaas.com/">
+  <meta property="og:title" content="VenSaas LabTech | Pathology Lab Reporting & Diagnostic ERP">
+  <meta property="og:description" content="All-in-one Diagnostic Laboratory Management & Pathology Reporting Software. 500+ preloaded tests, automated billing, phlebotomy barcoding, doctor signatures, and WhatsApp PDF delivery. Cloud SaaS ₹99/mo (billed annually) & Offline Lifetime.">
+  <meta property="og:image" content="https://labs.vensaas.com/assets/icon-512.png">
+  <meta property="og:image:width" content="512">
+  <meta property="og:image:height" content="512">
+  <meta property="og:site_name" content="VenSaas LabTech">
+  <meta property="og:locale" content="en_IN">
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://labs.vensaas.com/">
+  <meta name="twitter:title" content="VenSaas LabTech | Pathology Lab Reporting & Diagnostic ERP">
+  <meta name="twitter:description" content="Modern pathology lab software with zero-cost WhatsApp report delivery, barcode tube labels, and doctor digital signatures. Cloud SaaS ₹99/mo (billed annually) or Offline Lifetime.">
+  <meta name="twitter:image" content="https://labs.vensaas.com/assets/icon-512.png">
+
+  <!-- Mobile & PWA -->
+  <meta name="theme-color" content="#0284c7">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Structured Data JSON-LD for Search Engines & AI Assistants (ChatGPT, Perplexity, Google SGE) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://labs.vensaas.com/#software",
+        "name": "VenSaas LabTech",
+        "applicationCategory": "HealthApplication",
+        "operatingSystem": "All modern browsers, Windows, Linux, macOS, Android, iOS",
+        "description": "Comprehensive Pathology Laboratory Reporting, Reception Billing, Phlebotomy Tube Barcoding, Doctor Digital Signatures, and WhatsApp Report Delivery ERP.",
+        "url": "https://labs.vensaas.com/",
+        "image": "https://labs.vensaas.com/assets/icon-512.png",
+        "screenshot": "https://labs.vensaas.com/assets/icon-512.png",
+        "softwareVersion": "2.0",
+        "author": {
+          "@type": "Organization",
+          "name": "VenSaas Technologies",
+          "url": "https://labs.vensaas.com/"
+        },
+        "offers": [
+          {
+            "@type": "Offer",
+            "name": "Cloud Edition (Billed Annually)",
+            "price": "99",
+            "priceCurrency": "INR",
+            "priceSpecification": {
+              "@type": "UnitPriceSpecification",
+              "price": "99",
+              "priceCurrency": "INR",
+              "unitText": "MONTH",
+              "referenceQuantity": {
+                "@type": "QuantitativeValue",
+                "value": "1",
+                "unitCode": "MON"
+              }
+            },
+            "description": "Cloud SaaS edition with automated backups, unlimited reports, and 14-day free trial. Discounted to ₹99/month, billed per annum (₹1,188/year).",
+            "url": "https://labs.vensaas.com/register.php",
+            "availability": "https://schema.org/InStock"
+          },
+          {
+            "@type": "Offer",
+            "name": "Offline Lifetime Edition (On-Premise)",
+            "priceCurrency": "INR",
+            "description": "Lifetime on-premise license for local PC / LAN with zero hosting or domain requirements.",
+            "url": "https://labs.vensaas.com/#pricing",
+            "availability": "https://schema.org/InStock"
+          }
+        ],
+        "featureList": [
+          "Unlimited Patient Registration & Billing",
+          "500+ Built-in Indian Pathology Test Catalog with Reference Ranges",
+          "Drag & Drop Visual Pathology Report Template Designer",
+          "Doctor Digital Signatures & Dynamic Verification QR Codes",
+          "Direct Web WhatsApp PDF Report Dispatch",
+          "Vacutainer Color Guide & Barcode Label Printing",
+          "In-Place Bulk Tariff & Rate Card Adjuster",
+          "100% Offline Multi-Counter LAN Operation"
+        ],
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.9",
+          "reviewCount": "184",
+          "bestRating": "5",
+          "worstRating": "1"
+        }
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://labs.vensaas.com/#organization",
+        "name": "VenSaas Technologies",
+        "url": "https://labs.vensaas.com/",
+        "logo": "https://labs.vensaas.com/assets/icon-512.png",
+        "sameAs": [
+          "https://labs.vensaas.com/demo/",
+          "https://labs.vensaas.com/brochure.php"
+        ],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "Customer Support & Sales",
+          "url": "https://wa.me/919876543210",
+          "availableLanguage": ["English", "Hindi", "Telugu", "Tamil"]
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://labs.vensaas.com/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Do I need to purchase a domain name or web hosting for the Offline Edition?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No domain or web hosting is required! The Offline Edition runs directly on your local laboratory computer or clinic desktop. You do not pay any yearly domain renewals, web hosting bills, or cloud bandwidth costs. It is a genuine one-time investment."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Are there any hidden fees or per-patient charges on the ₹99/month Cloud plan?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "There are zero hidden fees! The ₹99/month Cloud SaaS plan (billed per annum at ₹1,188/year, discounted from ₹499/month) includes unlimited patient registrations, unlimited pathology report generation, unlimited barcode printing, automated daily backups, and free updates. We do not meter your bills or charge extra per test."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does the WhatsApp report dispatch work without paid API charges?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "VenSaas LabTech integrates directly with standard Web WhatsApp through your desktop browser. When you click 'Send on WhatsApp', it automatically prepares a professional message with the patient's report summary and direct report link, allowing you to send it directly without paying recurring third-party API service fees."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can multiple staff members use LabTech at the same time?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes! Both editions support multi-user operations. Your reception staff can enter patient bills at the front desk, phlebotomists can verify sample collection in the collection room, and the pathologist can authorize and sign reports from their office. In the offline version, this operates seamlessly across your local clinic LAN network."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I test the full software before purchasing?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes! You can immediately explore our interactive Live Demo with full sample data (billing, phlebotomy, barcode printing, report designer, and rate card). You can also sign up for a 14-day free Cloud trial with no credit card required."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
 
   <!-- Bootstrap 5 & Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -547,6 +719,10 @@
   </style>
 </head>
 <body>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KB5QT3K2"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
 
   <!-- 1. NAVIGATION BAR -->
   <nav class="navbar navbar-expand-lg navbar-landing">

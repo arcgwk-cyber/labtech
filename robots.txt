@@ -1,0 +1,53 @@
+# robots.txt for https://labs.vensaas.com/
+# VenSaas LabTech - Diagnostic Laboratory Management ERP
+
+User-agent: *
+Allow: /
+Allow: /index.php
+Allow: /brochure.php
+Allow: /register.php
+Allow: /demo/
+Allow: /assets/
+Allow: /manifest.json
+Allow: /robots.txt
+Allow: /sitemap.xml
+Allow: /llms.txt
+
+# Disallow Internal Admin, Backend Master & Tenant Instances
+Disallow: /admin/
+Disallow: /base/
+Disallow: /ap/
+Disallow: /dump/
+Disallow: /uploads/
+Disallow: /*.sql$
+Disallow: /*.env$
+Disallow: /*.zip$
+Disallow: /*.bak$
+
+# AI Search & Retrieval Crawlers (ChatGPT Search, Perplexity, Claude, Gemini)
+User-agent: GPTBot
+Allow: /
+Allow: /brochure.php
+Allow: /register.php
+Allow: /llms.txt
+Disallow: /admin/
+Disallow: /base/
+Disallow: /ap/
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+# Sitemap Index
+Sitemap: https://labs.vensaas.com/sitemap.xml
