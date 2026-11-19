@@ -618,61 +618,111 @@
       flex-shrink: 0;
     }
 
-    /* Comparison Table */
+    /* Comparison Table - Elevated Card Format */
+    .comparison-card-wrap {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+    }
     .comparison-table {
       width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      overflow: hidden;
+      border-collapse: collapse;
       background: #ffffff;
-      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+      margin-bottom: 0;
     }
     .comparison-table th {
       background: #f8fafc;
-      padding: 16px 20px;
-      font-weight: 700;
-      font-size: 0.9rem;
+      padding: 18px 22px;
+      font-weight: 800;
+      font-size: 0.94rem;
       color: var(--dark);
       border-bottom: 2px solid var(--card-border);
     }
+    .comparison-table th.col-online {
+      background: #f0f9ff;
+      border-left: 2px solid #e0f2fe;
+      border-right: 2px solid #e0f2fe;
+      color: var(--primary-dark);
+    }
     .comparison-table td {
-      padding: 14px 20px;
-      font-size: 0.9rem;
-      border-bottom: 1px solid var(--slate-100);
+      padding: 16px 22px;
+      font-size: 0.92rem;
+      border-bottom: 1px solid #f1f5f9;
       color: var(--slate-800);
+      vertical-align: middle;
+    }
+    .comparison-table td.col-online {
+      background: rgba(240, 249, 255, 0.45);
+      border-left: 2px solid #e0f2fe;
+      border-right: 2px solid #e0f2fe;
+    }
+    .comparison-table tbody tr:hover td {
+      background-color: #f8fafc;
+    }
+    .comparison-table tbody tr:hover td.col-online {
+      background-color: #f0f9ff;
     }
     .comparison-table tr:last-child td {
       border-bottom: none;
     }
 
-    /* FAQ Section */
+    /* FAQ Section - Interactive 2-Column Split Layout */
     .faq-section {
-      padding: 80px 0;
+      padding: 90px 0;
       background: #ffffff;
     }
-    .accordion-button {
-      font-weight: 700;
-      font-size: 1.02rem;
-      color: var(--dark);
-      padding: 18px 24px;
-      background: #f8fafc;
-      border-radius: 12px !important;
+    .faq-sticky-card {
+      background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
       border: 1px solid var(--card-border);
-      margin-bottom: 12px;
+      border-radius: 22px;
+      padding: 36px 30px;
+      position: sticky;
+      top: 100px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+    }
+    .faq-card {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: 16px !important;
+      margin-bottom: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.03);
+      transition: all 0.25s ease;
+    }
+    .faq-card:hover {
+      border-color: #bae6fd;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+    .faq-card .accordion-button {
+      font-weight: 700;
+      font-size: 1.04rem;
+      color: var(--dark);
+      padding: 20px 24px;
+      background: #ffffff;
+      border: none;
       box-shadow: none !important;
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
-    .accordion-button:not(.collapsed) {
-      background: #eff6ff;
+    .faq-card .accordion-button:not(.collapsed) {
+      background: #f0f9ff;
       color: var(--primary-dark);
-      border-color: #bfdbfe;
+      border-bottom: 1px solid #e0f2fe;
     }
-    .accordion-body {
-      padding: 14px 24px 24px;
+    .faq-card .accordion-body {
+      padding: 22px 24px 26px;
       font-size: 0.95rem;
       color: var(--slate-600);
       line-height: 1.65;
+      background: #ffffff;
+    }
+    .faq-card .accordion-button::after {
+      background-size: 1.1rem;
+      transition: transform 0.25s ease;
     }
 
     /* CTA Bottom Banner */
@@ -962,7 +1012,7 @@
           <li class="nav-item"><a class="nav-link nav-link-custom" href="#workflow">Workflow</a></li>
           <li class="nav-item"><a class="nav-link nav-link-custom" href="#features">Features</a></li>
           <li class="nav-item"><a class="nav-link nav-link-custom" href="#pricing">Price Card</a></li>
-          <li class="nav-item"><a class="nav-link nav-link-custom" href="#offline-vs-cloud">Offline vs Cloud</a></li>
+          <li class="nav-item"><a class="nav-link nav-link-custom" href="#offline-vs-cloud">Online Vs Offline</a></li>
           <li class="nav-item"><a class="nav-link nav-link-custom" href="demo/" target="_blank"><i class="fas fa-play-circle text-primary me-1"></i> Live Demo</a></li>
           <li class="nav-item"><a class="nav-link nav-link-custom" href="#faq">FAQ</a></li>
           <li class="nav-item"><a class="nav-link nav-link-custom text-primary" href="brochure.php" target="_blank"><i class="fas fa-file-pdf me-1"></i> Brochure</a></li>
@@ -1535,7 +1585,7 @@
     <div class="container py-4">
       <div class="section-title-wrap">
         <span class="section-eyebrow">Compare Deployment Models</span>
-        <h2 class="section-heading">Online Cloud SaaS vs. Offline On-Premise</h2>
+        <h2 class="section-heading">Online Vs Offline</h2>
         <p class="section-subtext">Both editions deliver the exact same comprehensive pathology reporting and clinical workflows. Pick what fits your lab best.</p>
       </div>
 
@@ -1546,67 +1596,69 @@
         </span>
       </div>
 
-      <div class="table-responsive">
-        <table class="comparison-table">
-          <thead>
-            <tr>
-              <th width="36%">Feature / Capability</th>
-              <th width="32%" class="text-primary text-center">Cloud SaaS Edition (₹999/yr*)</th>
-              <th width="32%" class="text-dark text-center">Offline On-Premise Edition (One-Time)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>Active Internet Requirement</strong></td>
-              <td class="text-center"><span class="badge bg-info-subtle text-info border">Required</span></td>
-              <td class="text-center"><span class="badge bg-success-subtle text-success border">100% Offline (No Internet Needed)</span></td>
-            </tr>
-            <tr>
-              <td><strong>Domain & Web Hosting</strong></td>
-              <td class="text-center">Hosted by VenSaas (Included)</td>
-              <td class="text-center"><strong class="text-success">Not Required (Zero Server Costs)</strong></td>
-            </tr>
-            <tr>
-              <td><strong>Payment Structure</strong></td>
-              <td class="text-center">
-                <strong class="text-primary fs-5">₹999 / Year</strong><br>
-                <span class="badge bg-success-subtle text-success border border-success-subtle small fw-bold">Just ~₹83/Month (Annual)</span><br>
-                <small class="text-muted text-decoration-line-through">Regular ₹499/mo (₹5,988/yr)</small>
-              </td>
-              <td class="text-center"><strong class="text-dark">One-Time Lifetime Payment</strong></td>
-            </tr>
-            <tr>
-              <td><strong>Multi-Counter LAN Operation</strong></td>
-              <td class="text-center">Via Browser / Cloud Login</td>
-              <td class="text-center">Via Local Office LAN Wi-Fi / Ethernet</td>
-            </tr>
-            <tr>
-              <td><strong>Patient Data Storage</strong></td>
-              <td class="text-center">Secure Cloud Data Centre (Daily Backups)</td>
-              <td class="text-center">100% On-Premise in Your Lab PC</td>
-            </tr>
-            <tr>
-              <td><strong>Barcoding & Tube Stickers</strong></td>
-              <td class="text-center"><i class="fas fa-check-circle text-success"></i> Supported</td>
-              <td class="text-center"><i class="fas fa-check-circle text-success"></i> Supported</td>
-            </tr>
-            <tr>
-              <td><strong>Visual Drag-Drop Report Designer</strong></td>
-              <td class="text-center"><i class="fas fa-check-circle text-success"></i> Included</td>
-              <td class="text-center"><i class="fas fa-check-circle text-success"></i> Included</td>
-            </tr>
-            <tr>
-              <td><strong>Web WhatsApp PDF Dispatch</strong></td>
-              <td class="text-center"><i class="fas fa-check-circle text-success"></i> 1-Click (No API Fees)</td>
-              <td class="text-center"><i class="fas fa-check-circle text-success"></i> 1-Click via Browser</td>
-            </tr>
-            <tr>
-              <td><strong>Software Updates</strong></td>
-              <td class="text-center">Automatic & Continuous</td>
-              <td class="text-center">Free Minor Updates Included</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="comparison-card-wrap shadow-sm">
+        <div class="table-responsive">
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th width="36%">Feature / Capability</th>
+                <th width="32%" class="text-primary text-center col-online"><i class="fas fa-cloud me-1"></i> Online Edition (₹999/yr*)</th>
+                <th width="32%" class="text-dark text-center"><i class="fas fa-hdd text-success me-1"></i> Offline Edition (One-Time)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Active Internet Requirement</strong></td>
+                <td class="text-center col-online"><span class="badge bg-info-subtle text-info border">Required</span></td>
+                <td class="text-center"><span class="badge bg-success-subtle text-success border">100% Offline (No Internet Needed)</span></td>
+              </tr>
+              <tr>
+                <td><strong>Domain & Web Hosting</strong></td>
+                <td class="text-center col-online">by Vensaas</td>
+                <td class="text-center"><strong class="text-success">Not Required (0 cost)</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Payment Structure</strong></td>
+                <td class="text-center col-online">
+                  <strong class="text-primary fs-5">₹999 / Year</strong><br>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle small fw-bold">Just ~₹83/Month (Annual)</span><br>
+                  <small class="text-muted text-decoration-line-through">Regular ₹499/mo (₹5,988/yr)</small>
+                </td>
+                <td class="text-center"><strong class="text-dark">One-Time Payment</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Multi-Counter LAN Operation</strong></td>
+                <td class="text-center col-online">Internet</td>
+                <td class="text-center">Local Network (LAN)</td>
+              </tr>
+              <tr>
+                <td><strong>Patient Data Storage</strong></td>
+                <td class="text-center col-online">Secure Cloud Data Centre (Daily Backups)</td>
+                <td class="text-center">Safe in Your Lab PC</td>
+              </tr>
+              <tr>
+                <td><strong>Barcoding & Tube Stickers</strong></td>
+                <td class="text-center col-online"><i class="fas fa-check-circle text-success"></i> Supported</td>
+                <td class="text-center"><i class="fas fa-check-circle text-success"></i> Supported</td>
+              </tr>
+              <tr>
+                <td><strong>Visual Drag-Drop Report Designer</strong></td>
+                <td class="text-center col-online"><i class="fas fa-check-circle text-success"></i> Included</td>
+                <td class="text-center"><i class="fas fa-check-circle text-success"></i> Included</td>
+              </tr>
+              <tr>
+                <td><strong>Web WhatsApp PDF Dispatch</strong></td>
+                <td class="text-center col-online"><i class="fas fa-check-circle text-success"></i> 1-Click (No API Fees)</td>
+                <td class="text-center"><i class="fas fa-check-circle text-success"></i> 1-Click via Browser</td>
+              </tr>
+              <tr>
+                <td><strong>Software Updates</strong></td>
+                <td class="text-center col-online">Automatic</td>
+                <td class="text-center">Free Minor Updates Included</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </section>
@@ -1620,14 +1672,46 @@
         <p class="section-subtext">Everything you need to know about getting started with VenSaas LabTech.</p>
       </div>
 
-      <div class="row justify-content-center">
+      <div class="row g-4 align-items-start">
+        <!-- Sticky Help Card -->
+        <div class="col-lg-4">
+          <div class="faq-sticky-card">
+            <div class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-bold mb-3">
+              <i class="fas fa-headset me-1"></i> Dedicated Support
+            </div>
+            <h3 class="fw-bold text-dark mb-2" style="font-size: 1.35rem;">Have Questions? We're Here to Help!</h3>
+            <p class="text-muted small mb-4">Can't find the answer you're looking for? Speak directly with our clinical workflow specialists on WhatsApp.</p>
+
+            <div class="p-3 bg-white border rounded-3 mb-3 shadow-xs">
+              <div class="d-flex align-items-center gap-3">
+                <div class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; font-size: 1.25rem;">
+                  <i class="fab fa-whatsapp"></i>
+                </div>
+                <div>
+                  <div class="fw-bold text-dark" style="font-size: 0.92rem;">WhatsApp Hotline</div>
+                  <small class="text-success fw-semibold"><i class="fas fa-circle" style="font-size: 0.5rem; vertical-align: middle;"></i> Instant Response</small>
+                </div>
+              </div>
+            </div>
+
+            <a href="https://wa.me/919876543210?text=Hello%20VenSaas%20LabTech,%20I%20have%20questions%20about%20the%20laboratory%20software." target="_blank" class="btn btn-success w-100 fw-bold py-2 shadow-sm mb-2" style="background: #25d366; border: none; border-radius: 10px;">
+              <i class="fab fa-whatsapp me-2"></i> Chat with Expert
+            </a>
+            <a href="demo/" target="_blank" class="btn btn-outline-primary w-100 fw-bold py-2" style="border-radius: 10px;">
+              <i class="fas fa-play-circle me-1"></i> Try Live Demo First
+            </a>
+          </div>
+        </div>
+
+        <!-- FAQ Cards Accordion -->
         <div class="col-lg-8">
           <div class="accordion" id="faqAccordion">
 
             <!-- Question 1 -->
-            <div class="accordion-item border-0">
+            <div class="accordion-item faq-card">
               <h2 class="accordion-header">
                 <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                  <span class="badge bg-secondary-subtle text-secondary border me-2">Offline Setup</span>
                   1. Do I need to purchase a domain name or web hosting for the Offline Edition?
                 </button>
               </h2>
@@ -1639,23 +1723,25 @@
             </div>
 
             <!-- Question 2 -->
-            <div class="accordion-item border-0">
+            <div class="accordion-item faq-card">
               <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
-                  2. Are there any hidden fees or per-patient charges on the ₹999/year Cloud plan?
+                  <span class="badge bg-primary-subtle text-primary border me-2">Pricing & Plan</span>
+                  2. Are there any hidden fees or per-patient charges on the ₹999/year Online plan?
                 </button>
               </h2>
               <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                 <div class="accordion-body">
-                  <strong>There are zero hidden fees!</strong> The special ₹999/year Cloud SaaS plan (working out to just ~₹83/month, heavily discounted from ₹499/month) includes unlimited patient registrations, unlimited pathology report generation, unlimited barcode printing, automated daily backups, and free updates. We do not meter your bills or charge extra per test.
+                  <strong>There are zero hidden fees!</strong> The special ₹999/year Online plan (working out to just ~₹83/month, heavily discounted from ₹499/month) includes unlimited patient registrations, unlimited pathology report generation, unlimited barcode printing, automated daily backups, and free updates. We do not meter your bills or charge extra per test.
                 </div>
               </div>
             </div>
 
             <!-- Question 3 -->
-            <div class="accordion-item border-0">
+            <div class="accordion-item faq-card">
               <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                  <span class="badge bg-success-subtle text-success border me-2">WhatsApp Engine</span>
                   3. How does the WhatsApp report dispatch work without paid API charges?
                 </button>
               </h2>
@@ -1667,9 +1753,10 @@
             </div>
 
             <!-- Question 4 -->
-            <div class="accordion-item border-0">
+            <div class="accordion-item faq-card">
               <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
+                  <span class="badge bg-info-subtle text-info border me-2">Multi-Counter LAN</span>
                   4. Can multiple staff members use LabTech at the same time?
                 </button>
               </h2>
@@ -1681,9 +1768,10 @@
             </div>
 
             <!-- Question 5 -->
-            <div class="accordion-item border-0">
+            <div class="accordion-item faq-card">
               <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5">
+                  <span class="badge bg-warning-subtle text-warning border me-2">Free Trial</span>
                   5. Can I test the full software before purchasing?
                 </button>
               </h2>
